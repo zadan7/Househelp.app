@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 
 function Home({ navigation }) {
   useEffect(()=>{
-    navigation.navigate("partime")
+    navigation.navigate("selectchores")
   },[])
   return (
     <ScrollView >
