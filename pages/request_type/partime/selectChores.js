@@ -276,7 +276,13 @@ console.log(Buttons)
             <Text style={Buttons.btn7.style}>{Buttons.btn7.chore}</Text>
           </Pressable>
 
-          <Pressable style={styles.Pressable} onPress={() => {console.log("done",totalcost,)}}>
+          <Pressable style={styles.Pressable} onPress={() => 
+          {
+            
+            console.log("done",totalcost,)
+            navigation.navigate("Partdetails")
+
+          }}>
             <Text style={activeButtonStyle}>Done</Text>
           </Pressable>
 
