@@ -1,40 +1,133 @@
-import * as React from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { Pressable, StyleSheet, Text, View,ScrollView } from 'react-native';
-import { Header } from '../component/Header';
-import { Footer } from '../component/Footer';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet, Text, View, ScrollView, Alert, TextInput } from 'react-native';
+import { Header } from "../component/Header"
+import { Footer } from  "../component/Footer"
+import NigerianStateAndLGASelector from '../component/NigerianStateAndLGASelector';
 
 function HSignup({ navigation }) {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState('');
+  const [lga, setLGA] = useState('');
+  const [errors, setErrors] = useState({});
+
+  const validateInputs = () => {
+    const newErrors = {};
+    if (!name.trim()) newErrors.name = 'Name is required.';
+    if (!phone.trim() || !/^\d{10,15}$/.test(phone)) newErrors.phone = 'Phone number must be 10-15 digits.';
+    if (!address.trim()) newErrors.address = 'Address is required.';
+    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Invalid email format.';
+    if (!state.trim()) newErrors.state = 'State is required.';
+    if (!lga.trim()) newErrors.lga = 'LGA is required.';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleDone = () => {
+    if (validateInputs()) {
+      Alert.alert(
+        'Success',
+        `Form submitted successfully!\n\nName: ${name}\nPhone: ${phone}\nAddress: ${address}\nEmail: ${email}\nState: ${state}\nLGA: ${lga}`
+      );
+      console.log(name,state,lga)
+      
+      // Example navigation: navigation.navigate('NextScreen');
+    } else {
+      Alert.alert('Validation Failed', 'Please correct the highlighted fields.');
+      console.log(name,state,lga)
+    }
+  };
+
   return (
-    <ScrollView >
-        <View style={styles.container}>
-      <Header navigation={navigation}/>
-      <Text style={{color:"green",fontSize:30,fontWeight:"bold"}}>Hsignup</Text>
+    <ScrollView>
+      <View style={styles.container}>
+        <Header navigation={navigation} />
+        <Text style={styles.title}>Enter your Personal Information</Text>
+        <View style={styles.formContainer}>
+          {/* Name Input */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Enter your name</Text>
+            <TextInput
+              style={[styles.input, errors.name && styles.errorInput]}
+              value={name}
+              onChangeText={(text) => {
+                setName(text);
+                if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+              }}
+            />
+            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+          </View>
 
+          {/* Phone Input */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Enter your phone number</Text>
+            <TextInput
+              style={[styles.input, errors.phone && styles.errorInput]}
+              value={phone}
+              onChangeText={(text) => {
+                setPhone(text);
+                if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+              }}
+              keyboardType="phone-pad"
+            />
+            {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+          </View>
 
-      {/* <Text style={styles.titleText}>Start Earning With us ($)</Text> */}
+          {/* Address Input */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Enter your address</Text>
+            <TextInput
+              style={[styles.input, errors.address && styles.errorInput]}
+              value={address}
+              onChangeText={(text) => {
+                setAddress(text);
+                if (errors.address) setErrors((prev) => ({ ...prev, address: undefined }));
+              }}
+            />
+            {errors.address && <Text style={styles.errorText}>{errors.address}</Text>}
+          </View>
 
-      <View style={styles.buttonContainer}>
-      <Text style={{color:"green",fontSize:30,fontWeight:"bold"}}>Welcome</Text>
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('HousehelpRegistration')}>
-          <Text style={styles.buttonText}>Register as a Househelp</Text>
-        </Pressable>
-        <Text>or</Text>
+          {/* Email Input */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Enter your email</Text>
+            <TextInput
+              style={[styles.input, errors.email && styles.errorInput]}
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+              }}
+              keyboardType="email-address"
+            />
+            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+          </View>
 
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.buttonText2}>Login</Text>
-        </Pressable>
-        <Text>Click to order househelp</Text>
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('')}>
-          <Text style={styles.buttonText}>Order Househelp Now</Text>
-        </Pressable>
-        
+          {/* State and LGA Selector */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Select your State and LGA</Text>
+            <NigerianStateAndLGASelector
+              onStateChange={(selectedState) => {
+                setState(selectedState);
+                if (errors.state) setErrors((prev) => ({ ...prev, state: undefined }));
+              }}
+              onLGAChange={(selectedLGA) => {
+                setLGA(selectedLGA);
+                if (errors.lga) setErrors((prev) => ({ ...prev, lga: undefined }));
+              }}
+            />
+            {errors.state && <Text style={styles.errorText}>{errors.state}</Text>}
+            {errors.lga && <Text style={styles.errorText}>{errors.lga}</Text>}
+          </View>
+
+          {/* Submit Button */}
+          <Pressable onPress={handleDone} style={styles.doneButton}>
+            <Text style={styles.doneButtonText}>Done</Text>
+          </Pressable>
+        </View>
+        <Footer />
       </View>
-     
-        <Footer></Footer>
-     
-      </View>
-      {/* <Footer></Footer> */}
     </ScrollView>
   );
 }
@@ -44,56 +137,61 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     alignItems: 'center',
-    // paddingTop: 10, // Added padding for better layout on screens
-    fontFamily:"Roboto"
+    // paddingVertical: 20,
+    height: "auto",
   },
-  titleText: {
-    fontSize: 12,
+  title: {
+    color: 'green',
     fontWeight: 'bold',
-    marginVertical: 5, // Added some margin around the title
+    fontSize: 18,
+    marginBottom: 10,
   },
-  buttonContainer: {
+  formContainer: {
     width: '80%',
     alignItems: 'center',
     marginTop: 20,
-    borderWidth: 2,             // Border width for the container
-    borderColor: 'green',       // Border color
-    borderRadius: 10,           // Rounded corners for the container
-    padding: 20,                // Padding inside the container
+    borderWidth: 2,
+    borderColor: 'green',
+    borderRadius: 10,
+    padding: 20,
   },
-  buttonText: {
+  label: {
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 5,
+  },
+  inputContainer:{
+    width:"90%",
+    padding:10
+  },
+  input: {
+    padding: 10,
+    borderColor: 'green',
+    borderWidth: 1,
+    borderRadius: 5,
+    textAlign: 'center',
+    marginBottom: 10,
+    width:"100%"
+  },
+  errorInput: {
+    borderColor: 'red',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  doneButton: {
     backgroundColor: 'green',
-    color: 'white',
+    borderRadius: 5,
     paddingVertical: 10,
-    paddingHorizontal: 20,
-    fontSize: 15,
-    textAlign: 'center',
-    borderRadius: 5, // Added border radius for better button appearance
+    paddingHorizontal: 80,
   },
-  buttonText2: {
-    backgroundColor: 'white',
-    color: 'green',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    fontSize: 15,
-    textAlign: 'center',
-    borderRadius: 5, // Added border radius for better button appearance
-    borderWidth: 1,             // Border width for the container
-    borderColor: 'green',       // Border color
-    borderRadius: 10,  
-  },
-  Pressable: {
-    backgroundColor: 'green',
+  doneButtonText: {
     color: 'white',
-    // paddingVertical: 10,
-    // paddingHorizontal: 20,
-    marginBottom:20,
-    marginTop:20,
-    width:"100%",
-
     fontSize: 15,
     textAlign: 'center',
-    borderRadius: 20, // Added border radius for better button appearance
   },
 });
 

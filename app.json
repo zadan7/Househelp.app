@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Househelp",
-    "slug": "Househelp App",
+    "slug": "HousehelpApp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,12 +19,18 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": ["INTERNET"]
-
-      
+      "permissions": [
+        "INTERNET"
+      ],
+      "package": "com.zextrascompany.HousehelpApp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c70029a4-00df-4498-8268-457bce765bf4"
+      }
     }
   }
 }

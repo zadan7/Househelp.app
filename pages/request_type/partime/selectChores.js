@@ -239,6 +239,7 @@ console.log(Buttons)
 
   return (
     <ScrollView>
+      <ScrollView>
       <View style={styles.container}>
         <Header navigation={navigation} />
 
@@ -291,6 +292,7 @@ console.log(Buttons)
 
         <Footer />
       </View>
+      </ScrollView>
     </ScrollView>
   );
 }
@@ -301,8 +303,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     alignItems: 'center',
-    height: 800,
+    height: "auto",
     fontFamily: 'Roboto',
+    marginBottom:50,
+    paddingBottom:50,
   },
   buttonContainer: {
     width: '80%',
@@ -312,6 +316,8 @@ const styles = StyleSheet.create({
     borderColor: 'green',
     borderRadius: 10,
     padding: 20,
+    marginBottom:100,
+    paddingBottom:"auto",
     // backgroundColor:"green"
   },
   Pressable: {
