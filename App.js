@@ -16,6 +16,7 @@ import { Fulltime } from './pages/request_type/fulltime';
 import { SelectApartment } from './pages/request_type/partime/selectApartment';
 import { SelectChores } from './pages/request_type/partime/selectChores';
 import { PartDetails } from './pages/request_type/partime/PartDetails';
+import { MapPage } from './pages/request_type/partime/mapPage';
 const Stack = createNativeStackNavigator();
 
 const MyStack = () => {
@@ -32,6 +33,8 @@ const MyStack = () => {
         <Stack.Screen name="fulltime" component={Fulltime}  options={{ headerShown: false }}/>
         <Stack.Screen name="selectchores" component={SelectChores}  options={{ headerShown: false }}/>
         <Stack.Screen name="Partdetails" component={PartDetails}  options={{ headerShown: false }}/>
+        <Stack.Screen name="mappage" component={MapPage}  options={{ headerShown: false }}/>
+
 
 
 

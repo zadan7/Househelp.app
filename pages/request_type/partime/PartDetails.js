@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View, ScrollView, Alert, TextInput } from 
 import { Header } from '../../../component/Header';
 import { Footer } from '../../../component/Footer';
 import NigerianStateAndLGASelector from '../../../component/NigerianStateAndLGASelector';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function PartDetails({ navigation }) {
   const [name, setName] = useState('');
@@ -14,7 +15,6 @@ function PartDetails({ navigation }) {
 
   const [errors, setErrors] = useState({});
 
-
   const validateInputs = () => {
     const newErrors = {};
     if (!name.trim()) newErrors.name = 'Name is required.';
@@ -25,14 +25,29 @@ function PartDetails({ navigation }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleDone = () => {
+  const handleDone = async () => {
     if (validateInputs()) {
-      Alert.alert(
-        'Success',
-        `Form submitted successfully!\n\nName: ${name}\nPhone: ${phone}\nAddress: ${address}\nEmail: ${email}`
-      );
-      console.log(name,phone,address,email,state,LGA)
-      // Example navigation: navigation.navigate('NextScreen');
+      try {
+        // Storing the data in AsyncStorage
+        await AsyncStorage.setItem('name', `${name}`);
+        await AsyncStorage.setItem('phone', phone);
+        await AsyncStorage.setItem('address', address);
+        await AsyncStorage.setItem('email', email);
+        await AsyncStorage.setItem('state', state);
+        await AsyncStorage.setItem('lga', LGA);
+
+        Alert.alert(
+          'Success',
+          `Form submitted successfully!\n\nName: ${name}\nPhone: ${phone}\nAddress: ${address}\nEmail: ${email}`,
+        );
+
+        console.log('Data saved:', { name, phone, address, email, state, LGA });
+        // Navigate to the next screen after saving the data
+        navigation.navigate('mappage');
+      } catch (error) {
+        console.error('Error saving data:', error);
+        Alert.alert('Error', 'An error occurred while saving the data. Please try again.');
+      }
     } else {
       Alert.alert('Validation Failed', 'Please correct the highlighted fields.');
     }
@@ -72,15 +87,12 @@ function PartDetails({ navigation }) {
           </View>
 
           <View>
-            {/* <NigerianStateAndLGASelector state={state}  lga={LGA}></NigerianStateAndLGASelector>
-             */}
-             <NigerianStateAndLGASelector
-  state={state}
-  lga={LGA}
-  onStateChange={setState}
-  onLGAChange={setLga}
-/>
-
+            <NigerianStateAndLGASelector
+              state={state}
+              lga={LGA}
+              onStateChange={setState}
+              onLGAChange={setLga}
+            />
           </View>
 
           <View style={styles.inputContainer}>
@@ -125,8 +137,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     alignItems: 'center',
-    // paddingVertical: 20,
-    height: "auto",
+    height: 'auto',
   },
   title: {
     color: 'green',
@@ -148,9 +159,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 5,
   },
-  inputContainer:{
-    width:"90%",
-    padding:10
+  inputContainer: {
+    width: '90%',
+    padding: 10,
   },
   input: {
     padding: 10,
@@ -159,7 +170,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     textAlign: 'center',
     marginBottom: 10,
-    width:"100%"
+    width: '100%',
   },
   errorInput: {
     borderColor: 'red',
