@@ -332,7 +332,13 @@ const styles = StyleSheet.create({
   btntext:{
     color:"white",
 
-  }
+  },
+  Pressable: {
+    marginBottom: 20,
+    marginTop: 20,
+    width: '100%',
+    borderRadius: 20,
+  },
 });
 
 

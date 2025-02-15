@@ -1,6 +1,8 @@
+
+
 import React, { useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import RNPickerSelect from "react-native-picker-select";
+import { Picker } from '@react-native-picker/picker';
 
 const NigerianStateAndLGASelector = ({ state, lga, onStateChange, onLGAChange }) => {
   const statesWithLGAs = {
@@ -47,53 +49,49 @@ const NigerianStateAndLGASelector = ({ state, lga, onStateChange, onLGAChange })
   const [selectedState, setSelectedState] = useState("");
   const [selectedLGA, setSelectedLGA] = useState("");
 
-  const stateOptions = Object.keys(statesWithLGAs).map((state) => ({
-    label: state,
-    value: state,
-  }));
+  const stateOptions = Object.keys(statesWithLGAs).map((state) => (
+    <Picker.Item label={state} value={state} key={state} />
+  ));
 
   const lgaOptions = selectedState
-    ? statesWithLGAs[selectedState].map((lga) => ({
-        label: lga,
-        value: lga,
-      }))
+    ? statesWithLGAs[selectedState].map((lga) => (
+        <Picker.Item label={lga} value={lga} key={lga} />
+      ))
     : [];
 
   return (
     <View style={styles.container}>
       {/* State Selector */}
       <Text style={styles.label}>Select a State:</Text>
-      <RNPickerSelect
+      <Picker
+        selectedValue={selectedState}
         onValueChange={(value) => {
-          setSelectedState(value)
-          onStateChange(value)
-          // setLga(""); // Reset LGA when state changes
-          setSelectedLGA("")
-          onLGAChange("")
-
+          setSelectedState(value);
+          onStateChange(value);
+          setSelectedLGA(""); // Reset LGA when state changes
+          onLGAChange(""); // Reset LGA in parent component
         }}
-        items={stateOptions}
-        placeholder={{ label: "Choose a State", value: " " }}
         style={pickerSelectStyles}
-        value={selectedState}
-      />
+      >
+        <Picker.Item label="Choose a State" value="" />
+        {stateOptions}
+      </Picker>
 
       {/* LGA Selector */}
       {selectedState ? (
         <>
           <Text style={styles.label}>Select an LGA:</Text>
-          <RNPickerSelect
+          <Picker
+            selectedValue={selectedLGA}
             onValueChange={(value) => {
-              setSelectedLGA(value)
-              onLGAChange(value)
-              // setLga(value)
-            }
-              }
-            items={lgaOptions}
-            placeholder={{ label: "Choose an LGA", value: " " }}
+              setSelectedLGA(value);
+              onLGAChange(value);
+            }}
             style={pickerSelectStyles}
-            value={selectedLGA}
-          />
+          >
+            <Picker.Item label="Choose an LGA" value="" />
+            {lgaOptions}
+          </Picker>
         </>
       ) : null}
 
@@ -125,9 +123,9 @@ const styles = StyleSheet.create({
   },
   result: {
     marginTop: 20,
-    padding: 10,
     backgroundColor: "#e9ecef",
     borderRadius: 5,
+    padding: 10,
   },
   resultText: {
     fontSize: 16,
@@ -152,7 +150,6 @@ const pickerSelectStyles = {
   },
   inputAndroid: {
     fontSize: 16,
-    paddingVertical: 8,
     paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: "#ccc",

@@ -3,33 +3,28 @@ import { StatusBar } from 'expo-status-bar';
 import { Pressable, StyleSheet, Text, View,ScrollView } from 'react-native';
 import { Header } from '../component/Header';
 import { Footer } from '../component/Footer';
-import { useState } from 'react';
-import { useEffect } from 'react';
 
-function Home({ navigation }) {
-  useEffect(()=>{
-    navigation.navigate("mappage")
-  },[])
+function Signup({ navigation }) {
   return (
     <ScrollView >
         <View style={styles.container}>
-      <Header navigation={navigation} />
+      <Header navigation={navigation}/>
+      {/* <Text style={{color:"green",fontSize:30,fontWeight:"bold"}}>Login</Text> */}
 
-      <Text style={styles.titleText}>Start Earning With us ($)</Text>
+
+      {/* <Text style={styles.titleText}>Start Earning With us ($)</Text> */}
 
       <View style={styles.buttonContainer}>
-      <Text style={{color:"green",fontSize:30,fontWeight:"bold"}}>Welcome!</Text>
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('Signup')}>
-          <Text style={styles.buttonText}>Registration process</Text>
+      {/* <Text style={{color:"green",fontSize:30,fontWeight:"bold"}}>Welcome</Text> */}
+        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('HSignup')}>
+          <Text style={styles.buttonText}>Sign up as a Househelp</Text>
         </Pressable>
         <Text>or</Text>
 
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.buttonText2}>Login</Text>
-        </Pressable>
-        <Text>Click to order househelp</Text>
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('Request')}>
-          <Text style={styles.buttonText}>Order Househelp Now</Text>
+        
+        {/* <Text>Click to order househelp</Text> */}
+        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('')}>
+          <Text style={styles.buttonText}>Sign up as a Client </Text>
         </Pressable>
         
       </View>
@@ -97,7 +92,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: 'center',
     borderRadius: 20, // Added border radius for better button appearance
-  },
+  }, 
 });
 
-export { Home };
+export { Signup };

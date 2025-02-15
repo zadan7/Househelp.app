@@ -1,63 +1,138 @@
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View, ScrollView, Alert, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Pressable, StyleSheet, Text, View, ScrollView, Alert, TextInput, Image } from 'react-native';
 import { Header } from "../component/Header"
 import { Footer } from  "../component/Footer"
 import NigerianStateAndLGASelector from '../component/NigerianStateAndLGASelector';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// import { launchImageLibrary } from 'expo-image-picker';
+import * as Permissions from 'expo-permissions';
+
 
 function HSignup({ navigation }) {
-  const [name, setName] = useState('');
+  const [firstname, setFirstName] = useState('');
+  const [lastname, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [email, setEmail] = useState('');
   const [state, setState] = useState('');
   const [lga, setLGA] = useState('');
+  const [facePicture, setFacePicture] = useState(null); // To store selected image
   const [errors, setErrors] = useState({});
+  const [location ,setLocation]=useState(null)
+  const [loading, setLoading] = useState(true); // Loading state for location
+  
+
+  // Request permission for camera and media library access
+  useEffect(() => {
+    const requestPermissions = async () => {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Camera and photo library access is needed for this feature.');
+      }
+    };
+    requestPermissions();
+
+    (async () => {
+          let { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            setErrorMsg('Permission to access location was denied');
+            setLoading(false);
+            return;
+          }
+    
+          const currentLocation = await Location.getCurrentPositionAsync({});
+          setLocation(currentLocation.coords);
+          setLoading(false); // Stop loading once location is available
+          console.log(currentLocation.coords)
+          
+        })();
+
+        console.log(location)
+  }, []);
 
   const validateInputs = () => {
     const newErrors = {};
-    if (!name.trim()) newErrors.name = 'Name is required.';
+    if (!firstname.trim()) newErrors.firstname = 'First name is required.';
+    if (!lastname.trim()) newErrors.lastname = 'Last name is required.';
     if (!phone.trim() || !/^\d{10,15}$/.test(phone)) newErrors.phone = 'Phone number must be 10-15 digits.';
     if (!address.trim()) newErrors.address = 'Address is required.';
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Invalid email format.';
     if (!state.trim()) newErrors.state = 'State is required.';
     if (!lga.trim()) newErrors.lga = 'LGA is required.';
+    if (!facePicture) newErrors.facePicture = 'Face picture is required.';
+    if (location ===null) newErrors.location = 'location is required';
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleDone = () => {
+    console.log(location)
     if (validateInputs()) {
       Alert.alert(
         'Success',
-        `Form submitted successfully!\n\nName: ${name}\nPhone: ${phone}\nAddress: ${address}\nEmail: ${email}\nState: ${state}\nLGA: ${lga}`
-      );
-      console.log(name,state,lga)
-      
-      // Example navigation: navigation.navigate('NextScreen');
+        `Form submitted successfully!\n\nName: ${firstname} ${lastname}\nPhone: ${phone}\nAddress: ${address}\nEmail: ${email}\nState: ${state}\nLGA: ${lga} \nLatitude: ${location.latitude}  \nlongitude: ${location.longitude}`
+      );  
+    
+      console.log(firstname, lastname, state, lga);
     } else {
       Alert.alert('Validation Failed', 'Please correct the highlighted fields.');
-      console.log(name,state,lga)
+      console.log(firstname, lastname, state, lga);
     }
   };
 
+  const selectFacePicture = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,  // Updated approach
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.7,
+    });
+  
+    if (!result.cancelled) {
+      console.log(result.assets[0].uri)
+      setFacePicture(result.assets[0].uri); // Sets the selected image URI to state
+    }
+  };
+  
   return (
     <ScrollView>
       <View style={styles.container}>
         <Header navigation={navigation} />
         <Text style={styles.title}>Enter your Personal Information</Text>
+
         <View style={styles.formContainer}>
+        {/* <Text style={styles.title}>{location.lat}, {location.long}</Text> */}
+
           {/* Name Input */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Enter your name</Text>
+            <Text style={styles.label}>Firstname</Text>
             <TextInput
-              style={[styles.input, errors.name && styles.errorInput]}
-              value={name}
+              style={[styles.input, errors.firstname && styles.errorInput]}
+              value={firstname}
               onChangeText={(text) => {
-                setName(text);
-                if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+                setFirstName(text);
+                if (errors.firstname) setErrors((prev) => ({ ...prev, firstname: undefined }));
               }}
             />
-            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+            {errors.firstname && <Text style={styles.errorText}>{errors.firstname}</Text>}
+          </View>
+
+          {/* Lastname Input */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Lastname</Text>
+            <TextInput
+              style={[styles.input, errors.lastname && styles.errorInput]}
+              value={lastname}
+              onChangeText={(text) => {
+                setLastName(text);
+                if (errors.lastname) setErrors((prev) => ({ ...prev, lastname: undefined }));
+              }}
+            />
+            {errors.lastname && <Text style={styles.errorText}>{errors.lastname}</Text>}
           </View>
 
           {/* Phone Input */}
@@ -121,6 +196,18 @@ function HSignup({ navigation }) {
             {errors.lga && <Text style={styles.errorText}>{errors.lga}</Text>}
           </View>
 
+          {/* Face Picture Input */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Upload Face Picture</Text>
+            <Pressable onPress={selectFacePicture} style={styles.uploadButton}>
+              <Text style={styles.uploadButtonText}>Select Picture</Text>
+            </Pressable>
+            {facePicture && (
+              <Image source={{ uri: facePicture }} style={styles.imagePreview} />
+            )}
+            {errors.facePicture && <Text style={styles.errorText}>{errors.facePicture}</Text>}
+          </View>
+
           {/* Submit Button */}
           <Pressable onPress={handleDone} style={styles.doneButton}>
             <Text style={styles.doneButtonText}>Done</Text>
@@ -137,8 +224,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     alignItems: 'center',
-    // paddingVertical: 20,
-    height: "auto",
+    height: 'auto',
   },
   title: {
     color: 'green',
@@ -160,9 +246,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 5,
   },
-  inputContainer:{
-    width:"90%",
-    padding:10
+  inputContainer: {
+    width: "90%",
+    padding: 10,
   },
   input: {
     padding: 10,
@@ -171,7 +257,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     textAlign: 'center',
     marginBottom: 10,
-    width:"100%"
+    width: "100%",
   },
   errorInput: {
     borderColor: 'red',
@@ -190,9 +276,25 @@ const styles = StyleSheet.create({
   },
   doneButtonText: {
     color: 'white',
-    fontSize: 15,
-    textAlign: 'center',
+    fontSize: 16,
   },
+  uploadButton: {
+    backgroundColor: 'lightgray',
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  uploadButtonText: {
+    color: 'black',
+    fontSize: 16,
+  },
+  imagePreview: {
+    width: 100,
+    height: 100,
+    marginTop: 10,
+    borderRadius: 10,
+  }
 });
 
-export { HSignup };
+export {HSignup} ;

@@ -86,13 +86,13 @@ function PartDetails({ navigation }) {
             {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
           </View>
 
-          <View>
+          <View style={styles.inputContainer}>
             <NigerianStateAndLGASelector
               state={state}
               lga={LGA}
               onStateChange={setState}
               onLGAChange={setLga}
-            />
+            ></NigerianStateAndLGASelector>
           </View>
 
           <View style={styles.inputContainer}>
