@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View, ScrollView, Alert, TextInput, Image } from 'react-native';
-import { Header } from "../component/Header"
-import { Footer } from  "../component/Footer"
+import { Header } from "../component/Header";
+import { Footer } from "../component/Footer";
 import NigerianStateAndLGASelector from '../component/NigerianStateAndLGASelector';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// import { launchImageLibrary } from 'expo-image-picker';
-import * as Permissions from 'expo-permissions';
-
+import { Picker } from '@react-native-picker/picker';
+import emailjs from "emailjs-com"
 
 function HSignup({ navigation }) {
   const [firstname, setFirstName] = useState('');
@@ -19,85 +16,78 @@ function HSignup({ navigation }) {
   const [email, setEmail] = useState('');
   const [state, setState] = useState('');
   const [lga, setLGA] = useState('');
-  const [facePicture, setFacePicture] = useState(null); // To store selected image
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [gender, setGender] = useState('');
+  const [employmentType, setEmploymentType] = useState('');
+  const [experience, setExperience] = useState('');
+  const [selectedJobs, setSelectedJobs] = useState([]);
+  const [facePicture, setFacePicture] = useState(null);
+  // const [idPicture, setIDPicture] = useState(null);
+  const [location, setLocation] = useState(null);
   const [errors, setErrors] = useState({});
-  const [location ,setLocation]=useState(null)
-  const [loading, setLoading] = useState(true); // Loading state for location
-  
 
-  // Request permission for camera and media library access
+  const jobOptions = ["Nanny", "Cook", "Cleaner", "Driver", "Gardener", "Housekeeper"];
+
   useEffect(() => {
-    const requestPermissions = async () => {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission required', 'Camera and photo library access is needed for this feature.');
-      }
-    };
-    requestPermissions();
-
     (async () => {
-          let { status } = await Location.requestForegroundPermissionsAsync();
-          if (status !== 'granted') {
-            setErrorMsg('Permission to access location was denied');
-            setLoading(false);
-            return;
-          }
-    
-          const currentLocation = await Location.getCurrentPositionAsync({});
-          setLocation(currentLocation.coords);
-          setLoading(false); // Stop loading once location is available
-          console.log(currentLocation.coords)
-          
-        })();
-
-        console.log(location)
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const currentLocation = await Location.getCurrentPositionAsync({});
+        setLocation(currentLocation.coords);
+      }
+    })();
   }, []);
 
   const validateInputs = () => {
     const newErrors = {};
     if (!firstname.trim()) newErrors.firstname = 'First name is required.';
     if (!lastname.trim()) newErrors.lastname = 'Last name is required.';
-    if (!phone.trim() || !/^\d{10,15}$/.test(phone)) newErrors.phone = 'Phone number must be 10-15 digits.';
-    if (!address.trim()) newErrors.address = 'Address is required.';
-    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Invalid email format.';
-    if (!state.trim()) newErrors.state = 'State is required.';
-    if (!lga.trim()) newErrors.lga = 'LGA is required.';
+    if (!phone.trim()) newErrors.phone = 'Phone number is required.';
+    if (!dateOfBirth.trim()) newErrors.dateOfBirth = 'Date of birth is required.';
+    if (!gender) newErrors.gender = 'Gender is required.';
+    if (!employmentType) newErrors.employmentType = 'Employment type is required.';
+    if (!experience.trim()) newErrors.experience = 'Experience is required.';
+    if (!selectedJobs.length) newErrors.selectedJobs = 'Select at least one job type.';
     if (!facePicture) newErrors.facePicture = 'Face picture is required.';
-    if (location ===null) newErrors.location = 'location is required';
+    // if (!idPicture) newErrors.idPicture = 'ID picture is required.';
+    if (!location) newErrors.location = 'Location is required.';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleDone = () => {
-    console.log(location)
-    if (validateInputs()) {
-      Alert.alert(
-        'Success',
-        `Form submitted successfully!\n\nName: ${firstname} ${lastname}\nPhone: ${phone}\nAddress: ${address}\nEmail: ${email}\nState: ${state}\nLGA: ${lga} \nLatitude: ${location.latitude}  \nlongitude: ${location.longitude}`
-      );  
-    
-      console.log(firstname, lastname, state, lga);
-    } else {
-      Alert.alert('Validation Failed', 'Please correct the highlighted fields.');
-      console.log(firstname, lastname, state, lga);
-    }
-  };
-
-  const selectFacePicture = async () => {
+  const selectPicture = async (setter) => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,  // Updated approach
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.7,
     });
-  
-    if (!result.cancelled) {
-      console.log(result.assets[0].uri)
-      setFacePicture(result.assets[0].uri); // Sets the selected image URI to state
-    }
+    if (!result.canceled) setter(result.assets[0].uri);
+  };
+  const generateVerificationCode = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
   };
   
+
+  const handleDone = () => {
+    if (validateInputs()) {
+   var verificationCode=   generateVerificationCode()
+      Alert.alert('Success', 'Form submitted successfully!');
+      console.log(firstname,lastname,email,phone,email,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode)
+      emailjs.send("service_y6igit7","template_a7bqysj",{
+        name: firstname+ lastname,
+        code: verificationCode,
+        message: "welcome Onboard",
+        from_name: "Househelp.ng",
+        email:email,
+        },"tqnSNSHM6dMmakDbI");
+    } else {
+      Alert.alert('Validation Failed', 'Please correct the highlighted fields.');
+    }
+  };
+
   return (
     <ScrollView>
       <View style={styles.container}>
@@ -105,119 +95,55 @@ function HSignup({ navigation }) {
         <Text style={styles.title}>Enter your Personal Information</Text>
 
         <View style={styles.formContainer}>
-        {/* <Text style={styles.title}>{location.lat}, {location.long}</Text> */}
+          <TextInput style={styles.input} placeholder="First Name" value={firstname} onChangeText={setFirstName} />
+          <TextInput style={styles.input} placeholder="Last Name" value={lastname} onChangeText={setLastName} />
+          <TextInput style={styles.input} placeholder="Phone Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+          <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail}/>
+          <TextInput style={styles.input} placeholder="Address" value={address} onChangeText={setAddress}/>
 
-          {/* Name Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Firstname</Text>
-            <TextInput
-              style={[styles.input, errors.firstname && styles.errorInput]}
-              value={firstname}
-              onChangeText={(text) => {
-                setFirstName(text);
-                if (errors.firstname) setErrors((prev) => ({ ...prev, firstname: undefined }));
-              }}
-            />
-            {errors.firstname && <Text style={styles.errorText}>{errors.firstname}</Text>}
+
+          <TextInput style={styles.input} placeholder="Date of Birth" value={dateOfBirth} onChangeText={setDateOfBirth} />
+          <Picker selectedValue={gender} onValueChange={setGender} style={styles2.input}>
+            <Picker.Item label="Select Gender" value="" />
+            <Picker.Item label="Male" value="Male" />
+            <Picker.Item label="Female" value="Female" />
+          </Picker>
+          <Picker selectedValue={employmentType} onValueChange={setEmploymentType} style={styles2.input}>
+            <Picker.Item label="Select Employment Type" value="" />
+            <Picker.Item label="Full-Time" value="Full-Time" />
+            <Picker.Item label="Part-Time" value="Part-Time" />
+            <Picker.Item label="Live-In" value="Live-In" />
+          </Picker>
+          <TextInput style={styles2.input} placeholder="Years of Experience" value={experience} onChangeText={setExperience} keyboardType="numeric" />
+          <NigerianStateAndLGASelector onStateChange={setState} onLGAChange={setLGA} />
+          <View >
+            <Text style={styles2.title}>select the list of jobs that suits your preference</Text>
+            {jobOptions.map((job) => (
+              <Pressable key={job} onPress={() => {
+                setSelectedJobs(selectedJobs.includes(job) ? selectedJobs.filter(j => j !== job) : [...selectedJobs, job]);
+              }}>
+                <Text style={[styles2.jobOption, selectedJobs.includes(job) && styles2.selectedJob]}>{job}</Text>
+              </Pressable>
+            ))}
           </View>
+          <Pressable style={styles2.picturebtn} onPress={() => selectPicture(setFacePicture)}><Text style={styles.doneButtonText}>Select Face Picture</Text></Pressable>
+          <View style={{margin:10}}>
+          <Image source={{ uri: facePicture }} style={styles.imagePreview} />
 
-          {/* Lastname Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Lastname</Text>
-            <TextInput
-              style={[styles.input, errors.lastname && styles.errorInput]}
-              value={lastname}
-              onChangeText={(text) => {
-                setLastName(text);
-                if (errors.lastname) setErrors((prev) => ({ ...prev, lastname: undefined }));
-              }}
-            />
-            {errors.lastname && <Text style={styles.errorText}>{errors.lastname}</Text>}
           </View>
+         
 
-          {/* Phone Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Enter your phone number</Text>
-            <TextInput
-              style={[styles.input, errors.phone && styles.errorInput]}
-              value={phone}
-              onChangeText={(text) => {
-                setPhone(text);
-                if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
-              }}
-              keyboardType="phone-pad"
-            />
-            {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
-          </View>
-
-          {/* Address Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Enter your address</Text>
-            <TextInput
-              style={[styles.input, errors.address && styles.errorInput]}
-              value={address}
-              onChangeText={(text) => {
-                setAddress(text);
-                if (errors.address) setErrors((prev) => ({ ...prev, address: undefined }));
-              }}
-            />
-            {errors.address && <Text style={styles.errorText}>{errors.address}</Text>}
-          </View>
-
-          {/* Email Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Enter your email</Text>
-            <TextInput
-              style={[styles.input, errors.email && styles.errorInput]}
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
-              }}
-              keyboardType="email-address"
-            />
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-          </View>
-
-          {/* State and LGA Selector */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Select your State and LGA</Text>
-            <NigerianStateAndLGASelector
-              onStateChange={(selectedState) => {
-                setState(selectedState);
-                if (errors.state) setErrors((prev) => ({ ...prev, state: undefined }));
-              }}
-              onLGAChange={(selectedLGA) => {
-                setLGA(selectedLGA);
-                if (errors.lga) setErrors((prev) => ({ ...prev, lga: undefined }));
-              }}
-            />
-            {errors.state && <Text style={styles.errorText}>{errors.state}</Text>}
-            {errors.lga && <Text style={styles.errorText}>{errors.lga}</Text>}
-          </View>
-
-          {/* Face Picture Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Upload Face Picture</Text>
-            <Pressable onPress={selectFacePicture} style={styles.uploadButton}>
-              <Text style={styles.uploadButtonText}>Select Picture</Text>
-            </Pressable>
-            {facePicture && (
-              <Image source={{ uri: facePicture }} style={styles.imagePreview} />
-            )}
-            {errors.facePicture && <Text style={styles.errorText}>{errors.facePicture}</Text>}
-          </View>
-
-          {/* Submit Button */}
-          <Pressable onPress={handleDone} style={styles.doneButton}>
-            <Text style={styles.doneButtonText}>Done</Text>
-          </Pressable>
+          {/* <Pressable style={styles.doneButton} onPress={() => selectPicture(setIDPicture)}><Text style={styles.doneButtonText}>Select ID Picture</Text></Pressable> */}
+          <Pressable onPress={handleDone} style={styles.doneButton}><Text style={styles.doneButtonText}>Done</Text></Pressable>
         </View>
+
         <Footer />
       </View>
     </ScrollView>
   );
 }
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -290,11 +216,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   imagePreview: {
-    width: 100,
-    height: 100,
+    width: 150,
+    height: 150,
     marginTop: 10,
     borderRadius: 10,
   }
+});
+
+const styles2 = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff', alignItems: 'center' },
+  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  input: { borderWidth: 1, borderColor: 'green', padding: 10, marginVertical: 5, width: '90%' },
+  doneButton: { backgroundColor: 'green', padding: 10, marginTop: 20 },
+  picturebtn: { backgroundColor: '#777', padding: 10, marginTop: 20 },
+
+  doneButtonText: { color: 'white', textAlign: 'center' },
+  jobOption: { padding: 10, borderWidth: 1, marginVertical: 2 },
+  selectedJob: { backgroundColor: 'green', color: 'white' },
 });
 
 export {HSignup} ;
