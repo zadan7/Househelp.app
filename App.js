@@ -7,7 +7,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 // import { Home,About,Profile } from './pages/test';
 // import { Signup } from './pages/Home';
-import { HSignup } from './pages/HSignup';
+import { codeValidation, HSignup } from './pages/HSignup';
 import { Login } from './pages/Login';
 import { Request } from './pages/Request';
 import { Home } from './pages/Home';
@@ -18,6 +18,7 @@ import { SelectChores } from './pages/request_type/partime/selectChores';
 import { PartDetails } from './pages/request_type/partime/PartDetails';
 import { MapPage } from './pages/request_type/partime/mapPage';
 import { Signup } from './pages/Signup';
+import { Guarantor } from './Guarantor/Guarantor';
 const Stack = createNativeStackNavigator();
 
 const MyStack = () => {
@@ -36,6 +37,10 @@ const MyStack = () => {
         <Stack.Screen name="Partdetails" component={PartDetails}  options={{ headerShown: false }}/>
         <Stack.Screen name="mappage" component={MapPage}  options={{ headerShown: false }}/>
         <Stack.Screen name="Signup" component={Signup}  options={{ headerShown: false }}/>
+        <Stack.Screen name="Guarantor" component={Guarantor}  options={{ headerShown: false }}/>
+        <Stack.Screen name="codevalidaTION" component={codeValidation}  options={{ headerShown: false }}/>
+
+
 
 
 

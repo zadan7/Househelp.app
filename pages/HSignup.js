@@ -6,7 +6,8 @@ import NigerianStateAndLGASelector from '../component/NigerianStateAndLGASelecto
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Picker } from '@react-native-picker/picker';
-import emailjs from "emailjs-com"
+import emailjs from "emailjs-com";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function HSignup({ navigation }) {
   const [firstname, setFirstName] = useState('');
@@ -44,6 +45,8 @@ function HSignup({ navigation }) {
     if (!firstname.trim()) newErrors.firstname = 'First name is required.';
     if (!lastname.trim()) newErrors.lastname = 'Last name is required.';
     if (!phone.trim()) newErrors.phone = 'Phone number is required.';
+    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Invalid email format.';
+
     if (!dateOfBirth.trim()) newErrors.dateOfBirth = 'Date of birth is required.';
     if (!gender) newErrors.gender = 'Gender is required.';
     if (!employmentType) newErrors.employmentType = 'Employment type is required.';
@@ -75,14 +78,31 @@ function HSignup({ navigation }) {
     if (validateInputs()) {
    var verificationCode=   generateVerificationCode()
       Alert.alert('Success', 'Form submitted successfully!');
+
+
+
+      async ()=>{
+        await 
+        AsyncStorage.setItem("hname", firstname+"  "+ lastname )
+        AsyncStorage.setItem("hemail", email)
+        AsyncStorage.setItem("haddress", address)
+        AsyncStorage.setItem("hphonenumber", phone)
+        AsyncStorage.setItem("state", state)
+        AsyncStorage.setItem("lga", lga)
+        AsyncStorage.setItem("gender",gender )
+        AsyncStorage.setItem("DOB", dateOfBirth)
+        AsyncStorage.setItem("emplaymenttype",employmentType)
+        AsyncStorage.setItem("experience",experience )
+
+      }
       console.log(firstname,lastname,email,phone,email,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode)
-      emailjs.send("service_y6igit7","template_a7bqysj",{
-        name: firstname+ lastname,
-        code: verificationCode,
-        message: "welcome Onboard",
-        from_name: "Househelp.ng",
-        email:email,
-        },"tqnSNSHM6dMmakDbI");
+      // emailjs.send("service_y6igit7","template_a7bqysj",{
+      //   name: firstname+ lastname,
+      //   code: verificationCode,
+      //   message: "welcome Onboard",
+      //   from_name: "Househelp.ng",
+      //   email:email,
+      //   },"tqnSNSHM6dMmakDbI");
     } else {
       Alert.alert('Validation Failed', 'Please correct the highlighted fields.');
     }
@@ -141,6 +161,14 @@ function HSignup({ navigation }) {
       </View>
     </ScrollView>
   );
+}
+
+function codeValidation ({navigation}){
+  return(
+    <ScrollView>
+      <Header></Header>
+    </ScrollView>
+  )
 }
 
 

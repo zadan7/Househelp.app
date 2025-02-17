@@ -115,6 +115,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: "#f8f9fa",
+    width:"100%"
   },
   label: {
     fontSize: 16,
@@ -147,6 +148,7 @@ const pickerSelectStyles = {
     color: "black",
     backgroundColor: "#fff",
     marginBottom: 10,
+    width:"100%"
   },
   inputAndroid: {
     fontSize: 16,
@@ -157,6 +159,7 @@ const pickerSelectStyles = {
     color: "black",
     backgroundColor: "#fff",
     marginBottom: 10,
+    width:"100%"
   },
 };
 
