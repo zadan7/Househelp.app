@@ -7,7 +7,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 // import { Home,About,Profile } from './pages/test';
 // import { Signup } from './pages/Home';
-import { codeValidation, HSignup } from './pages/HSignup';
+import { CodeValidation, HSignup } from './pages/HSignup';
 import { Login } from './pages/Login';
 import { Request } from './pages/Request';
 import { Home } from './pages/Home';
@@ -38,7 +38,7 @@ const MyStack = () => {
         <Stack.Screen name="mappage" component={MapPage}  options={{ headerShown: false }}/>
         <Stack.Screen name="Signup" component={Signup}  options={{ headerShown: false }}/>
         <Stack.Screen name="Guarantor" component={Guarantor}  options={{ headerShown: false }}/>
-        <Stack.Screen name="codevalidaTION" component={codeValidation}  options={{ headerShown: false }}/>
+        <Stack.Screen name="codevalidation" component={CodeValidation}  options={{ headerShown: false }}/>
 
 
 

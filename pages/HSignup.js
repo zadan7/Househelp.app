@@ -74,27 +74,39 @@ function HSignup({ navigation }) {
   };
   
 
-  const handleDone = () => {
+  const handleDone =  async() => {
     if (validateInputs()) {
    var verificationCode=   generateVerificationCode()
       Alert.alert('Success', 'Form submitted successfully!');
 
 
 
-      async ()=>{
-        await 
-        AsyncStorage.setItem("hname", firstname+"  "+ lastname )
-        AsyncStorage.setItem("hemail", email)
-        AsyncStorage.setItem("haddress", address)
-        AsyncStorage.setItem("hphonenumber", phone)
-        AsyncStorage.setItem("state", state)
-        AsyncStorage.setItem("lga", lga)
-        AsyncStorage.setItem("gender",gender )
-        AsyncStorage.setItem("DOB", dateOfBirth)
-        AsyncStorage.setItem("emplaymenttype",employmentType)
-        AsyncStorage.setItem("experience",experience )
+      try{
+        await Promise.all([ AsyncStorage.setItem("hname", firstname+"  "+ lastname ),
+          AsyncStorage.setItem("hemail", email),
+          AsyncStorage.setItem("haddress", address),
+          AsyncStorage.setItem("hphonenumber", phone),
+          AsyncStorage.setItem("state", state),
+          AsyncStorage.setItem("lga", lga),
+          AsyncStorage.setItem("gender",gender ),
+          AsyncStorage.setItem("DOB", dateOfBirth),
+          AsyncStorage.setItem("emplaymenttype",employmentType),
+          AsyncStorage.setItem("experience",experience ),
+          AsyncStorage.setItem("code",verificationCode ),
+         
+  
 
+        ])
+      
+       
+        navigation.navigate("codevalidation") 
+
+      }catch(error){
+        console.log(error)
       }
+        
+      
+      navigation.navigate("codevalidation")
       console.log(firstname,lastname,email,phone,email,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode)
       // emailjs.send("service_y6igit7","template_a7bqysj",{
       //   name: firstname+ lastname,
@@ -163,13 +175,60 @@ function HSignup({ navigation }) {
   );
 }
 
-function codeValidation ({navigation}){
-  return(
+
+function CodeValidation({ navigation }) {
+  const [code, setCode] = useState("");
+  const [code2, setCode2] = useState("");
+
+  useEffect(() => {
+    const fetchCode = async () => {
+      try {
+        const storedCode = await AsyncStorage.getItem("code");
+        if (storedCode) {
+          setCode(storedCode); // Ensure code is set properly
+        }
+      } catch (error) {
+        console.error("Error fetching code:", error);
+      }
+    };
+
+    fetchCode();
+  }, []);
+
+  const handleDone = () => {
+    console.log("Entered Code:", code2);
+    console.log("Stored Code:", code);
+
+    if (code2 === code) {
+      Alert.alert("Success", "Code verified successfully!");
+      navigation.navigate("NextScreen"); // Change this to your actual next screen
+    } else {
+      Alert.alert("Error", "Invalid verification code. Please try again.");
+    }
+  };
+
+  return (
     <ScrollView>
-      <Header></Header>
+      <Header />
+      <ScrollView>
+        <View style={styles.container}>
+          <View style={styles.formContainer}>
+            <Text style={styles.title}>Enter the verification code sent to your email</Text>
+            <TextInput
+              onChangeText={(text) => setCode2(text)}
+              style={styles.input}
+              keyboardType="numeric"
+            />
+            <Pressable onPress={handleDone} style={styles.doneButton}>
+              <Text style={styles.doneButtonText}>Confirm</Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
     </ScrollView>
-  )
+  );
 }
+
 
 
 
@@ -178,7 +237,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     alignItems: 'center',
-    height: 'auto',
+    height: '100%',
   },
   title: {
     color: 'green',
@@ -194,6 +253,7 @@ const styles = StyleSheet.create({
     borderColor: 'green',
     borderRadius: 10,
     padding: 20,
+    marginBottom:30
   },
   label: {
     fontSize: 15,
@@ -263,4 +323,4 @@ const styles2 = StyleSheet.create({
   selectedJob: { backgroundColor: 'green', color: 'white' },
 });
 
-export {HSignup} ;
+export {HSignup,CodeValidation} ;
