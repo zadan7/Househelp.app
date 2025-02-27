@@ -9,6 +9,40 @@ import { Picker } from '@react-native-picker/picker';
 import emailjs from "emailjs-com";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+import {db} from "./firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+// import { db } from "./firebaseConfig"; // Import Firestore instance
+
+// import { firebase } from '@react-native-firebase/storage';
+import firebase from 'firebase/compat/app';
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyB_Xm0x7Xz4UqRh-q4ftiIx4-D8AjLpePE",
+  authDomain: "househelporg.firebaseapp.com",
+  projectId: "househelporg",
+  storageBucket: "househelporg.appspot.com",
+  messagingSenderId: "354870677540",
+  appId: "1:354870677540:web:718bf40b9ec96b6840c8b1",
+  measurementId: "G-SLELK741QB"
+};
+
+
+const app = initializeApp(firebaseConfig);
+
+
+
+
+
+
+
+
 function HSignup({ navigation }) {
   const [firstname, setFirstName] = useState('');
   const [lastname, setLastName] = useState('');
@@ -22,12 +56,17 @@ function HSignup({ navigation }) {
   const [employmentType, setEmploymentType] = useState('');
   const [experience, setExperience] = useState('');
   const [selectedJobs, setSelectedJobs] = useState([]);
-  const [facePicture, setFacePicture] = useState(null);
+  const [facePicture, setFacePicture] = useState("");
+  const[face,setFace]=useState("");
+  const[password,setPassword]=useState("");
+  const[Cpassword,setCPassword]=useState("");
+
+
   // const [idPicture, setIDPicture] = useState(null);
   const [location, setLocation] = useState(null);
   const [errors, setErrors] = useState({});
 
-  const jobOptions = ["Nanny", "Cook", "Cleaner", "Driver", "Gardener", "Housekeeper"];
+  const jobOptions = ["Nanny", "Cook", "Cleaner", "Driver", "Gardener", "Housekeeper","Security"];
 
   useEffect(() => {
     (async () => {
@@ -38,6 +77,8 @@ function HSignup({ navigation }) {
         setLocation(currentLocation.coords);
       }
     })();
+
+    console.log(location)
   }, []);
 
   const validateInputs = () => {
@@ -46,7 +87,6 @@ function HSignup({ navigation }) {
     if (!lastname.trim()) newErrors.lastname = 'Last name is required.';
     if (!phone.trim()) newErrors.phone = 'Phone number is required.';
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Invalid email format.';
-
     if (!dateOfBirth.trim()) newErrors.dateOfBirth = 'Date of birth is required.';
     if (!gender) newErrors.gender = 'Gender is required.';
     if (!employmentType) newErrors.employmentType = 'Employment type is required.';
@@ -55,6 +95,8 @@ function HSignup({ navigation }) {
     if (!facePicture) newErrors.facePicture = 'Face picture is required.';
     // if (!idPicture) newErrors.idPicture = 'ID picture is required.';
     if (!location) newErrors.location = 'Location is required.';
+    if (!password) newErrors.location = 'Password is required.';
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -67,7 +109,11 @@ function HSignup({ navigation }) {
       aspect: [4, 3],
       quality: 0.7,
     });
-    if (!result.canceled) setter(result.assets[0].uri);
+    if (!result.canceled){
+      setter(result.assets[0].uri);
+      setFace(result.assets[0].uri)
+      setFacePicture(result.assets[0].uri)
+    } 
   };
   const generateVerificationCode = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -76,13 +122,17 @@ function HSignup({ navigation }) {
 
   const handleDone =  async() => {
     if (validateInputs()) {
+      // console.log(face)
+
    var verificationCode=   generateVerificationCode()
       Alert.alert('Success', 'Form submitted successfully!');
 
-
+      console.log(firstname,lastname,email,phone,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode,facePicture,password,experience)
+       console.log(location)
 
       try{
-        await Promise.all([ AsyncStorage.setItem("hname", firstname+"  "+ lastname ),
+        await Promise.all([ 
+          AsyncStorage.setItem("hname", firstname+"  "+ lastname ),
           AsyncStorage.setItem("hemail", email),
           AsyncStorage.setItem("haddress", address),
           AsyncStorage.setItem("hphonenumber", phone),
@@ -92,22 +142,30 @@ function HSignup({ navigation }) {
           AsyncStorage.setItem("DOB", dateOfBirth),
           AsyncStorage.setItem("emplaymenttype",employmentType),
           AsyncStorage.setItem("experience",experience ),
+          AsyncStorage.setItem("selectedJobs",JSON.stringify(selectedJobs) ),
           AsyncStorage.setItem("code",verificationCode ),
+          AsyncStorage.setItem("facepicture",face ),
+          AsyncStorage.setItem("password",password ),
+          AsyncStorage.setItem("hlocation",JSON.stringify(location) ),
+
+
+
          
   
 
         ])
+        // console.log(facePicture)
       
        
-        navigation.navigate("codevalidation") 
+      
 
       }catch(error){
         console.log(error)
       }
-        
+      console.log(firstname,lastname,email,phone,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode,facePicture,password,experience)
+      navigation.navigate("codevalidation") 
       
-      navigation.navigate("codevalidation")
-      console.log(firstname,lastname,email,phone,email,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode)
+      // navigation.navigate("codevalidation")
       // emailjs.send("service_y6igit7","template_a7bqysj",{
       //   name: firstname+ lastname,
       //   code: verificationCode,
@@ -131,6 +189,10 @@ function HSignup({ navigation }) {
           <TextInput style={styles.input} placeholder="Last Name" value={lastname} onChangeText={setLastName} />
           <TextInput style={styles.input} placeholder="Phone Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
           <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail}/>
+          <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} keyboardType="phone-pad" secureTextEntry />
+          <TextInput style={styles.input} placeholder="Confirm Password" value={Cpassword} onChangeText={setCPassword} keyboardType="phone-pad" secureTextEntry />
+
+
           <TextInput style={styles.input} placeholder="Address" value={address} onChangeText={setAddress}/>
 
 
@@ -176,32 +238,187 @@ function HSignup({ navigation }) {
 }
 
 
+
+
+
+
+
+
 function CodeValidation({ navigation }) {
   const [code, setCode] = useState("");
   const [code2, setCode2] = useState("");
+  const [hname, setHname] = useState("");
+  const [firstname, setFirstName] = useState('');
+  const [lastname, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState('');
+  const [lga, setLGA] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [gender, setGender] = useState('');
+  const [employmentType, setEmploymentType] = useState('');
+  const [experience, setExperience] = useState('');
+  const [selectedJobs, setSelectedJobs] = useState([]);
+  // const [facePicture, setFacePicture] = useState("");
+  const[face,setFace]=useState("");
+  const[password,setPassword]=useState("");
+  const[Cpassword,setCPassword]=useState("");
 
+
+  // const [idPicture, setIDPicture] = useState(null);
+  const [location, setLocation] = useState(null);
+  const [errors, setErrors] = useState({});
+
+ 
+  const [facePicture, setFacePicture] = useState(null);
+  const [downloadURL, setDownloadURL] = useState("");
+  const [data ,setdata]=useState({});
+  const [isLoading, setIsLoading] = useState(true); // Track loading state
+
+  // Function to upload image to Firebase
+  const uploadImageToFirebase = async (imageUri) => {
+    try {
+      if (!imageUri || imageUri.trim() === "") {
+        console.log("Error: Image URI is empty or invalid");
+        return;
+      }
+
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      const storage = getStorage();
+      const fileName = `profile_pictures/${code}+${hname}.jpg`;
+      const imageRef = ref(storage, fileName);
+      await uploadBytes(imageRef, blob);
+      const downloadURL = await getDownloadURL(imageRef);
+      console.log("Image uploaded successfully:", downloadURL);
+      return downloadURL;
+    } catch (error) {
+      console.log("Error uploading image:", error);
+    }
+  };
+
+  // Import Firebase configuration
+
+// Function to upload data to Firestore
+
+const uploadDataToFirestore = async (collectionName, data) => {
+  try {
+    await addDoc(collection(db, collectionName), {
+      ...data,
+      createdAt: serverTimestamp(),
+    });
+    console.log("Data uploaded successfully!");
+  } catch (error) {
+    console.error("Error uploading data to Firestore:", error);
+  }
+};
+
+
+
+  // Fetch stored data from AsyncStorage
   useEffect(() => {
+    console.log(db);
+  
     const fetchCode = async () => {
       try {
         const storedCode = await AsyncStorage.getItem("code");
-        if (storedCode) {
-          setCode(storedCode); // Ensure code is set properly
-        }
+        const hname = await AsyncStorage.getItem("hname");  // Re-added hname
+        const hemail = await AsyncStorage.getItem("hemail");
+        const haddress = await AsyncStorage.getItem("haddress");
+        const hphonenumber = await AsyncStorage.getItem("hphonenumber");
+        const hstate = await AsyncStorage.getItem("state");
+        const hlga = await AsyncStorage.getItem("lga");
+        const hgender = await AsyncStorage.getItem("gender");
+        const hDOB = await AsyncStorage.getItem("DOB");
+        const hemplaymenttype = await AsyncStorage.getItem("emplaymenttype");
+        const hexperience = await AsyncStorage.getItem("experience");
+        const hselectedJob = await AsyncStorage.getItem("selectedJobs");
+        const hpassword = await AsyncStorage.getItem("password");
+        const hLocation = await AsyncStorage.getItem("hlocation");
+        const storedURI = await AsyncStorage.getItem("facepicture"); // Added storedURI
+  
+        console.log("Fetched values from AsyncStorage: ", {
+          storedCode,
+          storedURI,
+          hname,
+          hemail,
+          haddress,
+          hphonenumber,
+          hstate,
+          hlga,
+          hgender,
+          hDOB,
+          hemplaymenttype,
+          hexperience,
+          hselectedJob,
+          hpassword,
+          hLocation
+        });
+  
+        setCode(storedCode);
+        setFacePicture(storedURI);
+        setHname(hname);
+        setFirstName(hname?.split(" ")[0] || ""); // Extract first name
+        setLastName(hname?.split(" ")[1] || ""); // Extract last name
+        setPhone(hphonenumber);
+        setAddress(haddress);
+        setEmail(hemail);
+        setState(hstate);
+        setLGA(hlga);
+        setDateOfBirth(hDOB);
+        setGender(hgender);
+        setEmploymentType(hemplaymenttype);
+        setExperience(hexperience);
+        setSelectedJobs(JSON.parse(hselectedJob || "[]")); // Ensure it's an array
+        setLocation(hLocation);
+  
+        // Consolidated data object
+        setdata({
+          code: storedCode,
+          picture: storedURI,
+          name: hname,
+          email: hemail,
+          address: haddress,
+          phonenumber: hphonenumber,
+          state: hstate,
+          LGA: hlga,
+          gender: hgender,
+          dateOfBirth: hDOB,
+          employmentType: hemplaymenttype,
+          experience: hexperience,
+          selectedJobs: JSON.parse(hselectedJob || "[]"),
+          password: hpassword,
+          location: hLocation
+        });
+  
+        setIsLoading(false); // Set loading to false once the data is fetched
       } catch (error) {
-        console.error("Error fetching code:", error);
+        console.error("Error fetching data:", error);
+        setIsLoading(false); // Set loading to false in case of an error
       }
     };
-
+  
+    console.log("data", data);
+  
     fetchCode();
-  }, []);
+  }, []); // Empty dependency array to run only once on mount
+  
+  const handleDone = async () => {
 
-  const handleDone = () => {
     console.log("Entered Code:", code2);
     console.log("Stored Code:", code);
+    console.log("uri",facePicture)
 
     if (code2 === code) {
       Alert.alert("Success", "Code verified successfully!");
-      navigation.navigate("NextScreen"); // Change this to your actual next screen
+      if (facePicture) {
+        const uploadedURL = await uploadImageToFirebase(facePicture);
+        setDownloadURL(uploadedURL); // Optionally store the download URL if needed
+        console.log("datataatattaattat" ,data)
+        uploadDataToFirestore("househelps",data)
+      }
+      navigation.navigate("Guarantor"); // Navigate after successful verification
     } else {
       Alert.alert("Error", "Invalid verification code. Please try again.");
     }
@@ -210,24 +427,24 @@ function CodeValidation({ navigation }) {
   return (
     <ScrollView>
       <Header />
-      <ScrollView>
-        <View style={styles.container}>
-          <View style={styles.formContainer}>
-            <Text style={styles.title}>Enter the verification code sent to your email</Text>
-            <TextInput
-              onChangeText={(text) => setCode2(text)}
-              style={styles.input}
-              keyboardType="numeric"
-            />
-            <Pressable onPress={handleDone} style={styles.doneButton}>
-              <Text style={styles.doneButtonText}>Confirm</Text>
-            </Pressable>
-          </View>
+      <View style={styles.container}>
+        <View style={styles.formContainer}>
+          <Text style={styles.title}>Enter the verification code sent to your email</Text>
+          <TextInput
+            onChangeText={(text) => setCode2(text)}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+          <Pressable onPress={handleDone} style={styles.doneButton}>
+            <Text style={styles.doneButtonText}>Confirm</Text>
+          </Pressable>
         </View>
-      </ScrollView>
+      </View>
     </ScrollView>
   );
 }
+
+
 
 
 

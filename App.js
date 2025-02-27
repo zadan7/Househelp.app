@@ -19,6 +19,7 @@ import { PartDetails } from './pages/request_type/partime/PartDetails';
 import { MapPage } from './pages/request_type/partime/mapPage';
 import { Signup } from './pages/Signup';
 import { Guarantor } from './Guarantor/Guarantor';
+// import {    UploadScreen} from './pages/upload';
 const Stack = createNativeStackNavigator();
 
 const MyStack = () => {
@@ -39,13 +40,7 @@ const MyStack = () => {
         <Stack.Screen name="Signup" component={Signup}  options={{ headerShown: false }}/>
         <Stack.Screen name="Guarantor" component={Guarantor}  options={{ headerShown: false }}/>
         <Stack.Screen name="codevalidation" component={CodeValidation}  options={{ headerShown: false }}/>
-
-
-
-
-
-
-
+        
 
 
 

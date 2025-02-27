@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 function Home({ navigation }) {
   useEffect(()=>{
     navigation.navigate("codevalidation")
+    
   },[])
   return (
     <ScrollView >
