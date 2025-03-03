@@ -60,13 +60,14 @@ function HSignup({ navigation }) {
   const[face,setFace]=useState("");
   const[password,setPassword]=useState("");
   const[Cpassword,setCPassword]=useState("");
+  const[downloadURL, setDownloadURL]=useState("")
 
 
   // const [idPicture, setIDPicture] = useState(null);
   const [location, setLocation] = useState(null);
   const [errors, setErrors] = useState({});
 
-  const jobOptions = ["Nanny", "Cook", "Cleaner", "Driver", "Gardener", "Housekeeper","Security"];
+  const jobOptions = ["Nanny", "Cook", "Cleaner", "Driver", "Gardener", "Housekeeper","Security","Caregiver","Househelp"];
 
   useEffect(() => {
     (async () => {
@@ -274,6 +275,8 @@ function CodeValidation({ navigation }) {
   const [facePicture, setFacePicture] = useState(null);
   const [downloadURL, setDownloadURL] = useState("");
   const [data ,setdata]=useState({});
+  const [updateddata ,setUpdateddata]=useState({});
+
   const [isLoading, setIsLoading] = useState(true); // Track loading state
 
   // Function to upload image to Firebase
@@ -292,6 +295,11 @@ function CodeValidation({ navigation }) {
       await uploadBytes(imageRef, blob);
       const downloadURL = await getDownloadURL(imageRef);
       console.log("Image uploaded successfully:", downloadURL);
+      setDownloadURL(downloadURL)
+      // console.log("download url",downloadURL)
+      var data3=data
+      data3.url =downloadURL
+      console.log(data3,"inside upload image data")
       return downloadURL;
     } catch (error) {
       console.log("Error uploading image:", error);
@@ -338,24 +346,7 @@ const uploadDataToFirestore = async (collectionName, data) => {
         const hLocation = await AsyncStorage.getItem("hlocation");
         const storedURI = await AsyncStorage.getItem("facepicture"); // Added storedURI
   
-        console.log("Fetched values from AsyncStorage: ", {
-          storedCode,
-          storedURI,
-          hname,
-          hemail,
-          haddress,
-          hphonenumber,
-          hstate,
-          hlga,
-          hgender,
-          hDOB,
-          hemplaymenttype,
-          hexperience,
-          hselectedJob,
-          hpassword,
-          hLocation
-        });
-  
+     
         setCode(storedCode);
         setFacePicture(storedURI);
         setHname(hname);
@@ -374,23 +365,24 @@ const uploadDataToFirestore = async (collectionName, data) => {
         setLocation(hLocation);
   
         // Consolidated data object
-        setdata({
-          code: storedCode,
-          picture: storedURI,
-          name: hname,
-          email: hemail,
-          address: haddress,
-          phonenumber: hphonenumber,
-          state: hstate,
-          LGA: hlga,
-          gender: hgender,
-          dateOfBirth: hDOB,
-          employmentType: hemplaymenttype,
-          experience: hexperience,
-          selectedJobs: JSON.parse(hselectedJob || "[]"),
-          password: hpassword,
-          location: hLocation
-        });
+        setdata({ 
+         code: storedCode,
+          uri:downloadURL,
+         name: hname,
+         email: hemail,
+         address: haddress,
+         phonenumber: hphonenumber,
+         state: hstate,
+         lga: hlga,
+         gender: hgender,
+        dateOfBirth:  hDOB,
+         employmentType: hemplaymenttype,
+        experience:  hexperience,
+       selectedJobs:   hselectedJob,
+         password: hpassword,
+          location:hLocation
+       } )
+       
   
         setIsLoading(false); // Set loading to false once the data is fetched
       } catch (error) {
@@ -414,9 +406,25 @@ const uploadDataToFirestore = async (collectionName, data) => {
       Alert.alert("Success", "Code verified successfully!");
       if (facePicture) {
         const uploadedURL = await uploadImageToFirebase(facePicture);
-        setDownloadURL(uploadedURL); // Optionally store the download URL if needed
-        console.log("datataatattaattat" ,data)
-        uploadDataToFirestore("househelps",data)
+        // setDownloadURL(uploadedURL);
+        console.log(uploadedURL)
+        var data2 =data;
+        data2.url=uploadedURL
+
+         // Optionally store the download URL if needed
+        data.url=downloadURL
+        if(uploadedURL!==""){
+          console.log("data2" ,data2)
+        uploadDataToFirestore("househelps",data2)
+        }else {
+          setTimeout(() => {
+            if(uploadedURL!==""){
+              console.log("data2" ,data2)
+            uploadDataToFirestore("househelps",data2)}
+            
+          }, 2);
+        }
+        
       }
       navigation.navigate("Guarantor"); // Navigate after successful verification
     } else {
