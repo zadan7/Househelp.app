@@ -1,6 +1,6 @@
 import * as React from 'react';
 // import { StatusBar } from 'expo-status-bar';
-import { Pressable, StyleSheet, Text, View, ScrollView, TextInput,Image } from 'react-native';
+import { Pressable, StyleSheet, Text, View, ScrollView, TextInput,Image,Linking } from 'react-native';
 import { Header } from '../component/Header';
 import { Footer } from '../component/Footer';
 import { db } from '../pages/firebase'; // Ensure you've initialized Firebase properly
@@ -32,7 +32,7 @@ function HousehelpList({ navigation,LGA }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* <Header navigation={navigation} /> */}
-      <Text style={styles.title}>Househelp List</Text>
+      {/* <Text style={styles.title}>Househelp List</Text> */}
    
       
       <View style={styles.househelpContainer}>
@@ -41,22 +41,25 @@ function HousehelpList({ navigation,LGA }) {
           househelps.map((househelp, index) => (
             <View>
             <View key={index} style={styles.househelpItem}>
-              <Text>{househelp.name}</Text> {/* Adjust the field based on your Firestore data structure */}
-              <Text>{househelp.email}</Text>
-              <Text>{househelp.password}</Text>
-              <Image source={{ uri: househelp.url }} style={styles.imagePreview}></Image>
-                <HousehelpCard househelp={househelp}></HousehelpCard>
+             
+                {/* <HousehelpCard househelp={househelp}></HousehelpCard> */}
             </View>
             <View style={styles2.card}>
+            <Image source={{ uri: househelp.url }} style={styles.imagePreview}></Image>
+
         <Image source={{ uri: househelp.url }} style={styles.image} />
         <View style={styles2.details}>
         <Image source={{ uri: househelp.url }} style={styles.image} />
 
           <Text style={styles2.name}>{househelp.name}</Text>
           <Text style={styles2.info}>📧 {househelp.email}</Text>
-          <Text style={styles2.info}>📞 {househelp.phonenumber}</Text>
+          <Pressable onPress={()=>{Linking.openURL(`tel:${househelp.phonenumber}`)}}>
+          <Text style={styles2.info} >📞 {househelp.phonenumber}</Text>
+
+
+          </Pressable>
           <Text style={styles2.info}>📍 {househelp.address}, {househelp.state}</Text>
-          <Text style={styles2.info}>🛠️ {househelp.selectedJobs}</Text>
+          <Text style={styles2.info}>🛠️ {JSON.parse(househelp.selectedJobs)}</Text>
         </View>
       </View>
             
@@ -89,7 +92,7 @@ const HousehelpCard = ({ househelp }) => {
   
   const styles2 = StyleSheet.create({
     card: {
-      flexDirection: "row",
+      // flexDirection: "row",
       backgroundColor: "#fff",
       borderRadius: 10,
       padding: 10,
@@ -98,6 +101,8 @@ const HousehelpCard = ({ househelp }) => {
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 3,
+      width:"80%",
+      textAlign:"center"
     },
     image: {
       width: 80,
@@ -115,6 +120,7 @@ const HousehelpCard = ({ househelp }) => {
     info: {
       fontSize: 14,
       color: "#555",
+      paddingBottom:10,
     },
   });
   
@@ -124,10 +130,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: '#fff',
     alignItems: 'center',
+    height:"auto"
   },
   imagePreview: {
-    width: 150,
-    height: 150,
+    width: "auto",
+    height: 300,
     marginTop: 10,
     borderRadius: 10,
   },

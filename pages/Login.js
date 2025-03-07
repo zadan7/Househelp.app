@@ -11,7 +11,7 @@ function Login({ navigation }) {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   useEffect(()=>{
-    Firestore.collection("househelps").get()
+    collection("househelps").get()
   })
 
   const handleLogin = () => {

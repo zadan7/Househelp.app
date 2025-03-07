@@ -412,11 +412,15 @@ const uploadDataToFirestore = async (collectionName, data) => {
         data2.url=uploadedURL
 
          // Optionally store the download URL if needed
-        data.url=downloadURL
-        if(uploadedURL!==""){
+        // data.url=downloadURL
+        if(data2.url!==""){
           console.log("data2" ,data2)
+          console.log()
+
         uploadDataToFirestore("househelps",data2)
-        }else {
+        }else if( setTimeout(() => {
+          
+        }, 2)){
           setTimeout(() => {
             if(uploadedURL!==""){
               console.log("data2" ,data2)

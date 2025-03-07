@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 
 function Home({ navigation }) {
   useEffect(()=>{
-    navigation.navigate("Login2")
+    navigation.navigate("mappage")
     
   },[])
   return (
