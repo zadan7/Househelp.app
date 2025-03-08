@@ -14,6 +14,12 @@ function MapPage({ navigation }) {
   const [email, setEmail] = useState('');
   const [state, setState] = useState('');
   const [LGA, setLga] = useState('');
+  const [Chores, setchores] = useState('');
+  const [Total, settotal] = useState('');
+
+
+  const [apartmenttype, setselectedApartment] = useState('');
+
   const [listofhousehelps, setlistofhousehelps]= useState([])
 
   
@@ -24,13 +30,19 @@ function MapPage({ navigation }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [name, phone, address, email, state, LGA] = await Promise.all([
+        const [name, phone, address, email, state, LGA,Apartment,chores,total] = await Promise.all([
           AsyncStorage.getItem("name"),
           AsyncStorage.getItem("phone"),
           AsyncStorage.getItem("address"),
           AsyncStorage.getItem("email"),
           AsyncStorage.getItem("state"),
-          AsyncStorage.getItem("lga")
+          AsyncStorage.getItem("lga"),
+          AsyncStorage.getItem("apartmenttype"),
+          AsyncStorage.getItem("chores"),
+
+          AsyncStorage.getItem("total")
+
+
         ]);
 
         setName(name);
@@ -39,6 +51,9 @@ function MapPage({ navigation }) {
         setEmail(email);
         setState(state);
         setLga(LGA);
+        setselectedApartment(Apartment)
+        setchores(chores)
+        settotal(Number(total))
       } catch (error) {
         console.error("Error fetching data from SecureStore: ", error);
         Alert.alert('Error', 'Failed to fetch user details');
@@ -179,6 +194,17 @@ function MapPage({ navigation }) {
         <Text style={styles.infoText}>Email: {email}</Text>
         <Text style={styles.infoText}>State: {state}</Text>
         <Text style={styles.infoText}>LGA: {LGA}</Text>
+        <Text style={styles.infoText}>Apartment: {apartmenttype}</Text>
+        <Text style={styles.infoText}>
+          Selected Chores: {JSON.parse(Chores)}
+          Selected Chores: {JSON.parse(Chores).map(chore => chore.chore).join('/n ')}
+          </Text>
+        <Text style={styles.infoText}>Transport: {1500}</Text>
+
+        <Text style={styles.infoText}>Total Cost: {Total+1500}</Text>
+
+
+
       </View>
     </View>
   );

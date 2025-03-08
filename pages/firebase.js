@@ -23,3 +23,4 @@ const db = getFirestore(app); // ✅ FIXED Firestore instance
 const storage = getStorage(app);
 
 export { auth, db, storage };
+  

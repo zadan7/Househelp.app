@@ -21,6 +21,7 @@ import { Signup } from './pages/Signup';
 import { Guarantor } from './Guarantor/Guarantor';
 // import { Login2 } from './pages/Login2';
 import { Login2 } from './pages/Login2';
+import { HousehelpDashboard } from './Dashboard/HDashboard';
 // import {    UploadScreen} from './pages/upload';
 const Stack = createNativeStackNavigator();
 
@@ -43,6 +44,8 @@ const MyStack = () => {
         <Stack.Screen name="Guarantor" component={Guarantor}  options={{ headerShown: false }}/>
         <Stack.Screen name="codevalidation" component={CodeValidation}  options={{ headerShown: false }}/>
         <Stack.Screen name="Login2" component={Login2}  options={{ headerShown: false }}/>
+        <Stack.Screen name="hdashboard" component={HousehelpDashboard}  options={{ headerShown: false }}/>
+
 
         
 

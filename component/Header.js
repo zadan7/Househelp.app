@@ -28,6 +28,23 @@ const Header = ({navigation}) => {
     </View>
   );
 };
+const Header2 = ({navigation}) => {
+  return (
+    <View style={styles.container}>
+      {/* Header Logo */}
+      <View  style={styles.logoContainer}>
+          <Pressable onPress={()=>{
+             navigation.navigate('Home')
+          }}>
+        <Image source={logo2} style={styles.headerImage} />
+        </Pressable>
+      </View>
+
+      {/* Main Logo */}
+     
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -60,4 +77,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export { Header }
+export { Header,Header2 }

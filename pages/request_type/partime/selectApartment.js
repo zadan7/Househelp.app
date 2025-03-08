@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
 // import { Header } from '../../../component/Header';
 import { Header } from '../../../component/Header';
 import { Footer } from '../../../component/Footer';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState } from 'react';
 
 function SelectApartment({ navigation }) {
@@ -42,6 +43,11 @@ function SelectApartment({ navigation }) {
     console.log(selectedApartment)
     setselectedApartment(selectedApartment)
     setSelectedButton(buttonIndex);
+    async function storeApartment() {
+      await AsyncStorage.setItem("apartmenttype",selectedApartment)
+      
+    }
+    storeApartment()
     navigation.navigate("selectchores")
   }
 
