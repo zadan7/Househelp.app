@@ -9,10 +9,15 @@ import { db } from './../../firebase'; // ✅ Ensure the correct import path
 import { addDoc } from 'firebase/firestore';
 import { serverTimestamp } from 'firebase/firestore';
 
+import * as Notifications from 'expo-notifications';
+
+// Function to send push notifications to nearby househelps
+
+
+
 function MapPage({ navigation }) {
 
-
-
+ 
   
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -56,11 +61,52 @@ var data ={
   address:address,
   apartmenttype:apartmenttype
 }
-uploadDataToFirestore("partimeRequest",data)
-navigation.navigate("mappage")
-navigation.navigate("hdashboard")
+// uploadDataToFirestore("partimeRequest",data)
+// navigation.navigate("mappage")
+// navigation.navigate("hdashboard")
+sendPushNotification()
 
   }
+  const sendPushNotification = async () => {
+    try {
+      // Fetch househelps from Firestore who match the user's LGA
+      const querySnapshot = await getDocs(collection(db, 'househelps'));
+      const nearbyHousehelps = querySnapshot.docs
+        .map(doc => doc.data())
+        .filter(househelp => househelp.lga === LGA && househelp.token); // ✅ Match LGA & check push token
+  
+      if (nearbyHousehelps.length === 0) {
+        Alert.alert("No Nearby Househelps", "No househelps found in your LGA.");
+        return;
+      }
+  
+      // Send push notifications
+      nearbyHousehelps.forEach(async (househelp) => {
+        await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Accept-Encoding": "gzip, deflate",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            to: househelp.pushToken,
+            sound: "default",
+            title: "New Job Alert!",
+            body: `${name} needs a househelp for ${Chores}. Tap to view details.`,
+            data: { userInfo: { name, phone, address, chores: Chores } }, // Sending extra data
+          }),
+        });
+      });
+  
+      Alert.alert("Alert Sent", "Nearby househelps have been notified!");
+  
+    } catch (error) {
+      console.error("Error sending notifications:", error);
+      Alert.alert("Error", "Failed to send notifications.");
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {

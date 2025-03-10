@@ -17,6 +17,25 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import {db} from "./firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import * as Notifications from "expo-notifications";
+
+async function registerForPushNotificationsAsync() {
+  let token;
+
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== "granted") {
+    const { status: newStatus } = await Notifications.requestPermissionsAsync();
+    if (newStatus !== "granted") {
+      alert("Failed to get push token for notifications!");
+      return null;
+    }
+  }
+
+  token = (await Notifications.getExpoPushTokenAsync()).data;
+  console.log("Push Token:", token);
+
+  return token;
+}
 // import { db } from "./firebaseConfig"; // Import Firestore instance
 
 // import { firebase } from '@react-native-firebase/storage';
@@ -275,7 +294,7 @@ function CodeValidation({ navigation }) {
   const [facePicture, setFacePicture] = useState(null);
   const [downloadURL, setDownloadURL] = useState("");
   const [data ,setdata]=useState({});
-  const [updateddata ,setUpdateddata]=useState({});
+  const [token ,setToken]=useState("");
 
   const [isLoading, setIsLoading] = useState(true); // Track loading state
 
@@ -346,7 +365,7 @@ const uploadDataToFirestore = async (collectionName, data) => {
         const hLocation = await AsyncStorage.getItem("hlocation");
         const storedURI = await AsyncStorage.getItem("facepicture"); // Added storedURI
   
-     
+        const pushToken = await registerForPushNotificationsAsync();
         setCode(storedCode);
         setFacePicture(storedURI);
         setHname(hname);
@@ -363,6 +382,7 @@ const uploadDataToFirestore = async (collectionName, data) => {
         setExperience(hexperience);
         setSelectedJobs(JSON.parse(hselectedJob || "[]")); // Ensure it's an array
         setLocation(hLocation);
+        setToken(pushToken)
   
         // Consolidated data object
         setdata({ 
@@ -380,7 +400,8 @@ const uploadDataToFirestore = async (collectionName, data) => {
         experience:  hexperience,
        selectedJobs:   hselectedJob,
          password: hpassword,
-          location:hLocation
+          location:hLocation,
+          token:pushToken,
        } )
        
   
@@ -394,6 +415,7 @@ const uploadDataToFirestore = async (collectionName, data) => {
     console.log("data", data);
   
     fetchCode();
+    
   }, []); // Empty dependency array to run only once on mount
   
   const handleDone = async () => {
