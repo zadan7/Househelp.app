@@ -1,13 +1,19 @@
 import * as React from 'react';
-import { StyleSheet, Text, View, Dimensions, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, Dimensions, Alert, ActivityIndicator, Pressable } from 'react-native';
 import { useState, useEffect } from 'react';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, getDocs } from 'firebase/firestore'; // ✅ Correct Firestore imports
 import { db } from './../../firebase'; // ✅ Ensure the correct import path
+import { addDoc } from 'firebase/firestore';
+import { serverTimestamp } from 'firebase/firestore';
 
 function MapPage({ navigation }) {
+
+
+
+  
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -26,7 +32,35 @@ function MapPage({ navigation }) {
   const [location, setLocation] = useState(null); // To store user's location
   const [errorMsg, setErrorMsg] = useState(null); // To store any error message
   const [loading, setLoading] = useState(true); // Loading state for location
+  const uploadDataToFirestore = async (collectionName, data) => {
+    try {
+      await addDoc(collection(db, collectionName), {
+        ...data,
+        createdAt: serverTimestamp(),
+      });
+      console.log("Data uploaded successfully!");
+    } catch (error) {
+      console.error("Error uploading data to Firestore:", error);
+    }
+  };
   
+  const postData=()=>{
+var data ={
+  name:name,
+  phone:phone,
+  email:email,
+  chores:Chores,
+  state:state,
+  LGA:LGA,
+  amount :Total,
+  address:address,
+  apartmenttype:apartmenttype
+}
+uploadDataToFirestore("partimeRequest",data)
+navigation.navigate("mappage")
+navigation.navigate("hdashboard")
+
+  }
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -197,18 +231,21 @@ function MapPage({ navigation }) {
         <Text style={styles.infoText}>Apartment: {apartmenttype}</Text>
         <Text style={styles.infoText}>
           Selected Chores: {JSON.parse(Chores)}
-          Selected Chores: {JSON.parse(Chores).map(chore => chore.chore).join('/n ')}
+          Selected Chores: {JSON.parse(Chores).map(chore => chore.chore).join('')}
           </Text>
         <Text style={styles.infoText}>Transport: {1500}</Text>
 
         <Text style={styles.infoText}>Total Cost: {Total+1500}</Text>
 
-
+        <Pressable style={styles.inactiveButtonStyle} onPress={postData}>
+          <Text style={{color:"white"}}>Alert Nearby Househelps</Text>
+        </Pressable>
 
       </View>
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -245,6 +282,23 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 20,
     marginBottom: 100,
+  },
+  Pressable: {
+    marginBottom: 20,
+    marginTop: 20,
+    width: '100%',
+    borderRadius: 20,
+  },
+  inactiveButtonStyle: {
+    backgroundColor: 'green',
+    color: 'white',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    fontSize: 15,
+    textAlign: 'center',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: 'green',
   },
 });
 
