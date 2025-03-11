@@ -126,6 +126,9 @@ function PartDetails({ navigation }) {
             <Text style={styles.doneButtonText}>Done</Text>
           </Pressable>
         </View>
+          <View style={{paddingBottom:"100"}}>
+                      <Text> </Text>
+                </View>
         <Footer />
       </View>
     </ScrollView>

@@ -10,6 +10,8 @@ import { addDoc } from 'firebase/firestore';
 import { serverTimestamp } from 'firebase/firestore';
 
 import * as Notifications from 'expo-notifications';
+import { Footer } from '../../../component/Footer';
+import { ScrollView } from 'react-native';
 
 // Function to send push notifications to nearby househelps
 
@@ -81,23 +83,7 @@ sendPushNotification()
       }
   
       // Send push notifications
-      nearbyHousehelps.forEach(async (househelp) => {
-        await fetch("https://exp.host/--/api/v2/push/send", {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Accept-Encoding": "gzip, deflate",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            to: househelp.pushToken,
-            sound: "default",
-            title: "New Job Alert!",
-            body: `${name} needs a househelp for ${Chores}. Tap to view details.`,
-            data: { userInfo: { name, phone, address, chores: Chores } }, // Sending extra data
-          }),
-        });
-      });
+     
   
       Alert.alert("Alert Sent", "Nearby househelps have been notified!");
   
@@ -205,6 +191,7 @@ sendPushNotification()
   };
 
   return (
+    <ScrollView>
     <View style={styles.container}>
       <MapView
         style={[styles.map, { width, height: height * 0.5 }]} // Set map height to 50% of screen
@@ -252,7 +239,8 @@ sendPushNotification()
           longitude: locationData.longitude
         }}
         title={element.name || "Househelp"}
-        description={element.phone || "No contact provided"}
+        description={element.phonenumber || "No contact provided"}
+        pinColor='green'
       />
     );
   } else {
@@ -286,9 +274,14 @@ sendPushNotification()
         <Pressable style={styles.inactiveButtonStyle} onPress={postData}>
           <Text style={{color:"white"}}>Alert Nearby Househelps</Text>
         </Pressable>
+        <View style={{paddingBottom:"100"}}>
+              <Text> </Text>
+        </View>
 
       </View>
+      <Footer ></Footer>
     </View>
+    </ScrollView>
   );
 };
 
