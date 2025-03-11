@@ -6,7 +6,10 @@ import { Footer } from '../component/Footer';
 import { db } from './firebase'; // Ensure you've initialized Firebase properly
 import { collection, getDocs } from 'firebase/firestore'; // Correct Firestore methods
 import { useState, useEffect } from 'react';
-import { HousehelpList } from '../component/Househelplist';
+// import { HousehelpList } from '../component/Househelplist';
+// import { collection, getDocs } from "firebase/firestore"; 
+// const querySnapshot = await collection(db, "househelps"); 
+
  
 function Login2({ navigation }) {
   const [email, setEmail] = React.useState('');
@@ -24,7 +27,7 @@ function Login2({ navigation }) {
         console.error('Error fetching data: ', error);
       }
     };
-    fetchHousehelps(); // Call the fetch function
+    // fetchHousehelps(); // Call the fetch function
   }, []);
 
   // Handle login logic
@@ -67,7 +70,7 @@ function Login2({ navigation }) {
         </Pressable>
       </View>
       <View>
-        <HousehelpList></HousehelpList>
+        {/* <HousehelpList></HousehelpList> */}
       </View>
 
     

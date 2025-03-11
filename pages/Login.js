@@ -1,23 +1,47 @@
 import * as React from 'react';
-import { StatusBar } from 'expo-status-bar';
 import { Pressable, StyleSheet, Text, View, ScrollView, TextInput } from 'react-native';
 import { Header } from '../component/Header';
 import { Footer } from '../component/Footer';
-import {db} from "./firebase";
-import { Firestore } from 'firebase/firestore';
-import { useState,useEffect } from 'react';
+import { db } from "./firebase";
+import { collection, getDocs } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function Login({ navigation }) {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
-  useEffect(()=>{
-    collection("househelps").get()
-  })
+  const [househelpsList, setHousehelps] = useState([]);
 
-  const handleLogin = () => {
-    // Add authentication logic here
+  useEffect(() => {
+    const fetchHousehelps = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'househelps'));
+        const househelps = querySnapshot.docs.map(doc => doc.data());
+        setHousehelps(househelps);
+      } catch (error) {
+        console.error('Error fetching data: ', error);
+      }
+    };
+
+    fetchHousehelps();
+  }, []); // ✅ Run once when component mounts
+
+  const handleLogin =async () => {
     console.log('Email:', email);
     console.log('Password:', password);
+
+    const foundUser = househelpsList.find(item => item.email === email && item.password === password);
+    if (foundUser) {
+      console.log("✅ Logged in!",foundUser);
+      await AsyncStorage.setItem("User",JSON.stringify(foundUser))
+      // await AsyncStorage.setItem("UserEmail",JSON.stringify(foundUser))
+      await AsyncStorage.setItem('userEmail', email);
+
+      navigation.navigate("hdashboard")
+
+    } else {
+      console.log("❌ Wrong email or password.");
+    }
   };
 
   return (
@@ -62,13 +86,13 @@ const styles = StyleSheet.create({
     fontSize: 39,
     fontWeight: 'bold',
     marginVertical: 10,
-    fontFamily:"serif"
+    fontFamily: "serif"
   },
   formContainer: {
     width: '100%',
     maxWidth: 400,
     alignItems: 'center',
-    padding:10,
+    padding: 10,
   },
   input: {
     width: '100%',

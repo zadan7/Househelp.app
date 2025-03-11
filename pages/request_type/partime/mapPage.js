@@ -2,7 +2,7 @@ import * as React from 'react';
 import { StyleSheet, Text, View, Dimensions, Alert, ActivityIndicator, Pressable } from 'react-native';
 import { useState, useEffect } from 'react';
 import MapView, { Marker } from 'react-native-maps';
-import * as Location from 'expo-location';
+import * as Location from 'expo-location';   
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, getDocs } from 'firebase/firestore'; // ✅ Correct Firestore imports
 import { db } from './../../firebase'; // ✅ Ensure the correct import path
@@ -61,11 +61,15 @@ var data ={
   LGA:LGA,
   amount :Total,
   address:address,
-  apartmenttype:apartmenttype
+  apartmenttype:apartmenttype,
+  status:"Pending",
+  location:location
 }
-// uploadDataToFirestore("partimeRequest",data)
+
+uploadDataToFirestore("partimeRequest",data)
+// console.log(data)
 // navigation.navigate("mappage")
-// navigation.navigate("hdashboard")
+navigation.navigate("cdashboard")
 sendPushNotification()
 
   }
@@ -83,7 +87,7 @@ sendPushNotification()
       }
   
       // Send push notifications
-     
+      
   
       Alert.alert("Alert Sent", "Nearby househelps have been notified!");
   
@@ -268,6 +272,8 @@ sendPushNotification()
           Selected Chores: {JSON.parse(Chores).map(chore => chore.chore).join('')}
           </Text>
         <Text style={styles.infoText}>Transport: {1500}</Text>
+        <Text style={styles.infoText}>location: {JSON.stringify(location)}</Text>
+
 
         <Text style={styles.infoText}>Total Cost: {Total+1500}</Text>
 
