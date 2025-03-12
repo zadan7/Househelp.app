@@ -3,13 +3,14 @@ import { Pressable, StyleSheet, Text, View, ScrollView, Alert } from 'react-nati
 import { Header } from '../../component/Header';
 import { Footer } from '../../component/Footer';
 import { db } from '../../pages/firebase';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-function StartJob({ navigation }) {
+function HJobProgress({ navigation }) {
   const [jobdata, setJobData] = useState(null);
   const [chores, setChores] = useState([]);
+  const [completedChores, setCompletedChores] = useState({});
 
   async function getData() {
     try {
@@ -20,7 +21,7 @@ function StartJob({ navigation }) {
         return;
       }
 
-      const jobId = JSON.parse(currentData); // Only parse if needed
+      const jobId = currentData.startsWith('"') ? JSON.parse(currentData) : currentData;
       const jobRef = doc(db, 'partimeRequest', jobId);
       const jobSnap = await getDoc(jobRef);
 
@@ -32,7 +33,6 @@ function StartJob({ navigation }) {
       const data = jobSnap.data();
       setJobData(data);
 
-      // Extract and format chores if available
       if (data.chores) {
         try {
           const parsedChores = JSON.parse(data.chores.replace(/'/g, '"')).map((chore) => {
@@ -40,6 +40,10 @@ function StartJob({ navigation }) {
             return { task: parts[0].trim(), price: parts[1].split(',')[0].trim() };
           });
           setChores(parsedChores);
+
+          // Load existing completion status if available in Firestore
+          const initialCompletedState = data.completedChores || {};
+          setCompletedChores(initialCompletedState);
         } catch (error) {
           console.error("Error parsing chores:", error);
         }
@@ -53,19 +57,41 @@ function StartJob({ navigation }) {
     getData();
   }, []);
 
-  const handleStart = () => {
-    Alert.alert("Job started successfully!");
-    navigation.navigate('cjobprogress');
+  const handleChorePress = async (task) => {
+    Alert.alert(
+      "Confirm Completion",
+      `Has the client confirmed that "${task}" is completed?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Yes, Confirm",
+          onPress: async () => {
+            const updatedChores = { ...completedChores, [task]: true };
+            setCompletedChores(updatedChores);
+
+            // Update Firestore to reflect chore completion
+            if (jobdata) {
+              try {
+                const jobRef = doc(db, 'partimeRequest', jobdata.id);
+                await updateDoc(jobRef, { completedChores: updatedChores });
+              } catch (error) {
+                console.error("Error updating Firestore:", error);
+              }
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Header navigation={navigation} />
-      
-      <View style={styles.content}>
-        <Text style={styles.title}>Confirm Your Arrival</Text>
-        <Text style={styles.subtitle}>Once you have arrived at the client's destination, click the button below to start the job.</Text>
 
+      <View style={styles.content}>
         {jobdata && (
           <View style={styles.jobDetails}>
             <Text style={styles.jobHeader}>Job Details</Text>
@@ -77,19 +103,24 @@ function StartJob({ navigation }) {
             <Text style={styles.jobHeader}>Chores</Text>
             {chores.length > 0 ? (
               chores.map((chore, index) => (
-                <Text key={index} style={styles.choreItem}>
-                  • {chore.task} - <Text style={styles.price}>₦{chore.price}</Text>
-                </Text>
+                <Pressable 
+                  key={index} 
+                  style={[
+                    styles.choreButton, 
+                    completedChores[chore.task] ? styles.choreCompleted : styles.chorePending
+                  ]}
+                  onPress={() => handleChorePress(chore.task)}
+                >
+                  <Text style={styles.choreText}>
+                    {chore.task} - ₦{chore.price}
+                  </Text>
+                </Pressable>
               ))
             ) : (
               <Text style={styles.noChores}>No chores available</Text>
             )}
           </View>
         )}
-
-        <Pressable style={styles.button} onPress={handleStart}>
-          <Text style={styles.buttonText}>Start Job</Text>
-        </Pressable>
       </View>
 
       <Footer />
@@ -118,20 +149,6 @@ const styles = StyleSheet.create({
     elevation: 4,
     marginVertical: 20,
   },
-  title: {
-    color: '#28a745',
-    fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: '#555',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 22,
-  },
   jobDetails: {
     width: '100%',
     backgroundColor: '#fff',
@@ -159,40 +176,29 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  choreItem: {
-    fontSize: 16,
-    color: '#333',
+  choreButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
     marginVertical: 5,
+    alignItems: 'center',
+    width: '100%',
+  },
+  choreText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  choreCompleted: {
+    backgroundColor: '#28a745',
+  },
+  chorePending: {
+    backgroundColor: '#f8d210',
   },
   noChores: {
     fontSize: 16,
     color: '#999',
     fontStyle: 'italic',
   },
-  price: {
-    color: '#007bff',
-    fontWeight: 'bold',
-  },
-  button: {
-    backgroundColor: '#28a745',
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    borderRadius: 10,
-    width: '100%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-    marginTop: 15,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
 });
 
-export { StartJob };
+export { HJobProgress };

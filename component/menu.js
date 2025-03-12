@@ -69,12 +69,12 @@ const Menu = ({ navigation }) => {
 const styles = StyleSheet.create({
   menuButton: {
     position: 'absolute',
-    bottom: "30%",
+    // top: "30%",
     right: 30,
     backgroundColor: '#28a745',
     padding: 15,
     borderRadius: 50,
-    elevation: 5,
+    // elevation: 5,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex:5

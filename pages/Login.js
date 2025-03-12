@@ -16,12 +16,17 @@ function Login({ navigation }) {
     const fetchHousehelps = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, 'househelps'));
-        const househelps = querySnapshot.docs.map(doc => doc.data());
+        const househelps = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          data.id = doc.id; // Add the document ID to the data object
+          return data;
+        });
         setHousehelps(househelps);
       } catch (error) {
         console.error('Error fetching data: ', error);
       }
     };
+    
 
     fetchHousehelps();
   }, []); // ✅ Run once when component mounts
@@ -32,8 +37,11 @@ function Login({ navigation }) {
 
     const foundUser = househelpsList.find(item => item.email === email && item.password === password);
     if (foundUser) {
+      console.log(foundUser.id)
+
       console.log("✅ Logged in!",foundUser);
       await AsyncStorage.setItem("User",JSON.stringify(foundUser))
+      await AsyncStorage.setItem("UserID",JSON.stringify(foundUser.id))
       // await AsyncStorage.setItem("UserEmail",JSON.stringify(foundUser))
       await AsyncStorage.setItem('userEmail', email);
 

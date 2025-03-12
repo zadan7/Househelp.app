@@ -24,6 +24,8 @@ import { Login2 } from './pages/Login2';
 import { HousehelpDashboard } from './Dashboard/HDashboard';
 import { ClientDashboard } from './Dashboard/CDashboard';
 import { StartJob } from './Dashboard/Hdashboard/Start';
+import { HJobProgress } from './Dashboard/Hdashboard/HJobprogress';
+import { CJobProgress } from './Dashboard/Cdashboard/CJobprogress';
 // import {    UploadScreen} from './pages/upload';
 const Stack = createNativeStackNavigator();
 
@@ -51,6 +53,10 @@ const MyStack = () => {
         <Stack.Screen name="hdashboard" component={HousehelpDashboard}  options={{ headerShown: false }}/>
         <Stack.Screen name="cdashboard" component={ClientDashboard}  options={{ headerShown: false }}/>
         <Stack.Screen name="startjob" component={StartJob}  options={{ headerShown: false }}/>
+        <Stack.Screen name="hjobprogress" component={HJobProgress}  options={{ headerShown: false }}/>
+        <Stack.Screen name="cjobprogress" component={CJobProgress}  options={{ headerShown: false }}/>
+
+
 
 
 
