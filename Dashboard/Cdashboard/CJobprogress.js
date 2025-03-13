@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, StyleSheet, Text, View, ScrollView, Alert } from 'react-native';
+import { Pressable, StyleSheet, Text, View, ScrollView, Alert, Image } from 'react-native';
 import { Header } from '../../component/Header';
 import { Footer } from '../../component/Footer';
 import { db } from '../../pages/firebase';
@@ -18,172 +18,91 @@ function CJobProgress({ navigation }) {
   async function getData() {
     try {
       const currentData = await AsyncStorage.getItem("AcceptedJob");
-
-      if (!currentData) {
-        console.error("Error: No job ID found in AsyncStorage");
-        return;
-      }
-
-      const jobId = currentData.startsWith('"') ? JSON.parse(currentData) : currentData;
+      if (!currentData) return;
+      
+      const jobId = JSON.parse(currentData);
       const jobRef = doc(db, 'partimeRequest', jobId);
       const jobSnap = await getDoc(jobRef);
 
-      if (!jobSnap.exists()) {
-        console.error("No job found in Firestore for ID:", jobId);
-        return;
-      }
-
+      if (!jobSnap.exists()) return;
       const data = jobSnap.data();
       setJobData(data);
-
+      
       if (data.chores) {
-        try {
-          const parsedChores = JSON.parse(data.chores.replace(/'/g, '"')).map((chore) => {
-            const parts = chore.split(':');
-            return { task: parts[0].trim(), price: parts[1].split(',')[0].trim() };
-          });
-          setChores(parsedChores);
-
-          // Load existing approval status
-          const initialApprovedState = data.approvedChores || {};
-          setApprovedChores(initialApprovedState);
-        } catch (error) {
-          console.error("Error parsing chores:", error);
-        }
+        const parsedChores = JSON.parse(data.chores.replace(/'/g, '"'))
+          .map(chore => ({ task: chore.split(':')[0].trim(), price: chore.split(':')[1].trim() }));
+        setChores(parsedChores);
+        setApprovedChores(data.approvedChores || {});
       }
     } catch (error) {
       console.error("Error fetching job data:", error);
     }
   }
 
-  useEffect(() => {
-    getData();
-  }, []);
+  useEffect(() => { getData(); }, []);
 
   const handleApproval = async (task) => {
-    Alert.alert(
-      "Confirm Approval",
-      `Are you sure you approve the completion of "${task}"?`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Yes, Approve",
-          onPress: async () => {
-            const updatedApprovals = { ...approvedChores, [task]: true };
-            setApprovedChores(updatedApprovals);
-
-            if (jobdata) {
-              try {
-                const jobRef = doc(db, 'partimeRequest', jobdata.id);
-                await updateDoc(jobRef, { approvedChores: updatedApprovals });
-              } catch (error) {
-                console.error("Error updating Firestore:", error);
-              }
-            }
-          }
-        }
-      ]
-    );
+    Alert.alert("Confirm Approval", `Approve completion of ${task}?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Approve", onPress: async () => {
+        const updatedApprovals = { ...approvedChores, [task]: true };
+        setApprovedChores(updatedApprovals);
+        await updateDoc(doc(db, 'partimeRequest', jobdata.id), { approvedChores: updatedApprovals });
+      }}
+    ]);
   };
 
-  const handleRating = (star) => {
-    setRating(star);
-    setHasRated(true);
-  };
+  const handleRating = (star) => { setRating(star); setHasRated(true); };
 
   const handleCompleteJob = async () => {
     if (rating === 0) {
-      Alert.alert("Rating Required", "Please provide a rating before completing the job.");
+      Alert.alert("Rating Required", "Please rate the worker before completing.");
       return;
     }
-
-    Alert.alert(
-      "Complete Job & Payment",
-      "Are you sure you want to complete the job and process the payment?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Confirm Payment",
-          onPress: async () => {
-            if (jobdata) {
-              try {
-                const jobRef = doc(db, 'partimeRequest', jobdata.id);
-                await updateDoc(jobRef, { status: "Completed", paymentStatus: "Paid", rating });
-
-                Alert.alert("Success", "Job has been completed and payment processed!");
-                navigation.goBack(); // Redirect after completion
-              } catch (error) {
-                console.error("Error updating Firestore:", error);
-              }
-            }
-          }
-        }
-      ]
-    );
+    Alert.alert("Complete Job & Payment", "Confirm job completion?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Confirm", onPress: async () => {
+        await updateDoc(doc(db, 'partimeRequest', jobdata.id), { status: "Completed", paymentStatus: "Paid", rating });
+        Alert.alert("Success", "Job completed and payment processed!");
+        navigation.goBack();
+      }}
+    ]);
   };
 
-  // Check if all chores are approved
   const allApproved = chores.length > 0 && chores.every(chore => approvedChores[chore.task]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Header navigation={navigation} />
-
       <View style={styles.content}>
         {jobdata && (
           <View style={styles.jobDetails}>
-            <Text style={styles.jobHeader}>Job Details</Text>
-            <Text style={styles.jobText}><Text style={styles.bold}>Worker:</Text> {jobdata.workerName}</Text>
-            <Text style={styles.jobText}><Text style={styles.bold}>Location:</Text> {jobdata.address}, {jobdata.LGA}, {jobdata.state}</Text>
-            <Text style={styles.jobText}><Text style={styles.bold}>Total Amount:</Text> ₦{jobdata.amount}</Text>
-
+            <Text style={styles.jobHeader}>Worker Details</Text>
+            <Image source={{ uri: jobdata.workerPhoto }} style={styles.profilePic} />
+            <Text style={styles.workerName}>{jobdata.workerName}</Text>
+            <Text style={styles.jobText}><Text style={styles.bold}>Contact:</Text> {jobdata.workerContact}</Text>
+            <Text style={styles.jobText}><Text style={styles.bold}>Experience:</Text> {jobdata.workerExperience} years</Text>
+            
             <Text style={styles.jobHeader}>Chores to Approve</Text>
-            {chores.length > 0 ? (
-              chores.map((chore, index) => (
-                <Pressable 
-                  key={index} 
-                  style={[
-                    styles.choreButton, 
-                    approvedChores[chore.task] ? styles.choreApproved : styles.chorePending
-                  ]}
-                  onPress={() => handleApproval(chore.task)}
-                  disabled={approvedChores[chore.task]}
-                >
-                  <Text style={styles.choreText}>
-                    {chore.task} - ₦{chore.price}
-                  </Text>
-                </Pressable>
-              ))
-            ) : (
-              <Text style={styles.noChores}>No chores available</Text>
-            )}
-
-            {/* Show rating system only if all chores are approved */}
+            {chores.map((chore, index) => (
+              <Pressable key={index} style={[styles.choreButton, approvedChores[chore.task] ? styles.choreApproved : styles.chorePending]} onPress={() => handleApproval(chore.task)} disabled={approvedChores[chore.task]}>
+                <Text style={styles.choreText}>{chore.task} - ₦{chore.price}</Text>
+              </Pressable>
+            ))}
+            
             {allApproved && (
               <View style={styles.ratingContainer}>
                 <Text style={styles.ratingText}>Rate the Worker</Text>
                 <View style={styles.stars}>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Pressable key={star} onPress={() => handleRating(star)}>
-                      <FontAwesome 
-                        name={star <= rating ? "star" : "star-o"} 
-                        size={30} 
-                        color={star <= rating ? "#FFD700" : "#ccc"} 
-                        style={styles.star}
-                      />
+                      <FontAwesome name={star <= rating ? "star" : "star-o"} size={30} color={star <= rating ? "#FFD700" : "#ccc"} style={styles.star} />
                     </Pressable>
                   ))}
                 </View>
               </View>
             )}
 
-            {/* Show "Complete Job & Payment" button only if all chores are approved and rated */}
             {allApproved && hasRated && (
               <Pressable style={styles.completeButton} onPress={handleCompleteJob}>
                 <Text style={styles.buttonText}>Complete Job & Payment</Text>
@@ -192,7 +111,6 @@ function CJobProgress({ navigation }) {
           </View>
         )}
       </View>
-
       <Footer />
     </ScrollView>
   );
@@ -203,7 +121,9 @@ const styles = StyleSheet.create({
   content: { width: '90%', maxWidth: 500, alignItems: 'center', backgroundColor: '#f8f9fa', padding: 20, borderRadius: 12, shadowColor: '#000', elevation: 4 },
   jobDetails: { width: '100%', backgroundColor: '#fff', padding: 15, borderRadius: 10 },
   jobHeader: { fontSize: 20, fontWeight: 'bold', color: '#28a745' },
-  choreButton: { padding: 10, borderRadius: 8, marginVertical: 5 },
+  profilePic: { width: 80, height: 80, borderRadius: 40, marginVertical: 10 },
+  workerName: { fontSize: 18, fontWeight: 'bold', textAlign: 'center' },
+  choreButton: { padding: 10, borderRadius: 8, marginVertical: 5, textAlign: 'center' },
   choreApproved: { backgroundColor: '#28a745' },
   chorePending: { backgroundColor: '#f8d210' },
   ratingContainer: { alignItems: 'center', marginTop: 20 },

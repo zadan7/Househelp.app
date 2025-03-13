@@ -23,7 +23,7 @@ function Signup({ navigation }) {
 
         
         {/* <Text>Click to order househelp</Text> */}
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('')}>
+        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('CSignup')}>
           <Text style={styles.buttonText}>Sign up as a Client </Text>
         </Pressable>
         

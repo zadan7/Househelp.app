@@ -46,6 +46,10 @@ const Menu = ({ navigation }) => {
           <Ionicons name="person" size={20} color="white" style={styles.icon} />
           <Text style={styles.menuText}>Profile</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Profile')}>
+          <Ionicons name="order" size={20} color="white" style={styles.icon} />
+          <Text style={styles.menuText}>Make Request</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Settings')}>
           <Ionicons name="settings" size={20} color="white" style={styles.icon} />
@@ -68,7 +72,7 @@ const Menu = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   menuButton: {
-    position: 'absolute',
+    // position: 'absolute',
     // top: "30%",
     right: 30,
     backgroundColor: '#28a745',
