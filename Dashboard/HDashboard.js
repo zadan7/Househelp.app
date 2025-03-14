@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, RefreshCon
 import { collection, getDocs, updateDoc, doc, arrayUnion,getDoc } from 'firebase/firestore';
 import { db } from './../pages/firebase';
 import { Header2 } from '../component/Header';
-import { Menu } from '../component/menu';
+// import { Menu } from '../component/menu';
+import { HMenu } from '../component/Hmenu';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const HousehelpDashboard = ({ navigation }) => {
@@ -161,6 +162,7 @@ const HousehelpDashboard = ({ navigation }) => {
 
   return (
     <View>
+    <HMenu navigation={navigation}></HMenu>
 
     <ScrollView
       contentContainerStyle={styles.container}
@@ -168,7 +170,6 @@ const HousehelpDashboard = ({ navigation }) => {
     >
       
       <Header2 />
-    <Menu></Menu>
 
       <View style={styles.content}>
         <Text style={styles.title}>Available Job Requests</Text>

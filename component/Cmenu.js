@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+
 
 const { width } = Dimensions.get('window');
 
-const Menu = ({ navigation }) => {
+const CMenu = ({ navigation }) => {
   const [menuVisible, setMenuVisible] = useState(false);
   const menuAnimation = useState(new Animated.Value(-width))[0];
 
@@ -37,7 +39,7 @@ const Menu = ({ navigation }) => {
 
         <Text style={styles.menuHeader}>Menu</Text>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Dashboard')}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('cmappage')}>
           <Ionicons name="home" size={20} color="white" style={styles.icon} />
           <Text style={styles.menuText}>Dashboard</Text>
         </TouchableOpacity>
@@ -46,8 +48,8 @@ const Menu = ({ navigation }) => {
           <Ionicons name="person" size={20} color="white" style={styles.icon} />
           <Text style={styles.menuText}>Profile</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Profile')}>
-          <Ionicons name="order" size={20} color="white" style={styles.icon} />
+        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Crequest')}>
+          <Ionicons name="archive" size={20} color="white" style={styles.icon} />
           <Text style={styles.menuText}>Make Request</Text>
         </TouchableOpacity>
 
@@ -72,8 +74,8 @@ const Menu = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   menuButton: {
-    // position: 'absolute',
-    // top: "30%",
+    position: 'absolute',
+    top: "70%",
     right: 30,
     backgroundColor: '#28a745',
     padding: 15,
@@ -137,4 +139,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export { Menu };
+export { CMenu };

@@ -22,11 +22,17 @@ import { Guarantor } from './Guarantor/Guarantor';
 // import { Login2 } from './pages/Login2';
 import { Login2 } from './pages/Login2';
 import { HousehelpDashboard } from './Dashboard/HDashboard';
-import { ClientDashboard } from './Dashboard/CDashboard';
+// import { ClientDashboard } from './Dashboard/CDashboard';
 import { StartJob } from './Dashboard/Hdashboard/Start';
 import { HJobProgress } from './Dashboard/Hdashboard/HJobprogress';
 import { CJobProgress } from './Dashboard/Cdashboard/CJobprogress';
 import { CodeValidation2, CSignup } from './pages/CSignup';
+import { ClientDashboard } from './Dashboard/CDashboard';
+import { CMapPage } from './Dashboard/Cdashboard/CmapPage';
+import { CRequest } from './Dashboard/Cdashboard/CRequest';
+import { CPartDetails } from './Dashboard/Cdashboard/CPartDetails';
+import { CSelectApartment } from './Dashboard/Cdashboard/CselectApartment';
+import { CSelectChores } from './Dashboard/Cdashboard/CselectChores';
 // import {    UploadScreen} from './pages/upload';
 const Stack = createNativeStackNavigator();
 
@@ -58,7 +64,19 @@ const MyStack = () => {
         <Stack.Screen name="cjobprogress" component={CJobProgress}  options={{ headerShown: false }}/>
         <Stack.Screen name="CSignup" component={CSignup}  options={{ headerShown: false }}/>
         <Stack.Screen name="codevalidation2" component={CodeValidation2}  options={{ headerShown: false }}/>
+        <Stack.Screen name="cmappage" component={CMapPage}  options={{ headerShown: false }}/>
+        <Stack.Screen name="crequest" component={CRequest}  options={{ headerShown: false }}/>
+        <Stack.Screen name="cpartdetails" component={CPartDetails}  options={{ headerShown: false }}/>
+        <Stack.Screen name="cselectapartment" component={CSelectApartment}  options={{ headerShown: false }}/>
+        <Stack.Screen name="cselectchores" component={CSelectChores}  options={{ headerShown: false }}/>
 
+
+        {/* <Stack.Screen name="upload" component={UploadScreen}  options={{ headerShown: false }}/> */}
+        
+
+
+
+      
 
 
 

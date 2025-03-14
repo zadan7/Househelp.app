@@ -9,6 +9,7 @@ import { getFirestore, collection, addDoc, query, where, getDocs } from 'firebas
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from "expo-notifications";
+import NigerianStateAndLGASelector from '../component/NigerianStateAndLGASelector';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -56,6 +57,8 @@ const CSignup = ({ navigation }) => {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [address, setAddress] = useState("");
+   const [state, setState] = useState('');
+    const [lga, setLGA] = useState('');
   const [houseFront, setHouseFront] = useState(null);
   const [apartmentInside, setApartmentInside] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
@@ -103,7 +106,7 @@ const CSignup = ({ navigation }) => {
   };
 
   const handleSignup = async () => {
-    if (!fullName || !email || !phone || !password || !address || !houseFront || !apartmentInside || !profilePic) {
+    if (!fullName || !email || !phone || !password || !address || !houseFront || !apartmentInside || !profilePic || !location || !state || !lga) {
       alert("Please fill all fields and upload all required images");
       return;
     }
@@ -142,6 +145,8 @@ const CSignup = ({ navigation }) => {
          email: email,
          phone: phone,
          password:  password, 
+         state: state,
+          lga: lga,
          code:verificationCode,// Consider hashing before storing
        address:   address,
         houseFront:  houseFront,
@@ -182,6 +187,8 @@ const CSignup = ({ navigation }) => {
         <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} keyboardType="email-address" />
         <TextInput style={styles.input} placeholder="Phone Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
         <TextInput style={styles.input} placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
+        <NigerianStateAndLGASelector onStateChange={setState} onLGAChange={setLGA} />
+
         <TextInput style={styles.input} placeholder="Address" value={address} onChangeText={setAddress} />
 
         <TouchableOpacity style={styles.uploadButton} onPress={() => pickImage(setHouseFront)}>

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, StyleSheet, Text, View, ScrollView, TextInput } from 'react-native';
+import { Pressable, StyleSheet, Text, View, ScrollView, TextInput, Alert } from 'react-native';
 import { Header } from '../component/Header';
 import { Footer } from '../component/Footer';
 import { db } from "./firebase";
@@ -11,8 +11,11 @@ function Login({ navigation }) {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [househelpsList, setHousehelps] = useState([]);
+  const [clientsList, setClient] = useState([]);
 
+useEffect(() => {}, []); // ✅ Run once when component mounts
   useEffect(() => {
+    AsyncStorage.clear(); // Clear all stored data
     const fetchHousehelps = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, 'househelps'));
@@ -27,30 +30,95 @@ function Login({ navigation }) {
       }
     };
     
+     const fetchClients = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'clients'));
+        var clients = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          data.id = doc.id; // Add the document ID to the data object
+          return data;
+        });
+        setClient(clients);
+      } catch (error) {
+        console.error('Error fetching data: ', error);
+      }
+    };
+    
 
     fetchHousehelps();
+    fetchClients();
   }, []); // ✅ Run once when component mounts
 
-  const handleLogin =async () => {
+  const handleLogin = async () => {
     console.log('Email:', email);
     console.log('Password:', password);
-
+  
     const foundUser = househelpsList.find(item => item.email === email && item.password === password);
-    if (foundUser) {
-      console.log(foundUser.id)
-
-      console.log("✅ Logged in!",foundUser);
-      await AsyncStorage.setItem("User",JSON.stringify(foundUser))
-      await AsyncStorage.setItem("UserID",JSON.stringify(foundUser.id))
-      // await AsyncStorage.setItem("UserEmail",JSON.stringify(foundUser))
-      await AsyncStorage.setItem('userEmail', email);
-
-      navigation.navigate("hdashboard")
-
-    } else {
-      console.log("❌ Wrong email or password.");
+    const foundClient = clientsList.find(item => item.email === email && item.password === password);
+  
+    if (foundUser && foundClient) {
+      console.log("User has both househelp and client accounts.");
+      Alert.alert(
+        "Multiple Accounts Found",
+        "Do you want to log in as a Househelp or Client?",
+        [
+          {
+            text: "Househelp",
+            onPress: async () => {
+              console.log("✅ Logged in as Househelp!");
+              await AsyncStorage.setItem("User", JSON.stringify(foundUser));
+              await AsyncStorage.setItem("UserID", foundUser.id);
+              await AsyncStorage.setItem("userEmail", email);
+              navigation.navigate("hdashboard");
+            },
+          },
+          {
+            text: "Client",
+            onPress: async () => {
+              console.log("✅ Logged in as Client!");
+              await AsyncStorage.setItem("Client", JSON.stringify(foundClient));
+              await AsyncStorage.setItem("ClientID", foundClient.id);
+              await AsyncStorage.setItem("userEmail", email);
+              navigation.navigate("cdashboard");
+            },
+          },
+          // { text: "Cancel", style: "cancel" },
+        ]
+      );
+  
+      // Store both roles temporarily
+      await AsyncStorage.setItem("User", JSON.stringify(foundUser));
+      await AsyncStorage.setItem("Client", JSON.stringify(foundClient));
+  
+      navigation.navigate("choose"); // Navigate to role selection screen
+      return;
     }
+  
+    if (foundUser) {
+      console.log("✅ Logged in as Househelp!", foundUser);
+      await AsyncStorage.setItem("User", JSON.stringify(foundUser));
+      await AsyncStorage.setItem("UserID", foundUser.id);
+      await AsyncStorage.setItem("userEmail", email);
+  
+      navigation.navigate("hdashboard");
+      return;
+    }
+  
+    if (foundClient) {
+      console.log("✅ Logged in as Client!", foundClient);
+      await AsyncStorage.setItem("Client", JSON.stringify(foundClient));
+      await AsyncStorage.setItem("ClientID", foundClient.id);
+      await AsyncStorage.setItem("userEmail", email);
+  
+      navigation.navigate("cdashboard");
+      return;
+    }
+  
+    // If no matching user found, show one error message
+    console.log("❌ Wrong email or password.");
+    Alert.alert("Login Failed", "Invalid email or password. Please try again.");
   };
+  
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

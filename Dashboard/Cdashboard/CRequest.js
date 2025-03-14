@@ -1,39 +1,55 @@
 import * as React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Pressable, StyleSheet, Text, View,ScrollView } from 'react-native';
-import { Header } from '../component/Header';
-import { Footer } from '../component/Footer';
+// import { Header } from '../component/Header';?
+// import { Footer } from '../component/Footer';
 import { useState } from 'react';
-import { useEffect } from 'react';
+function CRequest({ navigation }) {
+  
+const [b ,setb]=useState({
+    backgroundColor: 'green',
+    color: 'white',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    fontSize: 15,
+    textAlign: 'center',
+    borderRadius: 5,
+  })
+  const [a ,seta]=useState({
+    backgroundColor: 'green',
+    color: 'white',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    fontSize: 15,
+    textAlign: 'center',
+    borderRadius: 5,
+  })
 
-function Home({ navigation }) {
-  useEffect(()=>{
-    // navigation.navigate("hdashboard")
-    // navigation.navigate("cmappage")
+    const [buttoncolor,setbuttoncolor]=useState(a)
 
-    
-  },[])
   return (
     <ScrollView >
         <View style={styles.container}>
       <Header navigation={navigation} />
 
-      <Text style={styles.titleText}>Start Earning With us ($)</Text>
+      {/* <Text style={styles.titleText}>Start Earning With us ($)</Text> */}
 
-      <View style={styles.buttonContainer}>
-      <Text style={{color:"green",fontSize:30,fontWeight:"bold"}}>Welcome!</Text>
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('Signup')}>
-          <Text style={styles.buttonText}>Registration process</Text>
+      <View >
+      {/* <Text style={{color:"green",fontSize:30,fontWeight:"bold"}}>Welcome</Text> */}
+        <Pressable style={styles.buttoncolor} onPress={() => {
+            
+            // setbuttoncolor
+            navigation.navigate('partime')}}>
+          <Text style={buttoncolor}>Request Partime Househelp</Text>
         </Pressable>
-        <Text>or</Text>
+        {/* <Text>or</Text> */}
 
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.buttonText2}>Login</Text>
+      
+        {/* <Text>Click to order househelp</Text>? */}
+        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('')}>
+          <Text style={buttoncolor}>Request Fulltime  Househelp</Text>
         </Pressable>
-        <Text>Click to order househelp</Text>
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('Request')}>
-          <Text style={styles.buttonText}>Order Househelp Now</Text>
-        </Pressable>
+        
         
       </View>
      
@@ -50,8 +66,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     alignItems: 'center',
-    // paddingTop: 10, // Added padding for better layout on screens
-    fontFamily:"Roboto"
+    height:800,
+    fontFamily:"Roboto",
   },
   titleText: {
     fontSize: 12,
@@ -103,4 +119,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export { Home };
+export { CRequest };

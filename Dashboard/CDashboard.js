@@ -6,9 +6,10 @@ import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from './../pages/firebase';
 import { Header2 } from '../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Menu } from '../component/menu';
+// import { Menu } from '../component/menu';
+import { CMenu } from '../component/Cmenu';
 
-const ClientDashboard = () => {
+const ClientDashboard = ({navigation}) => {
   const [refreshing, setRefreshing] = useState(false); 
   const [jobRequests, setJobRequests] = useState([]);
 
@@ -44,7 +45,7 @@ const ClientDashboard = () => {
   return (
     <View style={styles.container}>
       <Header2 />
-      <Menu />
+      <CMenu navigation={navigation}></CMenu>
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchJobRequests} colors={["#28a745"]} />}
       >
