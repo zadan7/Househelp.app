@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Househelp",
+    "slug": "HousehelpApp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff",
+      "newArchEnabled": true
+    },
+    "ios": {
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We need access to your location to show it on the map"
+      },
+      "supportsTablet": true,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB_Xm0x7Xz4UqRh-q4ftiIx4-D8AjLpePE"
+        }
+      }
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_FINE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB_Xm0x7Xz4UqRh-q4ftiIx4-D8AjLpePE"
+        }
+      },
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.zextrascompany.HousehelpApp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c70029a4-00df-4498-8268-457bce765bf4"
+      }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}
