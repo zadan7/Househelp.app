@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Animated, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from './../pages/firebase';
 import { Header2 } from '../component/Header';
-import { Ionicons } from '@expo/vector-icons';
+// import { Cmenu } from '../component/Menu';
+import { Cmenu } from '../component/Menu';
 
 const ClientDashboard = () => {
   const [jobRequests, setJobRequests] = useState([]);
-  const [menuVisible, setMenuVisible] = useState(false);
-  const menuAnimation = useState(new Animated.Value(-250))[0];
 
   useEffect(() => {
     const fetchJobRequests = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, 'partimeRequest'));
-        const jobs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        jobs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const jobs = querySnapshot.docs.map(doc => ({
+          id: doc.id, 
+          ...doc.data()
+        }));
+        jobs.sort((a, b) => b.timestamp.toDate() - a.timestamp.toDate());
         setJobRequests(jobs);
       } catch (error) {
         console.error('Error fetching job requests: ', error);
@@ -26,40 +28,24 @@ const ClientDashboard = () => {
 
   const acceptJob = async (jobId) => {
     try {
-      await updateDoc(doc(db, 'jobRequests', jobId), { status: 'Accepted' });
-      setJobRequests(prevJobs => prevJobs.map(job => job.id === jobId ? { ...job, status: 'Accepted' } : job));
+      await updateDoc(doc(db, 'partimeRequest', jobId), { status: 'Accepted' });
+      setJobRequests(prevJobs => prevJobs.map(job => 
+        job.id === jobId ? { ...job, status: 'Accepted' } : job
+      ));
     } catch (error) {
       console.error('Error accepting job: ', error);
     }
   };
 
-  const toggleMenu = () => {
-    Animated.timing(menuAnimation, {
-      toValue: menuVisible ? -250 : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-    setMenuVisible(!menuVisible);
-  };
-
   return (
     <View style={styles.container}>
       <Header2 />
-      <TouchableOpacity style={styles.menuButton} onPress={toggleMenu}>
-        <Ionicons name="menu" size={40} color="white" />
-        <Text style={{color:"white"}}>MENU</Text>
-      </TouchableOpacity>
-
-      <Animated.View style={[styles.menu, { left: menuAnimation }]}> 
-        <TouchableOpacity onPress={toggleMenu}><Text style={styles.closeMenu}>×</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Dashboard</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Profile</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Settings</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Logout</Text></TouchableOpacity>
-      </Animated.View>
+      
+      {/* Floating Menu */}
+      <Cmenu />
 
       <ScrollView>
-        <Text style={styles.header}>Househelp Dashboard</Text>
+        <Text style={styles.header}>Client Dashboard</Text>
         <FlatList
           data={jobRequests}
           keyExtractor={item => item.id}
@@ -73,21 +59,23 @@ const ClientDashboard = () => {
               <Text style={styles.jobInfo}>State: {item.state}</Text>
               <Text style={styles.jobInfo}>Address: {item.address}</Text>
               <Text style={styles.jobInfo}>List of chores:</Text>
-              {item.chores && typeof item.chores === "string" &&
-                item.chores.replace(/[\[\]"]+/g, '')
-                  .split(',')
-                  .map((chore, index) => {
-                    const parts = chore.trim().split(':');
-                    if (parts.length >= 2) {
-                      const choreName = parts[0].trim();
-                      const chorePrice = parts[1].trim().split(',')[0];
-                      return (
-                        <Text key={index} style={styles.choreItem}>
-                          {choreName}: {chorePrice}
-                        </Text>
-                      );
-                    }
-                  })}
+              {Array.isArray(item.chores) ? (
+                item.chores.map((chore, index) => (
+                  <Text key={index} style={styles.choreItem}>{chore}</Text>
+                ))
+              ) : (
+                item.chores && typeof item.chores === "string" &&
+                item.chores.replace(/[\[\]"]+/g, '').split(',').map((chore, index) => {
+                  const parts = chore.trim().split(':');
+                  if (parts.length >= 2) {
+                    return (
+                      <Text key={index} style={styles.choreItem}>
+                        {parts[0].trim()}: {parts[1].trim()}
+                      </Text>
+                    );
+                  }
+                })
+              )}
               {item.status !== 'Accepted' && (
                 <TouchableOpacity style={styles.acceptButton} onPress={() => acceptJob(item.id)}>
                   <Text style={styles.acceptButtonText}>Accept Job</Text>
@@ -105,37 +93,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-  },
-  menuButton: {
-    padding: 10,
-    backgroundColor: '#28a745',
-    borderRadius: 50,
-    position: 'absolute',
-    bottom: "10%",
-    right: "10%",
-    zIndex: 10,
-    width:"auto"
-  },
-  menu: {
-    position: 'absolute',
-    top: 0,
-    left: -250,
-    width: 250,
-    height: '100%',
-    backgroundColor: '#343a40',
-    padding: 20,
-    zIndex: 1,
-  },
-  closeMenu: {
-    color: '#fff',
-    fontSize: 24,
-    textAlign: 'right',
-    marginBottom: 20,
-  },
-  menuItem: {
-    color: '#fff',
-    fontSize: 18,
-    marginBottom: 20,
   },
   header: {
     fontSize: 26,
@@ -189,7 +146,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  }
+  },
 });
 
 export { ClientDashboard };

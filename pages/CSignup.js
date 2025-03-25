@@ -220,6 +220,14 @@ const CSignup = ({ navigation }) => {
         password: password,
         Cpassword: Cpassword,
       };
+
+       // emailjs.send("service_y6igit7","template_a7bqysj",{
+      //   name: firstname+ lastname,
+      //   code: verificationCode,
+      //   message: "welcome Onboard",
+      //   from_name: "Househelp.ng",
+      //   email:email,
+      //   },"tqnSNSHM6dMmakDbI");
     
       setdata(newData); // State update is asynchronous
     
