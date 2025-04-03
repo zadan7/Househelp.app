@@ -10,7 +10,7 @@ import { db } from '../../pages/firebase';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 
-const Profile = ({navigation}) => {
+const MakeRequest = ({navigation}) => {
 
   return (
     <View style={styles.container}>
@@ -87,4 +87,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export { Profile };
+export { MakeRequest };

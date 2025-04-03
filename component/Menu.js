@@ -39,9 +39,9 @@ const Cmenu = ({navigation}) => {
         <TouchableOpacity onPress={()=>{navigation.navigate("cHousehelplist")}}><Text style={styles.menuItem}>Househelp List</Text></TouchableOpacity>
 
 
-        <TouchableOpacity onPress={()=>{navigation.navigate("profile")}}><Text style={styles.menuItem}>Settings</Text></TouchableOpacity>
+        {/* <TouchableOpacity onPress={()=>{navigation.navigate("profile")}}><Text style={styles.menuItem}>Settings</Text></TouchableOpacity> */}
         <TouchableOpacity onPress={()=>{navigation.navigate("profile")}}><Text style={styles.menuItem}>Balances</Text></TouchableOpacity>
-        <TouchableOpacity onPress={()=>{navigation.navigate("profile")}}><Text style={styles.menuItem}>Settings</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=>{navigation.navigate("csettings")}}><Text style={styles.menuItem}>Settings</Text></TouchableOpacity>
         
 
         <TouchableOpacity onPress={()=>{
