@@ -25,6 +25,8 @@ import { HousehelpDashboard } from './Dashboard/HDashboard';
 import { CSignup ,CodeValidation2} from './pages/CSignup';
 import { ClientDashboard } from './Dashboard/CDashboard';
 import { Cmenu } from './component/Menu';
+import { Profile } from './Dashboard/CDASHBOARD/Profile';
+// import { Profile } from './Dashboard/CDASHBOARD/Profile';
 // import {    UploadScreen} from './pages/upload';
 const Stack = createNativeStackNavigator();
 
@@ -53,6 +55,8 @@ const MyStack = () => {
         <Stack.Screen name="Login2" component={Login2}  options={{ headerShown: false }}/>
         <Stack.Screen name="hdashboard" component={HousehelpDashboard}  options={{ headerShown: false }}/>
         <Stack.Screen name="cdashboard" component={ClientDashboard}  options={{ headerShown: false }}/>
+        <Stack.Screen name="cprofile" component={Profile}  options={{ headerShown: false }}/>     
+
         {/* <Stack.Screen name="" component={Cmenu}  options={{ headerShown: false }}/> */}
 
         

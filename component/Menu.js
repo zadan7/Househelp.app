@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Animated, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+// import { useNavigation } from '@react-navigation/native';
+import { useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const Cmenu = () => {
+
+
+const Cmenu = ({navigation}) => {
   const [menuVisible, setMenuVisible] = useState(false);
   const menuAnimation = useState(new Animated.Value(-250))[0];
 
@@ -28,10 +33,24 @@ const Cmenu = () => {
         <TouchableOpacity onPress={toggleMenu}>
           <Text style={styles.closeMenu}>×</Text>
         </TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Dashboard</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Profile</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Settings</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Logout</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=>{navigation.navigate("cdashboard")}} ><Text style={styles.menuItem}>Dashboard</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=>{navigation.navigate("cprofile")}}><Text style={styles.menuItem} >Profile</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=>{navigation.navigate("cmakerequest")}}><Text style={styles.menuItem}>Make Request</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=>{navigation.navigate("cHousehelplist")}}><Text style={styles.menuItem}>Househelp List</Text></TouchableOpacity>
+
+
+        <TouchableOpacity onPress={()=>{navigation.navigate("profile")}}><Text style={styles.menuItem}>Settings</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=>{navigation.navigate("profile")}}><Text style={styles.menuItem}>Balances</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=>{navigation.navigate("profile")}}><Text style={styles.menuItem}>Settings</Text></TouchableOpacity>
+        
+
+        <TouchableOpacity onPress={()=>{
+          AsyncStorage.clear().then(()=>{
+            Alert.alert("logged Out See you soon")
+            setTimeout(()=>{navigation.navigate("Home")},1000)
+            
+          })
+          }}><Text style={styles.menuItem}>Logout</Text></TouchableOpacity>
       </Animated.View>
     </>
   );

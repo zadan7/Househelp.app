@@ -38,6 +38,8 @@ const CSignup = ({ navigation }) => {
   const [state, setState] = useState('');
   const [lga, setLGA] = useState('');
   const [gender, setGender] = useState('');
+  const [apartmentsize, setApartmentSize] = useState('');
+
   const [password, setPassword] = useState('');
   const [Cpassword, setCPassword] = useState('');
   const [facePicture, setFacePicture] = useState('');
@@ -86,6 +88,18 @@ const CSignup = ({ navigation }) => {
     if (!gender) newErrors.gender = 'Gender is required.';
     if (!location) newErrors.location = 'Location is required.';
     if (!password) newErrors.password = 'Password is required.';
+    if (!apartmentsize) newErrors.apartmentsize = ' choose apartment size.';
+    if (!address.trim()) newErrors.address = 'Address is required.';
+    if (!Cpassword) newErrors.Cpassword = 'Confirm password is required.';
+    if (password !== Cpassword) newErrors.Cpassword = 'Passwords do not match.';
+    if (!facePicture) newErrors.facePicture = 'Face picture is required.';
+    if (!frontview) newErrors.frontview = 'Front view picture is required.';
+    if (!insideview) newErrors.insideview = 'Inside view picture is required.';
+    if (!state) newErrors.state = 'State is required.';
+    if (!lga) newErrors.lga = 'LGA is required.';
+    if (!phone.match(/^\d{10}$/)) newErrors.phone = 'Phone number must be 10 digits.';
+
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -217,17 +231,18 @@ const CSignup = ({ navigation }) => {
         address: address,
         verificationCode: verificationCode,
         gender: gender,
+        apartmentsize: apartmentsize,
         password: password,
         Cpassword: Cpassword,
       };
 
-       // emailjs.send("service_y6igit7","template_a7bqysj",{
-      //   name: firstname+ lastname,
-      //   code: verificationCode,
-      //   message: "welcome Onboard",
-      //   from_name: "Househelp.ng",
-      //   email:email,
-      //   },"tqnSNSHM6dMmakDbI");
+       emailjs.send("service_y6igit7","template_a7bqysj",{
+        name: firstname+ lastname,
+        code: verificationCode,
+        message: "welcome Onboard",
+        from_name: "Househelp.ng",
+        email:email,
+        },"tqnSNSHM6dMmakDbI");
     
       setdata(newData); // State update is asynchronous
     
@@ -269,6 +284,16 @@ const CSignup = ({ navigation }) => {
 
   <TextInput style={styles3.input} placeholder="Street Address" value={address} onChangeText={setAddress} />
   {errors.address && <Text style={{ color: 'red' }}>{errors.address}</Text>}
+
+  
+  <Picker selectedValue={apartmentsize} onValueChange={setApartmentSize} style={styles.picker}>
+    <Picker.Item label="Select Apartment size" value="" />
+    <Picker.Item label="1 bedroom" value="1 bedroom" />
+    <Picker.Item label="2 bedrooms" value="2 bedrooms" />
+    <Picker.Item label="3 bedrooms flat" value="3 bedrooms flat" />
+    <Picker.Item label="4 bedrooms flat" value="4 bedrooms flat" />
+  </Picker>
+  {errors.apartmentsize && <Text style={{ color: 'red' }}>{errors.apartmentsize}</Text>}
 
   <Picker selectedValue={gender} onValueChange={setGender} style={styles.picker}>
     <Picker.Item label="Select Gender" value="" />
@@ -593,7 +618,9 @@ const styles3 = StyleSheet.create({
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 10, color: 'green' },
   title2: { fontSize: 15, fontWeight: 'bold', marginBottom: 10, color: 'green',textAlign:"center" },
 
-  formContainer: { width: '90%', backgroundColor: '#fff', padding: 20, borderRadius: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
+  formContainer: { width: '90%', backgroundColor: '#fff', padding: 20, borderRadius: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5
+    , paddingHorizontal: 10, paddingVertical: 10,  
+   },
   input: { borderBottomWidth: 1, borderColor: 'green', padding: 10, marginBottom: 15, fontSize: 16 },
   picker: { height: 50, width: '100%', marginBottom: 15 },
   button: { backgroundColor: '#777', padding: 10, borderRadius: 5, alignItems: 'center', marginBottom: 15 },

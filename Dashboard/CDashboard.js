@@ -5,9 +5,13 @@ import { db } from './../pages/firebase';
 import { Header2 } from '../component/Header';
 // import { Cmenu } from '../component/Menu';
 import { Cmenu } from '../component/Menu';
+import { AsyncStorage } from '@react-native-async-storage/async-storage';
 
-const ClientDashboard = () => {
+const ClientDashboard = ({navigation}) => {
   const [jobRequests, setJobRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [clientdata, setClientdata] = useState({});
+
 
   useEffect(() => {
     const fetchJobRequests = async () => {
@@ -23,8 +27,19 @@ const ClientDashboard = () => {
         console.error('Error fetching job requests: ', error);
       }
     };
+
+    const fetchClientData = async () => {
+      try { 
+        var cdata = await AsyncStorage.getItem('clientdata');
+        if (cdata) {  setClientdata(JSON.parse(cdata)); }
+      } catch (error) {
+        console.log('Error fetching client data: ', error);
+      }
+    };
+    fetchClientData();  
     fetchJobRequests();
   }, []);
+ 
 
   const acceptJob = async (jobId) => {
     try {
@@ -42,7 +57,7 @@ const ClientDashboard = () => {
       <Header2 />
       
       {/* Floating Menu */}
-      <Cmenu />
+      <Cmenu  navigation={navigation}/>
 
       <ScrollView>
         <Text style={styles.header}>Client Dashboard</Text>
