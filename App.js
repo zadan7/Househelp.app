@@ -32,6 +32,8 @@ import { MakeRequest } from './Dashboard/CDASHBOARD/Makerequest';
 // import { Arriving } from './Dashboard/CDASHBOARD/arriving';?
 import { Arriving } from './Dashboard/CDASHBOARD/Arriving';
 import { RequestConfirmation } from './Dashboard/CDASHBOARD/ConfirmingRequest';
+import { HousehelpList } from './Dashboard/CDASHBOARD/Househelplist';
+import { HousehelpDetail } from './Dashboard/CDASHBOARD/Househelplist';
 
 // import {    UploadScreen} from './pages/upload';
 const Stack = createNativeStackNavigator();
@@ -66,6 +68,13 @@ const MyStack = () => {
       <Stack.Screen name="cmakerequest" component={MakeRequest}  options={{ headerShown: false }}/>
       <Stack.Screen name="arriving" component={Arriving}  options={{ headerShown: false }}/>     
       <Stack.Screen name="requestconfirmation" component={RequestConfirmation} options={{ headerShown: false }} />
+      {/* <Stack.Screen name="requestconfirmation" component={RequestConfirmation} options={{ headerShown: false }} /> */}
+
+      <Stack.Screen name="cHousehelplist" component={HousehelpList}  options={{ headerShown: false }}/>
+      <Stack.Screen name="HousehelpDetail" component={HousehelpDetail}  options={{ headerShown: false }}/> 
+
+
+
 
 
 

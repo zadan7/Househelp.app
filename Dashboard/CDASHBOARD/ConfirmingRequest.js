@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 
@@ -7,50 +7,62 @@ import { Header2 } from '../../component/Header';
 import { Cmenu } from '../../component/Menu';
 
 const RequestConfirmation = ({ navigation, route }) => {
-  const { clientId } = route.params; // Get clientId from navigation route
-  const [job, setJob] = useState(null);
-  const [selectedHelper, setSelectedHelper] = useState(null);
+  const { clientId } = route.params;
+  const [pendingJobs, setPendingJobs] = useState([]);
+  const [selectedHelpers, setSelectedHelpers] = useState({});
+  const [loading, setLoading] = useState(true); // To track loading state
 
   useEffect(() => {
-    const fetchClientJobs = async () => {
+    const fetchJobs = async () => {
       try {
+        setLoading(true);
         const snapshot = await getDocs(collection(db, 'partimeRequest'));
         const jobs = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(j => j.clientId === clientId && j.status === 'pending')
-          .sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+          .filter(j => j.clientId === clientId && j.status === 'pending');
 
-        if (jobs.length > 0) {
-          setJob(jobs[0]);
-        }
+        setPendingJobs(jobs);
       } catch (error) {
-        console.error('Error fetching part-time jobs:', error);
+        console.error('Error fetching jobs:', error);
+        Alert.alert('Error', 'Failed to fetch jobs. Please try again.');
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchClientJobs();
+    fetchJobs();
   }, [clientId]);
 
-  const handleConfirm = async () => {
-    if (!selectedHelper || !job) {
+  const handleConfirm = async (jobId) => {
+    const selectedHelper = selectedHelpers[jobId];
+
+    if (!selectedHelper) {
       Alert.alert("Please select a househelp before confirming.");
       return;
     }
 
     try {
-      const jobRef = doc(db, 'partimeRequest', job.id);
+      const jobRef = doc(db, 'partimeRequest', jobId);
       await updateDoc(jobRef, {
         househelpName: selectedHelper,
         status: 'confirmed',
       });
 
       Alert.alert("Job Confirmed", `You selected ${selectedHelper}.`);
-      navigation.navigate('arriving', { clientId }); // You can pass clientId forward if needed
+      navigation.navigate('arriving', { clientId });
     } catch (error) {
       console.error("Error confirming job:", error);
       Alert.alert("Error", "Failed to confirm job.");
     }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#28a745" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -58,51 +70,63 @@ const RequestConfirmation = ({ navigation, route }) => {
       <Cmenu navigation={navigation} />
 
       <ScrollView contentContainerStyle={styles.scrollView}>
-        <Text style={styles.header}>Request Confirmation</Text>
+        <Text style={styles.header}>Confirm Your Job Requests</Text>
 
-        {!job ? (
-          <Text style={styles.noJobText}>No pending job found for this client.</Text>
+        {pendingJobs.length === 0 ? (
+          <Text style={styles.noJobText}>No pending jobs found.</Text>
         ) : (
-          <View style={styles.jobCard}>
-            <Text style={styles.jobTitle}>{job.description || 'Job Request'}</Text>
-            <Text style={styles.jobInfo}>Location: {job.address}</Text>
-            <Text style={styles.jobInfo}>Price: ${job.price}</Text>
-            <Text style={styles.jobInfo}>Requested On: {new Date(job.createdAt?.seconds * 1000).toLocaleString()}</Text>
-            <Text style={styles.subHeader}>Househelps Available:</Text>
+          pendingJobs.map((job) => (
+            <View key={job.id} style={styles.jobCard}>
+              <Text style={styles.jobTitle}>{job.clientName}'s Job Request</Text>
+              <Text style={styles.jobInfo}>Location: {job.address}</Text>
+              <Text style={styles.jobInfo}>Apartment Type: {job.apartmentType}</Text>
+              <Text style={styles.jobInfo}>Price: ₦{job.totalCost}</Text>
+              <Text style={styles.jobInfo}>Requested On: {new Date(job.createdAt?.seconds * 1000).toLocaleString()}</Text>
 
-            {job.acceptedBy && job.acceptedBy.length > 0 ? (
-              job.acceptedBy.map((helper, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[
-                    styles.helperButton,
-                    selectedHelper === helper && styles.selectedHelper,
-                  ]}
-                  onPress={() => setSelectedHelper(helper)}
-                >
-                  <Text style={[
-                    styles.helperText,
-                    selectedHelper === helper && styles.selectedHelperText,
-                  ]}>
-                    {helper}
-                  </Text>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <Text style={styles.waitingText}>Waiting for househelps to accept...</Text>
-            )}
+              <Text style={styles.subHeader}>Chores:</Text>
+              {job.chores.map((chore, index) => (
+                <Text key={index} style={styles.choreItem}>- {chore.chore} (₦{chore.price})</Text>
+              ))}
 
-            <TouchableOpacity
-              onPress={handleConfirm}
-              style={[
-                styles.confirmButton,
-                !selectedHelper && { backgroundColor: '#ccc' },
-              ]}
-              disabled={!selectedHelper}
-            >
-              <Text style={styles.confirmButtonText}>Confirm & Continue</Text>
-            </TouchableOpacity>
-          </View>
+              <Text style={styles.subHeader}>Available Househelps:</Text>
+              {job.acceptedBy && job.acceptedBy.length > 0 ? (
+                job.acceptedBy.map((helper, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[
+                      styles.helperButton,
+                      selectedHelpers[job.id] === helper && styles.selectedHelper,
+                    ]}
+                    onPress={() =>
+                      setSelectedHelpers((prev) => ({ ...prev, [job.id]: helper }))
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.helperText,
+                        selectedHelpers[job.id] === helper && styles.selectedHelperText,
+                      ]}
+                    >
+                      {helper}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text style={styles.waitingText}>Waiting for househelps to accept...</Text>
+              )}
+
+              <TouchableOpacity
+                onPress={() => handleConfirm(job.id)}
+                style={[
+                  styles.confirmButton,
+                  !selectedHelpers[job.id] && { backgroundColor: '#ccc' },
+                ]}
+                disabled={!selectedHelpers[job.id]}
+              >
+                <Text style={styles.confirmButtonText}>Confirm & Continue</Text>
+              </TouchableOpacity>
+            </View>
+          ))
         )}
       </ScrollView>
     </View>
@@ -125,11 +149,18 @@ const styles = StyleSheet.create({
     color: '#777',
     fontSize: 16,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
   jobCard: {
     backgroundColor: '#fff',
     padding: 20,
     borderRadius: 12,
     marginHorizontal: 15,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
@@ -152,6 +183,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+  },
+  choreItem: {
+    fontSize: 15,
+    marginLeft: 10,
+    color: '#555',
   },
   helperButton: {
     backgroundColor: '#e9ecef',

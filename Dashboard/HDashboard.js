@@ -4,9 +4,12 @@ import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from './../pages/firebase';
 import { Header2 } from '../component/Header';
 import { Ionicons } from '@expo/vector-icons';
+import { Hmenu } from '../component/Menu';
 
-const HousehelpDashboard = () => {
+const HousehelpDashboard = ( {navigation}) => {
   const [jobRequests, setJobRequests] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [jobandclientsdata, setJobandClientdata] = useState([]);
   const [menuVisible, setMenuVisible] = useState(false);
   const menuAnimation = useState(new Animated.Value(-250))[0];
 
@@ -14,18 +17,43 @@ const HousehelpDashboard = () => {
     const fetchJobRequests = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, 'partimeRequest'));
-        const jobs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const querySnapshot2 = await getDocs(collection(db, 'clients'));
+
+        const jobs = querySnapshot.docs.map(doc => ({ id2: doc.id, ...doc.data() }));
+        // const jobs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const clients = querySnapshot2.docs.map(doc => ({ id2: doc.id, ...doc.data() }));
+        setClients(clients);
+        // console.log("clients",clients)
+        
+        
         jobs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         setJobRequests(jobs);
+        jobRequests.forEach((job) => {
+        
+         clients.find((client) => {
+          if (client.id2 === job.clientId) {
+            console.log("client",client.name)
+            setJobandClientdata((prevData) => [...prevData, { ...job, clientName: client.name }]);
+            console.log("jobandclientdata",jobandclientsdata[0])
+            return true; // Stop searching once we find the match
+          }
+        })
+        })
+    
       } catch (error) {
         console.error('Error fetching job requests: ', error);
       }
     };
     fetchJobRequests();
+
+  
+
+    
   }, []);
 
   const acceptJob = async (jobId) => {
     try {
+      console.log(jobRequests)
       await updateDoc(doc(db, 'jobRequests', jobId), { status: 'Accepted' });
       setJobRequests(prevJobs => prevJobs.map(job => job.id === jobId ? { ...job, status: 'Accepted' } : job));
     } catch (error) {
@@ -45,19 +73,7 @@ const HousehelpDashboard = () => {
   return (
     <View style={styles.container}>
       <Header2 />
-      <TouchableOpacity style={styles.menuButton} onPress={toggleMenu}>
-        <Ionicons name="menu" size={40} color="white" />
-        <Text style={{color:"white"}}>MENU</Text>
-      </TouchableOpacity>
-
-      <Animated.View style={[styles.menu, { left: menuAnimation }]}> 
-        <TouchableOpacity onPress={toggleMenu}><Text style={styles.closeMenu}>×</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Dashboard</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Profile</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Settings</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Logout</Text></TouchableOpacity>
-      </Animated.View>
-
+    <Hmenu navigation={navigation} />
       <ScrollView>
         <Text style={styles.header}>Househelp Dashboard</Text>
         <FlatList
@@ -65,29 +81,25 @@ const HousehelpDashboard = () => {
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <View style={styles.jobCard}>
-              <Text style={styles.jobTitle}>{item.name}</Text>
-              <Text style={styles.jobAmount}>Amount: N {item.amount}</Text>
-              <Text style={styles.jobInfo}>Apartment size: {item.apartmenttype}</Text>
-              <Text style={styles.jobInfo}>LGA: {item.LGA}</Text>
+              <Text style={styles.jobTitle}>{item.clientName}</Text>
+              <Text style={styles.jobAmount}>Amount: N {item.totalCost}</Text>
+              <Text style={styles.jobInfo}>Apartment size: {item.apartmentType}</Text>
+              <Text style={styles.jobInfo}>LGA: {item.clientdata.LGA}</Text>
               <Text style={styles.jobInfo}>Phone: {item.phone}</Text>
               <Text style={styles.jobInfo}>State: {item.state}</Text>
               <Text style={styles.jobInfo}>Address: {item.address}</Text>
               <Text style={styles.jobInfo}>List of chores:</Text>
-              {item.chores && typeof item.chores === "string" &&
-                item.chores.replace(/[\[\]"]+/g, '')
-                  .split(',')
+              {item.chores
                   .map((chore, index) => {
-                    const parts = chore.trim().split(':');
-                    if (parts.length >= 2) {
-                      const choreName = parts[0].trim();
-                      const chorePrice = parts[1].trim().split(',')[0];
+                      // console.log(chore)
+                    
                       return (
                         <Text key={index} style={styles.choreItem}>
-                          {choreName}: {chorePrice}
+                          {chore.chore}: {chore.price}
                         </Text>
                       );
                     }
-                  })}
+                  )}
               {item.status !== 'Accepted' && (
                 <TouchableOpacity style={styles.acceptButton} onPress={() => acceptJob(item.id)}>
                   <Text style={styles.acceptButtonText}>Accept Job</Text>

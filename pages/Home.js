@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 
 function Home({ navigation }) {
   useEffect(()=>{
-    navigation.navigate("cmakerequest")
+    // navigation.navigate("requestconfirmation")
     
   },[])
   return (

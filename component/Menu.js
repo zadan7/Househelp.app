@@ -33,7 +33,7 @@ const Cmenu = ({navigation}) => {
         <TouchableOpacity onPress={toggleMenu}>
           <Text style={styles.closeMenu}>×</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={()=>{navigation.navigate("cdashboard")}} ><Text style={styles.menuItem}>Dashboard</Text></TouchableOpacity>
+        {/* <TouchableOpacity onPress={()=>{navigation.navigate("cdashboard")}} ><Text style={styles.menuItem}>Dashboard</Text></TouchableOpacity> */}
         <TouchableOpacity onPress={()=>{navigation.navigate("cprofile")}}><Text style={styles.menuItem} >Profile</Text></TouchableOpacity>
         <TouchableOpacity onPress={()=>{navigation.navigate("cmakerequest")}}><Text style={styles.menuItem}>Make Request</Text></TouchableOpacity>
         <TouchableOpacity onPress={()=>{navigation.navigate("cHousehelplist")}}><Text style={styles.menuItem}>Househelp List</Text></TouchableOpacity>
@@ -56,7 +56,7 @@ const Cmenu = ({navigation}) => {
   );
 };
 
-const Hmenu = () => {
+const Hmenu = ({navigation}) => {
   const [menuVisible, setMenuVisible] = useState(false);
   const menuAnimation = useState(new Animated.Value(-250))[0];
 
@@ -82,10 +82,28 @@ const Hmenu = () => {
         <TouchableOpacity onPress={toggleMenu}>
           <Text style={styles.closeMenu}>×</Text>
         </TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Dashboard</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Profile</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Settings</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.menuItem}>Logout</Text></TouchableOpacity>
+
+        <TouchableOpacity onPress={()=>{
+          navigation.navigate("hdashboard")}
+        }><Text style={styles.menuItem}>Dashboard</Text></TouchableOpacity>
+        
+        <TouchableOpacity onPress={()=>{
+          navigation.navigate("hdashboard")}
+        }><Text style={styles.menuItem}>Fulltime Request</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=>{
+          navigation.navigate("hprofile")}
+        }><Text style={styles.menuItem}>Profile</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=>{
+          navigation.navigate("hsettings")}
+        }><Text style={styles.menuItem}>Settings</Text></TouchableOpacity>
+        
+        <TouchableOpacity onPress={()=>{
+          AsyncStorage.clear().then(()=>{
+            Alert.alert("logged Out See you soon")
+            setTimeout(()=>{navigation.navigate("Home")},1000)
+            
+          })
+          }}><Text style={styles.menuItem}>Logout</Text></TouchableOpacity>
       </Animated.View>
     </>
   );

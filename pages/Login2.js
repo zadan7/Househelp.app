@@ -6,7 +6,7 @@ import { Footer } from '../component/Footer';
 import { db } from './firebase'; // Ensure you've initialized Firebase properly
 import { collection, getDocs } from 'firebase/firestore'; // Correct Firestore methods
 import { useState, useEffect } from 'react';
-import { HousehelpList } from '../component/Househelplist';
+import { HousehelpList } from '../Dashboard/CDASHBOARD/Househelplist';
  
 function Login2({ navigation }) {
   const [email, setEmail] = React.useState('');
