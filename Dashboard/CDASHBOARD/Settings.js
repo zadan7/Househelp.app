@@ -115,7 +115,7 @@ const Csettings = ({ navigation }) => {
       <Cmenu navigation={navigation} />
 
       <ScrollView contentContainerStyle={styles.scrollViewContainer}>
-        <Text style={styles.header}>Profile</Text>
+        <Text style={styles.header}>Settingss</Text>
 
         <View style={styles.profileContainer}>
           <View style={styles.profileHeader}>

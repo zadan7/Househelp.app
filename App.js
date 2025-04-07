@@ -28,6 +28,10 @@ import { Cmenu } from './component/Menu';
 // import { Profile } from './Dashboard/CDASHBOARD/Profile';
 import { Profile } from './Dashboard/CDASHBOARD/Profile';
 import { Csettings } from './Dashboard/CDASHBOARD/Settings';
+import { MakeRequest } from './Dashboard/CDASHBOARD/Makerequest';
+// import { Arriving } from './Dashboard/CDASHBOARD/arriving';?
+import { Arriving } from './Dashboard/CDASHBOARD/Arriving';
+import { RequestConfirmation } from './Dashboard/CDASHBOARD/ConfirmingRequest';
 
 // import {    UploadScreen} from './pages/upload';
 const Stack = createNativeStackNavigator();
@@ -58,7 +62,12 @@ const MyStack = () => {
         <Stack.Screen name="hdashboard" component={HousehelpDashboard}  options={{ headerShown: false }}/>
         <Stack.Screen name="cdashboard" component={ClientDashboard}  options={{ headerShown: false }}/>
         <Stack.Screen name="cprofile" component={Profile}  options={{ headerShown: false }}/> 
-      <Stack.Screen name="csettings" component={Csettings}  options={{ headerShown: false }}/>     
+      <Stack.Screen name="csettings" component={Csettings}  options={{ headerShown: false }}/>
+      <Stack.Screen name="cmakerequest" component={MakeRequest}  options={{ headerShown: false }}/>
+      <Stack.Screen name="arriving" component={Arriving}  options={{ headerShown: false }}/>     
+      <Stack.Screen name="requestconfirmation" component={RequestConfirmation} options={{ headerShown: false }} />
+
+
 
 
         {/* <Stack.Screen name="" component={Cmenu}  options={{ headerShown: false }}/> */}

@@ -75,9 +75,9 @@ const Profile = ({ navigation }) => {
 
             <View style={styles.detailsRow}>
               <Text style={styles.label}>Location:</Text>
-              <Text style={styles.detail}>
+              {/* <Text style={styles.detail}>
                 Lat: {user.location.latitude}, Lon: {user.location.longitude}
-              </Text>
+              </Text> */}
             </View>
 
             <View style={styles.detailsRow}>
