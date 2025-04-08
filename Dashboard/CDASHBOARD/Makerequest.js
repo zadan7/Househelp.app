@@ -60,7 +60,7 @@ const MakeRequest = ({ navigation }) => {
     try {
       console.log('Submitting request...',user);
       const requestData = {
-        id: `req_${Date.now()}`,
+        jobid: `req_${Date.now()}`,
         clientId: user.id,
         clientName: user.firstname + ' ' + user.lastname,
         clientEmail: user.email,

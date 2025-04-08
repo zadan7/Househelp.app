@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Image } from 'react-native';
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 
@@ -13,11 +13,12 @@ const Arriving = ({ navigation }) => {
   useEffect(() => {
     const fetchConfirmedJobs = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, 'chores'));
+        const querySnapshot = await getDocs(collection(db, 'partimeRequest'));
         const confirmedJobs = querySnapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
           .filter(job => job.status === 'confirmed');
         setJobs(confirmedJobs);
+        console.log(confirmedJobs);
       } catch (err) {
         console.error('Error fetching jobs:', err);
       }
@@ -26,16 +27,16 @@ const Arriving = ({ navigation }) => {
     fetchConfirmedJobs();
   }, []);
 
-  const handleStartJob = async (jobId) => {
+  const handleStartJob = async (jobId, job) => {
     try {
-      const jobRef = doc(db, 'chores', jobId);
+      const jobRef = doc(db, 'partimeRequest', jobId);
       await updateDoc(jobRef, {
         status: 'in-progress',
         startedAt: new Date(),
       });
       Alert.alert("Success", "Job started successfully!");
-      // Update UI
       setJobs(prev => prev.map(job => job.id === jobId ? { ...job, status: 'in-progress' } : job));
+      navigation.navigate('cstartjob', { job });
     } catch (err) {
       console.error('Failed to start job:', err);
       Alert.alert("Error", "Could not start the job. Try again.");
@@ -48,21 +49,49 @@ const Arriving = ({ navigation }) => {
       <Cmenu navigation={navigation} />
 
       <ScrollView contentContainerStyle={styles.scrollView}>
-        <Text style={styles.header}>Arriving Househelps</Text>
+        <Text style={styles.header}>Awaiting Househelps Arrival</Text>
 
         {jobs.length === 0 ? (
           <Text style={styles.noJobText}>No confirmed jobs yet.</Text>
         ) : (
           jobs.map(job => (
             <View key={job.id} style={styles.jobCard}>
-              <Text style={styles.jobTitle}>{job.description}</Text>
-              <Text style={styles.jobInfo}>Price: ${job.price}</Text>
+              <Text style={styles.jobTitle}>Househelp: {job.househelpName}</Text>
+              <Text style={styles.jobInfo}>Job ID: {job.jobid}</Text>
+              <Text style={styles.jobInfo}>Client: {job.clientName}</Text>
+              <Text style={styles.jobInfo}>Client Email: {job.clientEmail}</Text>
+              <Text style={styles.jobInfo}>Phone: {job.phone}</Text>
+              <Text style={styles.jobInfo}>Request Type: {job.requestType}</Text>
+              <Text style={styles.jobInfo}>Apartment: {job.apartmentType}</Text>
+              <Text style={styles.jobInfo}>Address: {job.address}</Text>
               <Text style={styles.jobInfo}>Status: {job.status}</Text>
-              <Text style={styles.jobInfo}>Assigned To: {job.househelpName || 'Pending assignment'}</Text>
+              <Text style={styles.jobInfo}>Total Cost: ₦{job.totalCost}</Text>
+
+              <Text style={styles.sectionTitle}>Chores:</Text>
+              {job.chores && job.chores.map((chore, index) => (
+                <Text key={index} style={styles.choreItem}>• {chore.chore} {chore.price}</Text>
+              ))}
+
+              {job.househelpdata && (
+                <>
+                  <Text style={styles.sectionTitle}>Househelp Profile:</Text>
+                  {job.househelpdata.url && (
+                    <Image
+                      source={{ uri: job.househelpdata.url }}
+                      style={styles.profileImage}
+                    />
+                  )}
+                  <Text style={styles.jobInfo}>Email: {job.househelpdata.email}</Text>
+                  <Text style={styles.jobInfo}>Phone: {job.househelpdata.phonenumber}</Text>
+                  <Text style={styles.jobInfo}>Location: {job.househelpdata.address}</Text>
+                  <Text style={styles.jobInfo}>Experience: {job.househelpdata.experience} years</Text>
+                  <Text style={styles.jobInfo}>Gender: {job.househelpdata.gender}</Text>
+                </>
+              )}
 
               {job.status === 'confirmed' && (
                 <TouchableOpacity
-                  onPress={() => handleStartJob(job.id)}
+                  onPress={() => handleStartJob(job.id,job)}
                   style={styles.startButton}
                 >
                   <Text style={styles.startButtonText}>Start Job</Text>
@@ -123,6 +152,17 @@ const styles = StyleSheet.create({
     color: '#555',
     marginBottom: 5,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 10,
+    color: '#333',
+  },
+  choreItem: {
+    fontSize: 15,
+    color: '#555',
+    marginLeft: 10,
+  },
   startButton: {
     backgroundColor: '#007bff',
     padding: 12,
@@ -140,6 +180,12 @@ const styles = StyleSheet.create({
     color: '#ffc107',
     fontWeight: '600',
     fontSize: 16,
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 10,
+    marginVertical: 10,
   },
 });
 
