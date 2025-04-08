@@ -36,6 +36,8 @@ import { HousehelpList } from './Dashboard/CDASHBOARD/Househelplist';
 import { HousehelpDetail } from './Dashboard/CDASHBOARD/Househelplist';
 import { HPartimeRquest } from './Dashboard/HDASHBOARD/HPartimeRequest';
 import { CStartJob } from './Dashboard/CDASHBOARD/StartJob';
+import { HcurrentJob } from './Dashboard/HDASHBOARD/HcurrentJob';
+import { AwaitingConfirmationScreen } from './Dashboard/HDASHBOARD/AwaitingConfirmation';
 
 // import {    UploadScreen} from './pages/upload';
 const Stack = createNativeStackNavigator();
@@ -76,6 +78,10 @@ const MyStack = () => {
       <Stack.Screen name="HousehelpDetail" component={HousehelpDetail}  options={{ headerShown: false }}/> 
       <Stack.Screen name="hpartime" component={HPartimeRquest}  options={{ headerShown: false }}/> 
       <Stack.Screen name="cstartjob" component={CStartJob}  options={{ headerShown: false }}/> 
+      <Stack.Screen name="hcurrentjob" component={HcurrentJob}  options={{ headerShown: false }}/> 
+      <Stack.Screen name="awaitingconfirmation" component={AwaitingConfirmationScreen}  options={{ headerShown: false }}/> 
+
+
 
 
       

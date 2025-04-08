@@ -64,6 +64,7 @@ const HPartimeRquest = ({ navigation }) => {
       });
 
       Alert.alert('Success', 'Job has been accepted!');
+      navigation.navigate('awaitingconfirmation', { jobId });
     } catch (error) {
       console.log('Failed to accept job:', error);
       Alert.alert('Error', 'Failed to accept the job.');
