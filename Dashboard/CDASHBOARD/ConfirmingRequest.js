@@ -5,27 +5,42 @@ import { db } from '../../pages/firebase';
 
 import { Header2 } from '../../component/Header';
 import { Cmenu } from '../../component/Menu';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RequestConfirmation = ({ navigation, route }) => {
-  const { clientId } =  route.params;
+
+  const [clientId,setClientId]   =  useState(route.params);
   const [pendingJobs, setPendingJobs] = useState([]);
-  const [selectedHelpers, setSelectedHelpers] = useState({});
+  const [selectedHelpers, setSelectedHelpers] = useState({});  
   const [loading, setLoading] = useState(true);
 
 
   useEffect(() => {
+    const fetchClientId = async () => {
+      const user = await AsyncStorage.getItem('clientdata');
+      const parsedUser = JSON.parse(user);
+      setClientId(parsedUser.id); // Ensure clientId is set before fetching data
+    };
+  
+    // First, fetch the clientId, then start the snapshot listener
+    fetchClientId();
+  }, []); // Runs only once when the component mounts
+  
+  useEffect(() => {
+    if (!clientId) return; // Don't start the listener until clientId is set
+  
     const unsubscribe = onSnapshot(collection(db, 'partimeRequest'), snapshot => {
       const jobs = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(job => job.clientId === clientId && job.status === 'pending');
-
+        .filter(job => job.clientId === clientId );
+  
       setPendingJobs(jobs);
       setLoading(false);
     });
-
-    return () => unsubscribe();
-  }, []);
-
+  
+    return () => unsubscribe(); // Cleanup the listener on component unmount
+  }, [clientId]); // Re-run this effect whenever clientId changes
+  
   const handleConfirm = async (jobId) => {
     const selectedHelper = selectedHelpers[jobId];
     if (!selectedHelper) {

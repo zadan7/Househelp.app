@@ -1,37 +1,74 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { collection, getDocs, updateDoc, doc,onSnapshot } from 'firebase/firestore';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { collection, updateDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Hmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 
 const HPartimeRquest = ({ navigation }) => {
   const [jobRequests, setJobRequests] = useState([]);
+  const [househelpName, setHousehelpName] = useState('');
+  const [househelpId, setHousehelpId] = useState('');
+  const [househelpdata, setHousehelpdata] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    const fetchHousehelpName = async () => {
+      try {
+        const user = await AsyncStorage.getItem('househelpdata');
+        if (user) {
+          const parsedUser = JSON.parse(user);
+          setHousehelpId(parsedUser.id);
+          setHousehelpdata(parsedUser);
+          setHousehelpName(parsedUser.name);
+        } else {
+          Alert.alert('Error', 'Househelp data not found.');
+        }
+      } catch (error) {
+        console.error("Error fetching househelp data:", error);
+        Alert.alert('Error', 'Failed to fetch househelp data.');
+      }
+    };
+
+    fetchHousehelpName();
+
     const unsubscribe = onSnapshot(collection(db, 'partimeRequest'), snapshot => {
       const jobs = snapshot.docs.map(doc => ({
         id2: doc.id,
         ...doc.data(),
       }));
 
-      const pendingJobs = jobs.filter(job => job.status === 'pending');
+      const pendingJobs = jobs.filter(job => job.househelpId !== househelpId);
       setJobRequests(pendingJobs);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribe(); // Cleanup listener
   }, []);
 
-  const handleAcceptJob = async (jobId, househelpName = 'Jane Doe') => {
+  const handleAcceptJob = async (jobId) => {
+    if (!househelpName) {
+      Alert.alert('Error', 'Househelp name is not set.');
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
       const jobRef = doc(db, 'partimeRequest', jobId);
       await updateDoc(jobRef, {
         status: 'accepted',
         acceptedBy: househelpName,
+        househelpId: househelpId,
+        househelpdata: househelpdata,
       });
+
+      Alert.alert('Success', 'Job has been accepted!');
     } catch (error) {
       console.log('Failed to accept job:', error);
+      Alert.alert('Error', 'Failed to accept the job.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -39,7 +76,7 @@ const HPartimeRquest = ({ navigation }) => {
     <View style={styles.container}>
       <Header2 />
       <Hmenu navigation={navigation} />
-
+      
       <ScrollView>
         <Text style={styles.header}>Available Jobs</Text>
         {jobRequests.length === 0 ? (
@@ -58,12 +95,21 @@ const HPartimeRquest = ({ navigation }) => {
                 <Text key={index} style={styles.choreItem}>• {chore.chore}</Text>
               ))}
 
-              <TouchableOpacity
-                style={styles.acceptButton}
-                onPress={() => handleAcceptJob(job.id2)}
-              >
-                <Text style={styles.acceptButtonText}>Accept Job</Text>
-              </TouchableOpacity>
+              {job.status === 'accepted' ? (
+                <Text style={styles.jobInfo}>Accepted by: {job.acceptedBy}</Text>
+              ) : (
+                <TouchableOpacity
+                  style={styles.acceptButton}
+                  onPress={() => handleAcceptJob(job.id2)}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Text style={styles.acceptButtonText}>Processing...</Text>
+                  ) : (
+                    <Text style={styles.acceptButtonText}>Accept Job</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           ))
         )}
@@ -71,7 +117,6 @@ const HPartimeRquest = ({ navigation }) => {
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {

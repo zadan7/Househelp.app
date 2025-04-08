@@ -100,6 +100,7 @@ function Login({ navigation }) {
                   var househelpdata = househelp.data();
                   househelpdata.id = househelpId;
                   AsyncStorage.setItem("househelpId", househelpId);
+                  AsyncStorage.setItem("househelpdata", JSON.stringify(househelpdata));
                   navigation.navigate("hdashboard");
                 } else {
                   Alert.alert("Error", "Invalid password for Househelp account.");
@@ -115,10 +116,20 @@ function Login({ navigation }) {
   
       if (client && client.data().password === password) {
         Alert.alert("Success", "Login successful! Welcome Client.");
+        var clientId = client.id;
+        var clientdata = client.data();
+        clientdata.id = clientId;
+        AsyncStorage.setItem("clientId", clientId);
+        AsyncStorage.setItem("clientdata", JSON.stringify(clientdata));
         navigation.navigate("ClientDashboard");
       } else if (househelp && househelp.data().password === password) {
         Alert.alert("Success", "Login successful! Welcome Househelp.");
-        navigation.navigate("HouseHelpDashboard");
+        var househelpId = househelp.id;
+        var househelpdata = househelp.data();
+        househelpdata.id = househelpId;
+        AsyncStorage.setItem("househelpId", househelpId); 
+        AsyncStorage.setItem("househelpdata", JSON.stringify(househelpdata));
+        navigation.navigate("hdashboard");
       } else {
         Alert.alert("Error", "Invalid email or password.");
       }
