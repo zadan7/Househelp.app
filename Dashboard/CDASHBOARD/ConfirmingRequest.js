@@ -1,41 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, onSnapshot      } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 
 import { Header2 } from '../../component/Header';
 import { Cmenu } from '../../component/Menu';
 
 const RequestConfirmation = ({ navigation, route }) => {
-  const { clientId } = route.params;
+  const { clientId } =  route.params;
   const [pendingJobs, setPendingJobs] = useState([]);
   const [selectedHelpers, setSelectedHelpers] = useState({});
-  const [loading, setLoading] = useState(true); // To track loading state
+  const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        setLoading(true);
-        const snapshot = await getDocs(collection(db, 'partimeRequest'));
-        const jobs = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(j => j.clientId === clientId && j.status === 'pending');
+    const unsubscribe = onSnapshot(collection(db, 'partimeRequest'), snapshot => {
+      const jobs = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(job => job.clientId === clientId && job.status === 'pending');
 
-        setPendingJobs(jobs);
-      } catch (error) {
-        console.error('Error fetching jobs:', error);
-        Alert.alert('Error', 'Failed to fetch jobs. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
+      setPendingJobs(jobs);
+      setLoading(false);
+    });
 
-    fetchJobs();
-  }, [clientId]);
+    return () => unsubscribe();
+  }, []);
 
   const handleConfirm = async (jobId) => {
     const selectedHelper = selectedHelpers[jobId];
-
     if (!selectedHelper) {
       Alert.alert("Please select a househelp before confirming.");
       return;
@@ -68,7 +60,6 @@ const RequestConfirmation = ({ navigation, route }) => {
     <View style={styles.container}>
       <Header2 />
       <Cmenu navigation={navigation} />
-
       <ScrollView contentContainerStyle={styles.scrollView}>
         <Text style={styles.header}>Confirm Your Job Requests</Text>
 
@@ -89,28 +80,23 @@ const RequestConfirmation = ({ navigation, route }) => {
               ))}
 
               <Text style={styles.subHeader}>Available Househelps:</Text>
-              {job.acceptedBy && job.acceptedBy.length > 0 ? (
-                job.acceptedBy.map((helper, idx) => (
-                  <TouchableOpacity
-                    key={idx}
+              {job.acceptedBy ? (
+                <TouchableOpacity
+                  style={[
+                    styles.helperButton,
+                    selectedHelpers[job.id] === job.acceptedBy && styles.selectedHelper,
+                  ]}
+                  onPress={() => setSelectedHelpers((prev) => ({ ...prev, [job.id]: job.acceptedBy }))}
+                >
+                  <Text
                     style={[
-                      styles.helperButton,
-                      selectedHelpers[job.id] === helper && styles.selectedHelper,
+                      styles.helperText,
+                      selectedHelpers[job.id] === job.acceptedBy && styles.selectedHelperText,
                     ]}
-                    onPress={() =>
-                      setSelectedHelpers((prev) => ({ ...prev, [job.id]: helper }))
-                    }
                   >
-                    <Text
-                      style={[
-                        styles.helperText,
-                        selectedHelpers[job.id] === helper && styles.selectedHelperText,
-                      ]}
-                    >
-                      {helper}
-                    </Text>
-                  </TouchableOpacity>
-                ))
+                    {job.acceptedBy}
+                  </Text>
+                </TouchableOpacity>
               ) : (
                 <Text style={styles.waitingText}>Waiting for househelps to accept...</Text>
               )}
@@ -132,7 +118,6 @@ const RequestConfirmation = ({ navigation, route }) => {
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
   scrollView: { paddingBottom: 30 },

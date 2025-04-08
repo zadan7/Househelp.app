@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Animated, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Animated, StyleSheet, ScrollView,Image } from 'react-native';
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from './../pages/firebase';
 import { Header2 } from '../component/Header';
@@ -33,7 +33,7 @@ const HousehelpDashboard = ( {navigation}) => {
          clients.find((client) => {
           if (client.id2 === job.clientId) {
             console.log("client",client.name)
-            setJobandClientdata((prevData) => [...prevData, { ...job, clientName: client.name }]);
+            setJobandClientdata((prevData) => [...prevData, { ...job, client: client }]);
             console.log("jobandclientdata",jobandclientsdata[0])
             return true; // Stop searching once we find the match
           }
@@ -77,17 +77,18 @@ const HousehelpDashboard = ( {navigation}) => {
       <ScrollView>
         <Text style={styles.header}>Househelp Dashboard</Text>
         <FlatList
-          data={jobRequests}
+          data={jobandclientsdata}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <View style={styles.jobCard}>
+              <Image source={{ uri: item.client.facepicture }} style={{ width: 50, height: 50, borderRadius: 25 }} />
               <Text style={styles.jobTitle}>{item.clientName}</Text>
               <Text style={styles.jobAmount}>Amount: N {item.totalCost}</Text>
               <Text style={styles.jobInfo}>Apartment size: {item.apartmentType}</Text>
-              <Text style={styles.jobInfo}>LGA: {item.clientdata.LGA}</Text>
+              <Text style={styles.jobInfo}>LGA: {item.client.lga}</Text>
               <Text style={styles.jobInfo}>Phone: {item.phone}</Text>
               <Text style={styles.jobInfo}>State: {item.state}</Text>
-              <Text style={styles.jobInfo}>Address: {item.address}</Text>
+              <Text style={styles.jobInfo}>Address: {item.client.address}</Text>
               <Text style={styles.jobInfo}>List of chores:</Text>
               {item.chores
                   .map((chore, index) => {

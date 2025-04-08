@@ -37,6 +37,8 @@ const Cmenu = ({navigation}) => {
         <TouchableOpacity onPress={()=>{navigation.navigate("cprofile")}}><Text style={styles.menuItem} >Profile</Text></TouchableOpacity>
         <TouchableOpacity onPress={()=>{navigation.navigate("cmakerequest")}}><Text style={styles.menuItem}>Make Request</Text></TouchableOpacity>
         <TouchableOpacity onPress={()=>{navigation.navigate("cHousehelplist")}}><Text style={styles.menuItem}>Househelp List</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=>{navigation.navigate("requestconfirmation")}}><Text style={styles.menuItem}> Pending Jobs</Text></TouchableOpacity>
+
 
 
         {/* <TouchableOpacity onPress={()=>{navigation.navigate("profile")}}><Text style={styles.menuItem}>Settings</Text></TouchableOpacity> */}
@@ -88,8 +90,14 @@ const Hmenu = ({navigation}) => {
         }><Text style={styles.menuItem}>Dashboard</Text></TouchableOpacity>
         
         <TouchableOpacity onPress={()=>{
-          navigation.navigate("hdashboard")}
+          navigation.navigate("hfulltime")}
         }><Text style={styles.menuItem}>Fulltime Request</Text></TouchableOpacity>
+         <TouchableOpacity onPress={()=>{
+          navigation.navigate("hpartime")}   
+        }><Text style={styles.menuItem}>Partime  Request</Text></TouchableOpacity>
+           <TouchableOpacity onPress={()=>{
+          navigation.navigate("hweekly")}
+        }><Text style={styles.menuItem}>Weekly Request</Text></TouchableOpacity>
         <TouchableOpacity onPress={()=>{
           navigation.navigate("hprofile")}
         }><Text style={styles.menuItem}>Profile</Text></TouchableOpacity>

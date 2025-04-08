@@ -4,7 +4,7 @@ import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 
 import { db } from '../../pages/firebase';
 
-import { Hmenu } from '../../component/Menu';
+import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 
 const MakeRequest = ({navigation}) => {
@@ -14,7 +14,7 @@ const MakeRequest = ({navigation}) => {
       <Header2 />
       
       {/* Floating Menu */}
-      <Hmenu navigation={navigation}/>
+      <Cmenu navigation={navigation}/>
 
       <ScrollView>
         <Text style={styles.header}>Client Dashboard</Text>

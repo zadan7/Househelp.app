@@ -12,6 +12,7 @@ import { db } from './firebase';
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Notifications } from 'expo-notifications';
 import { getDocs } from 'firebase/firestore';
+import emailjs from 'emailjs-com';
 async function registerForPushNotificationsAsync() {
   let token;
 
@@ -97,7 +98,7 @@ const CSignup = ({ navigation }) => {
     if (!insideview) newErrors.insideview = 'Inside view picture is required.';
     if (!state) newErrors.state = 'State is required.';
     if (!lga) newErrors.lga = 'LGA is required.';
-    if (!phone.match(/^\d{10}$/)) newErrors.phone = 'Phone number must be 10 digits.';
+    // if (!phone.match(/^\d{11}$/)) newErrors.phone = 'Phone number must be 10 digits.';
 
 
     setErrors(newErrors);
@@ -491,7 +492,7 @@ const uploadDataToFirestore = async (collectionName, data) => {
   
       await uploadDataToFirestore('clients', updatedData);
       Alert.alert("Success", "Your account has been created successfully!");
-      navigation.navigate("cdashboard"); // Replace with your next screen
+      navigation.navigate("login"); // Replace with your next screen
     } catch (error) {
       console.error("Error in handleDone:", error);
       Alert.alert("Upload Failed", "Something went wrong. Please try again.");

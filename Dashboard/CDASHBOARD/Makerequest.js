@@ -58,13 +58,15 @@ const MakeRequest = ({ navigation }) => {
     setLoading(true);
 
     try {
+      console.log('Submitting request...',user);
       const requestData = {
         id: `req_${Date.now()}`,
         clientId: user.id,
-        clientName: user.name,
+        clientName: user.firstname + ' ' + user.lastname,
+        clientEmail: user.email,
         phone: user.phone,
         address: user.address,
-        apartmentType: user.apartmentType,
+        apartmentType: user.apartmentsize,
         location: user.location,
         requestType: 'Part-time',
         chores: selectedChores,
@@ -80,6 +82,7 @@ const MakeRequest = ({ navigation }) => {
       Alert.alert('Success', 'Your request has been submitted!');
       navigation.navigate('requestconfirmation', { clientId: user.id });
     } catch (error) {
+      console.error('Error submitting request: ', error);
       Alert.alert('Error', 'Failed to submit request. Try again.');
     }
 

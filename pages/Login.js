@@ -85,7 +85,7 @@ function Login({ navigation }) {
                   clientdata.id = clientId;
                   // AsyncStorage.setItem("clientId", clientId);
                   AsyncStorage.setItem("clientdata", JSON.stringify(clientdata));
-                  navigation.navigate("cmakerequest");
+                  navigation.navigate("cmakerequest");  
                 } else {
                   Alert.alert("Error", "Invalid password for Client account.");
                 }
