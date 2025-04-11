@@ -452,7 +452,8 @@ const uploadDataToFirestore = async (collectionName, data) => {
         }
         
       }
-      navigation.navigate("Guarantor"); // Navigate after successful verification
+      AsyncStorage.setItem("househelpdata", JSON.stringify(data2) )  
+      navigation.navigate("Guarantor",{data2}); // Navigate after successful verification
     } else {
       Alert.alert("Error", "Invalid verification code. Please try again.");
     }

@@ -15,7 +15,9 @@ import {db} from "../pages/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import firebase from 'firebase/compat/app';
 
-function Guarantor({ navigation }) {
+function Guarantor({ navigation ,route}) {
+  const [househelpdata ,setHousehelpdata] = useState();
+  // console.log(househelpdata);
   const [Gfirstname, setFirstName] = useState("");
   const [Glastname, setLastName] = useState("");
   const [Gphone, setPhone] = useState("");
@@ -65,6 +67,9 @@ function Guarantor({ navigation }) {
       try {
         var hname = await AsyncStorage.getItem("hname"); 
         const storedCode = await AsyncStorage.getItem("code");
+        var data = await AsyncStorage.getItem("househelpdata")
+        const parsedData = JSON.parse(data);
+        setHousehelpdata(parsedData);
         setHname(hname);
         setcode(storedCode);
       } catch (error) {
@@ -97,7 +102,7 @@ function Guarantor({ navigation }) {
     if (!Glastname.trim()) newErrors.Glastname = "Last name is required.";
     if (!Gphone.trim() || !/^\d{10,15}$/.test(Gphone)) newErrors.Gphone = "Phone number must be 10-15 digits.";
     if (!Gaddress.trim()) newErrors.Gaddress = "Address is required.";
-    if (!Gemail.trim() || !/\S+@\S+\.\S+/.test(Gemail)) newErrors.Gemail = "Invalid email format.";
+    // if (!Gemail.trim() || !/\S+@\S+\.\S+/.test(Gemail)) newErrors.Gemail = "Invalid email format.";
     if (!Gstate.trim()) newErrors.Gstate = "State is required.";
     if (!Glga.trim()) newErrors.Glga = "LGA is required.";
     if (!relationship.trim()) newErrors.relationship = "Relationship to applicant is required.";
@@ -132,6 +137,8 @@ function Guarantor({ navigation }) {
         facePicture: GfacePicture,
         idImage: idImage,
         househelpName: Hname,
+        househelpemail: househelpdata.email,
+        househelpphone: househelpdata.phonenumber,
         code: code,
         timestamp: serverTimestamp(),
       };
@@ -156,19 +163,33 @@ function Guarantor({ navigation }) {
         {loading ? <ActivityIndicator size="large" color="green" /> : null}
         <View style={styles.formContainer}>
           <TextInput placeholder="First Name" value={Gfirstname} onChangeText={setFirstName} style={styles.input} />
+          {errors.Gfirstname && <Text style={styles.errorText}>{errors.Gfirstname}</Text>}
           <TextInput placeholder="Last Name" value={Glastname} onChangeText={setLastName} style={styles.input} />
+          {errors.Glastname && <Text style={styles.errorText}>{errors.Glastname}</Text>}
           <TextInput placeholder="Phone Number" value={Gphone} onChangeText={setPhone} style={styles.input} keyboardType="phone-pad" />
+          {errors.Gphone && <Text style={styles.errorText}>{errors.Gphone}</Text>}
           <TextInput placeholder="Email" value={Gemail} onChangeText={setEmail} style={styles.input} />
+          {errors.Gemail && <Text style={styles.errorText}>{errors.Gemail}</Text>}
           <TextInput placeholder="Address" value={Gaddress} onChangeText={setAddress} style={styles.input} />
+          {errors.Gaddress && <Text style={styles.errorText}>{errors.Gaddress}</Text>}
           <NigerianStateAndLGASelector selectedState={Gstate} selectedLGA={Glga} onStateChange={setState} onLGAChange={setLGA} />
+          {errors.Gstate && <Text style={styles.errorText}>{errors.Gstate}</Text>}
           <TextInput placeholder="Relationship to Applicant" value={relationship} onChangeText={setRelationship} style={styles.input} />
+          {errors.relationship && <Text style={styles.errorText}>{errors.relationship}</Text>}
           <TextInput placeholder="Occupation" value={occupation} onChangeText={setOccupation} style={styles.input} />
+          {errors.occupation && <Text style={styles.errorText}>{errors.occupation}</Text>}
           <TextInput placeholder="Company Name" value={companyName} onChangeText={setCompanyName} style={styles.input} />
+
           <TextInput placeholder="Company Address" value={companyAddress} onChangeText={setCompanyAddress} style={styles.input} />
+          {errors.companyAddress && <Text style={styles.errorText}>{errors.companyAddress}</Text>}
           <TextInput placeholder="NIN Number (11 digits)" value={ninNumber} onChangeText={setNinNumber} keyboardType="numeric" maxLength={11} style={styles.input} />
+          {errors.ninNumber && <Text style={styles.errorText}>{errors.ninNumber}</Text>}
+          
           <Pressable style={styles2.doneButton} onPress={() => selectPicture(setFacePicture)}>
+
             <Text style={{ color: 'white' }}>Select ID Image (Optional)</Text>
           </Pressable>
+          {idImage && <Image source={{ uri: idImage }} style={styles2.imagePreview} />}
           <View style={{ margin: 10 }}>
             <Image source={{ uri: GfacePicture }} style={styles2.imagePreview} />
           </View>
@@ -187,6 +208,7 @@ const styles = StyleSheet.create({
   formContainer: { width: "80%", alignItems: "center", marginTop: 20, padding: 20 },
   input: { padding: 10, borderWidth: 1, borderRadius: 5, width: "100%", marginBottom: 10 },
   doneButton: { backgroundColor: "green", padding: 10, borderRadius: 5 },
+  errorText: { color: "red", fontSize: 12, marginBottom: 10 },
 });
 const styles2 = StyleSheet.create({
   container: {
