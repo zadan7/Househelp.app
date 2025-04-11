@@ -10,8 +10,9 @@ import {
   Modal,
   Dimensions,
   Pressable,
+  Linking,
 } from 'react-native';
-import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../pages/firebase';
 
@@ -22,7 +23,7 @@ const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
 
 const HcurrentJob = ({ route, navigation }) => {
-  const jobdata = JSON.parse(route.params);
+  const jobdata = route.params.job; // Use the passed jobdata prop or set it to null
   const [confirmedJobs, setConfirmedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [househelpId, setHousehelpId] = useState('');
@@ -48,8 +49,8 @@ const HcurrentJob = ({ route, navigation }) => {
       const allJobs = snapshot.docs.map(doc => ({ id2: doc.id, ...doc.data() }));
       const filteredJobs = allJobs.filter(job =>
         job.status === 'confirmed' &&
-        job.househelpId === househelpId &&
-        job.jobid === jobdata.jobid
+        job.househelpId === househelpId 
+        && job.jobid === jobdata.jobid
       );
 
       setConfirmedJobs(filteredJobs);
@@ -79,6 +80,31 @@ const HcurrentJob = ({ route, navigation }) => {
   const openImage = (uri) => {
     setModalImage(uri);
     setModalVisible(true);
+  };
+
+  const startJob = async () => {
+    try {
+      // Update job status to 'in-progress' or any other relevant action
+      // const jobRef = doc(db, 'partimeRequest', jobdata.jobid);
+      // await updateDoc(jobRef, { status: 'in-progress' });
+      // alert('Job has started!');
+      console.log('Job started:', jobdata);
+       navigation.navigate('hstartjob', (JSON.stringify(jobdata)));
+    } catch (error) {
+      console.error("Error starting job:", error);
+    }
+  };
+
+  const callClient = () => {
+    if (clientData?.phone) {
+      Linking.openURL(`tel:${clientData.phone}`);
+    }
+  };
+
+  const messageClient = () => {
+    if (clientData?.phone) {
+      Linking.openURL(`sms:${clientData.phone}`);
+    }
   };
 
   if (loading) {
@@ -132,19 +158,37 @@ const HcurrentJob = ({ route, navigation }) => {
                   <Text style={styles.detail}>✉️ {clientData.email}</Text>
                 </>
               )}
+               <View style={styles.buttonContainer}>
+                <TouchableOpacity style={styles.clientButton} onPress={callClient}>
+                  <Text style={styles.clientButtonText}>Call Client</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.clientButton} onPress={messageClient}>
+                  <Text style={styles.clientButtonText}>Message Client</Text>
+                </TouchableOpacity>
+              </View>
 
               <View style={styles.imageGrid}>
                 {clientData?.insideview && (
                   <Pressable onPress={() => openImage(clientData.insideview)}>
                     <Image source={{ uri: clientData.insideview }} style={styles.extraImage} />
+                    <Text style={styles.imageName}>Inside View</Text>
                   </Pressable>
                 )}
                 {clientData?.frontview && (
                   <Pressable onPress={() => openImage(clientData.frontview)}>
                     <Image source={{ uri: clientData.frontview }} style={styles.extraImage} />
+                    <Text style={styles.imageName}>Front View</Text>
                   </Pressable>
                 )}
               </View>
+
+              {/* Start Job Button */}
+              <TouchableOpacity style={styles.startJobButton} onPress={startJob}>
+                <Text style={styles.startJobButtonText}>Start Job</Text>
+              </TouchableOpacity>
+
+              {/* Call and Message Buttons */}
+             
             </View>
           ))
         )}
@@ -199,17 +243,19 @@ const styles = StyleSheet.create({
     borderColor: '#4CAF50',
   },
   badge: {
-    alignSelf: 'flex-end',
+    // alignSelf: 'flex-end',
     backgroundColor: '#4CAF50',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 20,
     marginBottom: 8,
+    alignSelf: 'center',
   },
   badgeText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',
+    textAlign: 'center',
   },
   clientName: {
     fontSize: 20,
@@ -246,6 +292,45 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderColor: '#ddd',
     borderWidth: 1,
+  },
+  imageName: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 5,
+    color: '#333',
+  },
+  startJobButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 30,
+    marginTop: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  startJobButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  clientButton: {
+    backgroundColor: '#007BFF',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 30,
+    width: '48%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clientButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,

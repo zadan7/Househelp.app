@@ -56,6 +56,7 @@ const RequestConfirmation = ({ navigation, route }) => {
       });
 
       Alert.alert("Job Confirmed", `You selected ${selectedHelper}.`);
+      AsyncStorage.setItem('jobId', jobId);
       navigation.navigate('arriving', { clientId });
     } catch (error) {
       console.error("Error confirming job:", error);

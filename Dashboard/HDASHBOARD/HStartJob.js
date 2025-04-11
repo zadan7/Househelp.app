@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert, TextInput, TouchableOpacity } from 'react-native';
-import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 
 import { Cmenu } from '../../component/Menu';
@@ -14,19 +14,15 @@ const Star = ({ filled, onPress }) => (
   </TouchableOpacity>
 );
 
-const CStartJob = ({ navigation,route }) => {
+const HStartJob = ({ navigation, route }) => {
   const { job } = route.params;
   const [jobData, setJobData] = useState(job);
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
-  const [paymentEnabled, setPaymentEnabled] = useState(false); // Added state to track if payment can be enabled
-const [documentId, setDocumentId] = useState(null); // State to hold document ID
-   // Get the document ID from AsyncStorage
-  console.log(documentId)
-  console.log("job",job)
-  console.log("jobData",jobData)
+  const [paymentEnabled, setPaymentEnabled] = useState(false); // State for enabling payment button
+  const [documentId, setDocumentId] = useState(null); // State to hold document ID
 
   useEffect(() => {
     const fetchDocumentId = async () => {
@@ -45,12 +41,11 @@ const [documentId, setDocumentId] = useState(null); // State to hold document ID
   
   useEffect(() => {
     if (!documentId) return;
-    console.log("documentId",documentId)
   
     const unsubscribe = onSnapshot(doc(db, 'partimeRequest', documentId), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        // setJobData(data);
+        setJobData(data);
         setLoading(false);
   
         const allCompleted = data.chores.every((chore) => chore.completed);
@@ -60,41 +55,14 @@ const [documentId, setDocumentId] = useState(null); // State to hold document ID
   
     return () => unsubscribe();
   }, [documentId]);
-  
-  const toggleChore = async (index) => {
-    if (!jobData || !documentId) return;
-  
-    const updatedChores = [...jobData.chores];
-  
-    if (updatedChores[index].completed) {
-      Alert.alert('Notice', 'This chore has already been completed.');
-      return;
-    }
-  
-    updatedChores[index].completed = true;
-  
-    try {
-      await updateDoc(doc(db, 'partimeRequest', documentId), {
-        chores: updatedChores,
-      });
-  
-      setJobData((prevData) => ({
-        ...prevData,
-        chores: updatedChores,
-      }));
-    } catch (error) {
-      console.error("Error updating chore status:", error);
-      Alert.alert("Error", "Failed to update chore status.");
-    }
-  };
-  
 
+  // Handle the rating stars
   const handleRating = (stars) => {
     setRating(stars);
   };
 
+  // Handle payment (just a placeholder function for now)
   const handlePayment = () => {
-    // Implement payment processing logic here
     Alert.alert('Payment', 'Your payment has been processed successfully.');
   };
 
@@ -132,21 +100,20 @@ const [documentId, setDocumentId] = useState(null); // State to hold document ID
         <Text style={styles.header}>Chores for Job</Text>
 
         {jobData.chores.map((chore, index) => (
-          <Pressable
+          <View
             key={index}
             style={[styles.choreItem, chore.completed ? styles.choreCompleted : styles.chorePending]}
-            onPress={() => toggleChore(index)}
           >
             <Text style={styles.choreText}>
-              {chore.chore} - ₦{Number(chore.price).toLocaleString()}{chore.completed ? ' ✅' : ''}
+              {chore.chore} - ₦{Number(chore.price).toLocaleString()} {chore.completed ? '✅' : ''}
             </Text>
-          </Pressable>
+          </View>
         ))}
 
         {/* If all chores are completed, show the rating and comment section */}
         {isCompleted && (
           <View style={styles.ratingContainer}>
-            <Text style={styles.ratingHeader}>Rate the Service</Text>
+            <Text style={styles.ratingHeader}>Rate the Client Hospitality</Text>
             <View style={styles.starsContainer}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star
@@ -270,4 +237,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export { CStartJob };
+export { HStartJob };

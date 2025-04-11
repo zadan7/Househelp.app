@@ -1,33 +1,36 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Vibration } from 'react-native';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
-import { Vibration } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AwaitingConfirmationScreen = ({ route, navigation }) => {
-  const { jobId } = route.params; // jobId passed from previous screen
+  const { jobId } = route.params;
 
   const [status, setStatus] = useState('');
+  const [hasNavigated, setHasNavigated] = useState(false); // ✅ Prevent multiple navigations
 
   useEffect(() => {
     const unsubscribe = onSnapshot(doc(db, 'partimeRequest', jobId), (docSnap) => {
-      console.log(`Listening to job ID: ${jobId}`); // Debugging line
+      console.log(`Listening to job ID: ${jobId}`);
       if (docSnap.exists()) {
         const jobData = docSnap.data();
         setStatus(jobData.status);
 
-        if (jobData.status === 'confirmed') {
+        if (jobData.status === 'confirmed' && !hasNavigated) {
           Vibration.vibrate(1000);
-          AsyncStorage.setItem('jobdata', JSON.stringify(jobData)); // Save job data to AsyncStorage
-          navigation.navigate('hcurrentjob',  (JSON.stringify(jobData) )); // 🔁 Navigate to current job
-          // navigation.replace('hcurrentjob',{ jobData }); // 🔁 Navigate to current job
+
+          AsyncStorage.setItem('jobdata', JSON.stringify(jobData));
+          AsyncStorage.setItem('jobId', jobId);
+
+          setHasNavigated(true); // ✅ Stop future navigations/
+          navigation.navigate('hcurrentjob', { job: jobData }); // Send jobData as param
         }
       }
     });
 
-    return () => unsubscribe(); // Cleanup
-  }, [jobId]);
+    return () => unsubscribe(); // Cleanup on unmount
+  }, [jobId, hasNavigated]); // include hasNavigated in deps
 
   return (
     <View style={styles.container}>

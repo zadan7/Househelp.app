@@ -5,6 +5,7 @@ import { db } from '../../pages/firebase';
 
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Arriving = ({ navigation }) => {
   const [jobs, setJobs] = useState([]);
@@ -13,10 +14,13 @@ const Arriving = ({ navigation }) => {
   useEffect(() => {
     const fetchConfirmedJobs = async () => {
       try {
+       
+        const storedJobId = await AsyncStorage.getItem('jobId');
+        console.log("storedJobId",storedJobId)
         const querySnapshot = await getDocs(collection(db, 'partimeRequest'));
         const confirmedJobs = querySnapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(job => job.status === 'confirmed');
+          .filter(job => job.status === 'confirmed' && job.id === storedJobId);
         setJobs(confirmedJobs);
         console.log(confirmedJobs);
       } catch (err) {
@@ -36,6 +40,8 @@ const Arriving = ({ navigation }) => {
       });
       Alert.alert("Success", "Job started successfully!");
       setJobs(prev => prev.map(job => job.id === jobId ? { ...job, status: 'in-progress' } : job));
+      console.log("Job started successfully:", job);
+      AsyncStorage.setItem('jobId', jobId);
       navigation.navigate('cstartjob', { job });
     } catch (err) {
       console.error('Failed to start job:', err);
