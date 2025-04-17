@@ -1,105 +1,76 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { db } from './../pages/firebase';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Header2 } from '../component/Header';
-// import { Cmenu } from '../component/Menu';
 import { Cmenu } from '../component/Menu';
-import { AsyncStorage } from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const ClientDashboard = ({navigation}) => {
-  const [jobRequests, setJobRequests] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [clientdata, setClientdata] = useState({});
+const menuItems = [
+  { title: 'Profile', icon: 'person-circle-outline', screen: 'cprofile' },
+  { title: 'Make Request', icon: 'create-outline', screen: 'cmakerequest' },
+  { title: 'Househelp List', icon: 'people-outline', screen: 'cHousehelplist' },
+  { title: 'Pending Jobs', icon: 'hourglass-outline', screen: 'requestconfirmation' },
+  { title: 'Job History', icon: 'document-text-outline', screen: 'ClientJobHistory' },
+  { title: 'Favorites', icon: 'heart-outline', screen: 'FavoriteHelpers' },
+  { title: 'Refer & Earn', icon: 'gift-outline', screen: 'referandearn' },
+  { title: 'Settings', icon: 'settings-outline', screen: 'csettings' },
+  { title: 'Balances', icon: 'wallet-outline', screen: 'ClientBalances' },
+  { title: 'Arriving', icon: 'car-outline', screen: 'arriving' },
+  { title: 'Help Center', icon: 'help-circle-outline', screen: 'ClientSupport' },
+];
 
+const ClientDashboard = ({ navigation, route }) => {
+  const { user } = route.params;
+  const [userData, setUserData] = React.useState();
 
   useEffect(() => {
-    const fetchJobRequests = async () => {
+    const fetchUserData = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, 'partimeRequest'));
-        const jobs = querySnapshot.docs.map(doc => ({
-          id: doc.id, 
-          ...doc.data()
-        }));
-        jobs.sort((a, b) => b.timestamp.toDate() - a.timestamp.toDate());
-        setJobRequests(jobs);
+        const userData = await AsyncStorage.getItem('clientdata');
+        if (userData) {
+          const parsedUser = JSON.parse(userData);
+          console.log('User Data:', parsedUser);
+          setUserData(parsedUser);
+        } else {
+          console.log('No user data found');
+        }
       } catch (error) {
-        console.error('Error fetching job requests: ', error);
+        console.error('Error fetching user data:', error);
       }
     };
 
-    const fetchClientData = async () => {
-      try { 
-        var cdata = await AsyncStorage.getItem('clientdata');
-        if (cdata) {  setClientdata(JSON.parse(cdata)); }
-      } catch (error) {
-        console.log('Error fetching client data: ', error);
-      }
-    };
-    fetchClientData();  
-    fetchJobRequests();
+    fetchUserData();
   }, []);
- 
 
-  const acceptJob = async (jobId) => {
-    try {
-      await updateDoc(doc(db, 'partimeRequest', jobId), { status: 'Accepted' });
-      setJobRequests(prevJobs => prevJobs.map(job => 
-        job.id === jobId ? { ...job, status: 'Accepted' } : job
-      ));
-    } catch (error) {
-      console.error('Error accepting job: ', error);
-    }
+  const handlePress = (screen) => {
+    navigation.navigate(screen);
   };
 
   return (
     <View style={styles.container}>
       <Header2 />
-      
-      {/* Floating Menu */}
-      <Cmenu  navigation={navigation}/>
+      <Cmenu navigation={navigation} />
+      <Text style={styles.title}>
+        Welcome, {userData?.firstname ? userData.firstname : 'Client'} 👋
+      </Text>
 
-      <ScrollView>
-        <Text style={styles.header}>Client Dashboard</Text>
-        <FlatList
-          data={jobRequests}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.jobCard}>
-              <Text style={styles.jobTitle}>{item.name}</Text>
-              <Text style={styles.jobAmount}>Amount: N {item.amount}</Text>
-              <Text style={styles.jobInfo}>Apartment size: {item.apartmenttype}</Text>
-              <Text style={styles.jobInfo}>LGA: {item.LGA}</Text>
-              <Text style={styles.jobInfo}>Phone: {item.phone}</Text>
-              <Text style={styles.jobInfo}>State: {item.state}</Text>
-              <Text style={styles.jobInfo}>Address: {item.address}</Text>
-              <Text style={styles.jobInfo}>List of chores:</Text>
-              {Array.isArray(item.chores) ? (
-                item.chores.map((chore, index) => (
-                  <Text key={index} style={styles.choreItem}>{chore}</Text>
-                ))
-              ) : (
-                item.chores && typeof item.chores === "string" &&
-                item.chores.replace(/[\[\]"]+/g, '').split(',').map((chore, index) => {
-                  const parts = chore.trim().split(':');
-                  if (parts.length >= 2) {
-                    return (
-                      <Text key={index} style={styles.choreItem}>
-                        {parts[0].trim()}: {parts[1].trim()}
-                      </Text>
-                    );
-                  }
-                })
-              )}
-              {item.status !== 'Accepted' && (
-                <TouchableOpacity style={styles.acceptButton} onPress={() => acceptJob(item.id)}>
-                  <Text style={styles.acceptButtonText}>Accept Job</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-        />
-      </ScrollView>
+      <FlatList
+        data={menuItems}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
+        keyExtractor={(item) => item.title}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.gridItem}
+            activeOpacity={0.85}
+            onPress={() => handlePress(item.screen)}
+          >
+            <Ionicons name={item.icon} size={38} color="#28a745" />
+            <Text style={styles.gridText}>{item.title}</Text>
+          </TouchableOpacity>
+        )}
+        contentContainerStyle={styles.gridContainer}
+      />
     </View>
   );
 };
@@ -107,60 +78,43 @@ const ClientDashboard = ({navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f1f3f6',
   },
-  header: {
-    fontSize: 26,
-    fontWeight: 'bold',
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginVertical: 25,
     textAlign: 'center',
-    marginVertical: 20,
-    color: '#343a40',
+    color: '#222',
   },
-  jobCard: {
+  gridContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  gridItem: {
+    width: '48%',
+    aspectRatio: 1,
     backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
-    marginHorizontal: 15,
-    marginBottom: 15,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    padding: 18,
   },
-  jobTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#28a745',
-    marginBottom: 5,
-  },
-  jobAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#007bff',
-    marginBottom: 10,
-  },
-  jobInfo: {
-    fontSize: 16,
-    color: '#555',
-    marginBottom: 5,
-  },
-  choreItem: {
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 10,
-  },
-  acceptButton: {
-    backgroundColor: '#28a745',
-    padding: 12,
-    borderRadius: 5,
-    alignItems: 'center',
+  gridText: {
     marginTop: 10,
-  },
-  acceptButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#444',
+    textAlign: 'center',
   },
 });
 

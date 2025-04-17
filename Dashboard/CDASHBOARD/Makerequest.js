@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, Text, Pressable, StyleSheet, ScrollView, Alert, ActivityIndicator 
+  View, Text, Pressable, StyleSheet, ScrollView, Alert, ActivityIndicator, TextInput 
 } from 'react-native';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
@@ -10,6 +10,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MakeRequest = ({ navigation }) => {
   const [selectedChores, setSelectedChores] = useState([]);
+  const [customChore, setCustomChore] = useState('');
+  const [customPrice, setCustomPrice] = useState('');
   const [totalCost, setTotalCost] = useState(0);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
@@ -23,6 +25,8 @@ const MakeRequest = ({ navigation }) => {
     { id: 6, chore: 'Wash Car', price: 2000 },
     { id: 7, chore: 'Wash Clothes', price: 3000 },
   ];
+
+  const [allChores, setAllChores] = useState(chores);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -44,6 +48,24 @@ const MakeRequest = ({ navigation }) => {
     );
   };
 
+  const handleAddCustomChore = () => {
+    if (!customChore.trim() || !customPrice || isNaN(customPrice)) {
+      Alert.alert('Invalid Input', 'Please enter a valid chore and price.');
+      return;
+    }
+
+    const newChore = {
+      id: Date.now(),
+      chore: customChore.trim(),
+      price: parseInt(customPrice),
+    };
+
+    setAllChores([...allChores, newChore]);
+    setSelectedChores([...selectedChores, newChore]);
+    setCustomChore('');
+    setCustomPrice('');
+  };
+
   const handleSubmit = async () => {
     if (selectedChores.length === 0) {
       Alert.alert('Error', 'Please select at least one chore.');
@@ -58,8 +80,8 @@ const MakeRequest = ({ navigation }) => {
     setLoading(true);
 
     try {
-      console.log('Submitting request...',user);
       const requestData = {
+        clientData: user,
         jobid: `req_${Date.now()}`,
         clientId: user.id,
         clientName: user.firstname + ' ' + user.lastname,
@@ -78,9 +100,10 @@ const MakeRequest = ({ navigation }) => {
       await addDoc(collection(db, 'partimeRequest'), requestData);
       await AsyncStorage.setItem('chores', JSON.stringify(selectedChores));
       await AsyncStorage.setItem('total', `${totalCost}`);
+      await AsyncStorage.setItem('requestdata', JSON.stringify(requestData));
 
       Alert.alert('Success', 'Your request has been submitted!');
-      navigation.navigate('requestconfirmation', { clientId: user.id });
+      navigation.navigate('cmappage', { clientId: user.id });
     } catch (error) {
       console.error('Error submitting request: ', error);
       Alert.alert('Error', 'Failed to submit request. Try again.');
@@ -100,7 +123,7 @@ const MakeRequest = ({ navigation }) => {
         <View style={styles.choreListContainer}>
           <Text style={styles.totalCost}>Total Cost: ₦{totalCost}</Text>
 
-          {chores.map((chore) => (
+          {allChores.map((chore) => (
             <Pressable
               key={chore.id}
               style={[
@@ -114,6 +137,24 @@ const MakeRequest = ({ navigation }) => {
               </Text>
             </Pressable>
           ))}
+
+          <Text style={styles.customHeader}>Add a Custom Chore</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Chore Description"
+            value={customChore}
+            onChangeText={setCustomChore}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Price (₦)"
+            keyboardType="numeric"
+            value={customPrice}
+            onChangeText={setCustomPrice}
+          />
+          <Pressable style={styles.addButton} onPress={handleAddCustomChore}>
+            <Text style={styles.submitButtonText}>+ Add Chore</Text>
+          </Pressable>
 
           <Pressable 
             style={[styles.submitButton, loading && styles.disabledButton]} 
@@ -130,7 +171,6 @@ const MakeRequest = ({ navigation }) => {
   );
 };
 
-// Redesigned Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -173,7 +213,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#d5dbdb',
-    transition: 'background-color 0.2s',
   },
   selectedChore: {
     backgroundColor: '#27ae60',
@@ -184,17 +223,36 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     fontWeight: 'bold',
   },
+  customHeader: {
+    fontSize: 18,
+    marginTop: 20,
+    marginBottom: 10,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    textAlign: 'center',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  addButton: {
+    backgroundColor: '#1abc9c',
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
   submitButton: {
     backgroundColor: '#3498db',
     paddingVertical: 15,
     borderRadius: 8,
-    marginTop: 20,
+    marginTop: 10,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
   },
   disabledButton: {
     backgroundColor: '#95a5a6',

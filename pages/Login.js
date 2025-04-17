@@ -85,7 +85,7 @@ function Login({ navigation }) {
                   clientdata.id = clientId;
                   // AsyncStorage.setItem("clientId", clientId);
                   AsyncStorage.setItem("clientdata", JSON.stringify(clientdata));
-                  navigation.navigate("cmakerequest");  
+                  navigation.navigate("cdashboard", { clientdata });  
                 } else {
                   Alert.alert("Error", "Invalid password for Client account.");
                 }
@@ -121,7 +121,7 @@ function Login({ navigation }) {
         clientdata.id = clientId;
         AsyncStorage.setItem("clientId", clientId);
         AsyncStorage.setItem("clientdata", JSON.stringify(clientdata));
-        navigation.navigate("ClientDashboard");
+        navigation.navigate("cdashboard");
       } else if (househelp && househelp.data().password === password) {
         Alert.alert("Success", "Login successful! Welcome Househelp.");
         var househelpId = househelp.id;

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, StyleSheet, Text, View, ScrollView, Image, Linking, Button } from 'react-native';
+import { Pressable, StyleSheet, Text, View, ScrollView, Image, Linking, Button,TouchableOpacity } from 'react-native';
 import { Header } from '../../component/Header';
 import { db } from '../../pages/firebase';
 import { collection, getDocs } from 'firebase/firestore';
@@ -157,61 +157,139 @@ const styles = StyleSheet.create({
 });
 
 
-function HousehelpDetail({ route }) {
+function HousehelpDetail({ route, navigation }) {
   const { househelp } = route.params;
 
-  return (
-    <ScrollView>
-    <Header />
+  // Hardcoded average rating (to be dynamic later)
+  const averageRating = 3.2;
 
-  
-    <View style={styles2.container}>
+  const renderStars = (rating) => {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating - fullStars >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+    return (
+      <Text style={styles2.stars}>
+        {'★'.repeat(fullStars)}
+        {hasHalfStar ? '⯪' : ''}
+        {'☆'.repeat(emptyStars)}
+        <Text style={styles2.starNumber}> ({rating.toFixed(1)})</Text>
+      </Text>
+    );
+  };
+
+  return (
+    <ScrollView style={{ backgroundColor: '#f1f3f6' }}>
+      <Header />
       <Cmenu navigation={navigation} />
-      <Image source={{ uri: househelp.url }} style={styles2.image} />
-      <Text style={styles2.name}>{househelp.name}</Text>
-      <Text style={styles2.info}>📧 {househelp.email}</Text>
-      <Text style={styles2.info}>📞 {househelp.phonenumber}</Text>
-      <Text style={styles2.info}>📍 {househelp.address}, {househelp.state}</Text>
-      <Text style={styles2.info}>🛠️ {JSON.parse(househelp.selectedJobs).join(", ")}</Text>
-      <Text style={styles2.info}>💼 Job Experience: {househelp.experience}</Text>
-      <Text style={styles2.info}>👨‍👩‍👧‍👦 Availability: {househelp.availability}</Text>
-      <Text style={styles2.info}>💰 Rate: {househelp.rate}</Text>
-      {/* <Text style={styles2.info}>📅 Last Updated: {new Date(househelp.updatedAt.seconds * 1000).toLocaleDateString()}</Text> */}
-      <Text style={styles2.contact} onPress={() => Linking.openURL(`tel:${househelp.phonenumber}`)}>Call</Text>
-    </View>
+
+      <View style={styles2.card}>
+        <Image source={{ uri: househelp.url }} style={styles2.image} />
+        <Text style={styles2.name}>{househelp.name}</Text>
+        <Text style={styles2.subText}>{househelp.employmentType} | {househelp.gender}</Text>
+        {renderStars(averageRating)}
+      </View>
+
+      <View style={styles2.infoSection}>
+        <Text style={styles2.sectionHeader}>📋 Personal Info</Text>
+        <Text style={styles2.info}>📧 {househelp.email}</Text>
+        <Text style={styles2.info}>📞 {househelp.phonenumber}</Text>
+        <Text style={styles2.info}>🎂 {househelp.dateOfBirth}</Text>
+        <Text style={styles2.info}>🆔 Code: {househelp.code}</Text>
+        <Text style={styles2.info}>📍 {househelp.address}, {househelp.lga}, {househelp.state}</Text>
+      </View>
+
+      <View style={styles2.infoSection}>
+        <Text style={styles2.sectionHeader}>💼 Work Details</Text>
+        <Text style={styles2.info}>🛠️ Jobs: {JSON.parse(househelp.selectedJobs).join(', ')}</Text>
+        <Text style={styles2.info}>📅 Experience: {househelp.experience} years</Text>
+        <Text style={styles2.info}>📆 Registered: {househelp.createdAt?.toDate().toDateString()}</Text>
+      </View>
+
+      <View style={styles2.infoSection}>
+        <Text style={styles2.sectionHeader}>📍 Location</Text>
+        <Text style={styles2.info}>Accuracy: {JSON.parse(househelp.location).accuracy} meters</Text>
+        <Text style={styles2.info}>
+          Coordinates: ({JSON.parse(househelp.location).latitude}, {JSON.parse(househelp.location).longitude})
+        </Text>
+      </View>
+
+      <TouchableOpacity style={styles2.callButton} onPress={() => Linking.openURL(`tel:${househelp.phonenumber}`)}>
+        <Text style={styles2.callText}>📞 Call {househelp.name}</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles2 = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
+  card: {
     alignItems: 'center',
+    padding: 25,
     backgroundColor: '#fff',
+    margin: 15,
+    borderRadius: 16,
+    elevation: 4,
   },
   image: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    marginBottom: 20,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: '#28a745',
+    marginBottom: 15,
   },
   name: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#222',
+    marginBottom: 4,
+  },
+  subText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 5,
+  },
+  stars: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
+    color: '#f4c542',
+    marginVertical: 10,
+  },
+  starNumber: {
+    fontSize: 16,
+    color: '#444',
+  },
+  infoSection: {
+    backgroundColor: '#fff',
+    padding: 20,
+    marginHorizontal: 15,
+    marginBottom: 15,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#28a745',
     marginBottom: 10,
   },
   info: {
     fontSize: 16,
-    color: '#555',
-    marginBottom: 10,
+    color: '#444',
+    marginBottom: 8,
   },
-  contact: {
+  callButton: {
+    backgroundColor: '#28a745',
+    marginHorizontal: 60,
+    marginBottom: 30,
+    paddingVertical: 15,
+    borderRadius: 30,
+    alignItems: 'center',
+    elevation: 3,
+  },
+  callText: {
+    color: '#fff',
     fontSize: 18,
-    color: '#28a745',
-    marginTop: 20,
-    textDecorationLine: 'underline',
+    fontWeight: 'bold',
   },
 });
 

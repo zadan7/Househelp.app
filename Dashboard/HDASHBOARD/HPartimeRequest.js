@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Vibration } from 'react-native';
 import { collection, updateDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Hmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
+import { arrayUnion } from 'firebase/firestore';
 
-const HPartimeRquest = ({ navigation }) => {
+const HPartimeRequest = ({ navigation }) => {
   const [jobRequests, setJobRequests] = useState([]);
   const [househelpName, setHousehelpName] = useState('');
   const [househelpId, setHousehelpId] = useState('');
@@ -39,12 +40,16 @@ const HPartimeRquest = ({ navigation }) => {
         ...doc.data(),
       }));
 
-      const pendingJobs = jobs.filter(job => job.househelpId !== househelpId);
+      const pendingJobs = jobs.filter(job =>
+        job.status !== 'confirmed' &&
+        !(job.acceptedHelpers || []).some(helper => helper.househelpId === househelpId)
+      );
+      Vibration.vibrate(1000);
       setJobRequests(pendingJobs);
     });
 
-    return () => unsubscribe(); // Cleanup listener
-  }, []);
+    return () => unsubscribe();
+  }, [househelpId]);
 
   const handleAcceptJob = async (jobId) => {
     if (!househelpName) {
@@ -58,9 +63,7 @@ const HPartimeRquest = ({ navigation }) => {
       const jobRef = doc(db, 'partimeRequest', jobId);
       await updateDoc(jobRef, {
         status: 'accepted',
-        acceptedBy: househelpName,
-        househelpId: househelpId,
-        househelpdata: househelpdata,
+        acceptedHelpers: arrayUnion({ househelpId, househelpName, househelpdata })
       });
 
       Alert.alert('Success', 'Job has been accepted!');
@@ -77,7 +80,7 @@ const HPartimeRquest = ({ navigation }) => {
     <View style={styles.container}>
       <Header2 />
       <Hmenu navigation={navigation} />
-      
+
       <ScrollView>
         <Text style={styles.header}>Available Jobs</Text>
         {jobRequests.length === 0 ? (
@@ -96,21 +99,17 @@ const HPartimeRquest = ({ navigation }) => {
                 <Text key={index} style={styles.choreItem}>• {chore.chore}</Text>
               ))}
 
-              {job.status === 'accepted' ? (
-                <Text style={styles.jobInfo}>Accepted by: {job.acceptedBy}</Text>
-              ) : (
-                <TouchableOpacity
-                  style={styles.acceptButton}
-                  onPress={() => handleAcceptJob(job.id2)}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <Text style={styles.acceptButtonText}>Processing...</Text>
-                  ) : (
-                    <Text style={styles.acceptButtonText}>Accept Job</Text>
-                  )}
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={styles.acceptButton}
+                onPress={() => handleAcceptJob(job.id2)}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Text style={styles.acceptButtonText}>Processing...</Text>
+                ) : (
+                  <Text style={styles.acceptButtonText}>Accept Job</Text>
+                )}
+              </TouchableOpacity>
             </View>
           ))
         )}
@@ -179,4 +178,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export { HPartimeRquest };
+export { HPartimeRequest };

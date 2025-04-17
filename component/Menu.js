@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// import { useNavigation } from '@react-navigation/native';
-import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-
 
 const Cmenu = ({navigation}) => {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -22,37 +18,70 @@ const Cmenu = ({navigation}) => {
 
   return (
     <>
-      {/* Floating Button to Open Menu */}
       <TouchableOpacity style={styles.menuButton} onPress={toggleMenu}>
         <Ionicons name="menu" size={40} color="white" />
         <Text style={{ color: "white" }}>MENU</Text>
       </TouchableOpacity>
 
-      {/* Side Menu */}
       <Animated.View style={[styles.menu, { left: menuAnimation }]}>
         <TouchableOpacity onPress={toggleMenu}>
           <Text style={styles.closeMenu}>×</Text>
         </TouchableOpacity>
-        {/* <TouchableOpacity onPress={()=>{navigation.navigate("cdashboard")}} ><Text style={styles.menuItem}>Dashboard</Text></TouchableOpacity> */}
-        <TouchableOpacity onPress={()=>{navigation.navigate("cprofile")}}><Text style={styles.menuItem} >Profile</Text></TouchableOpacity>
-        <TouchableOpacity onPress={()=>{navigation.navigate("cmakerequest")}}><Text style={styles.menuItem}>Make Request</Text></TouchableOpacity>
-        <TouchableOpacity onPress={()=>{navigation.navigate("cHousehelplist")}}><Text style={styles.menuItem}>Househelp List</Text></TouchableOpacity>
-        <TouchableOpacity onPress={()=>{navigation.navigate("requestconfirmation")}}><Text style={styles.menuItem}> Pending Jobs</Text></TouchableOpacity>
 
 
+        <TouchableOpacity onPress={() => { navigation.navigate("cdashboard") }} style={styles.menuItem}>
+  <Ionicons name="home-outline" size={20} color="#fff" />
+  <Text style={styles.menuText}>Dashboard</Text>
+</TouchableOpacity>
 
-        {/* <TouchableOpacity onPress={()=>{navigation.navigate("profile")}}><Text style={styles.menuItem}>Settings</Text></TouchableOpacity> */}
-        <TouchableOpacity onPress={()=>{navigation.navigate("profile")}}><Text style={styles.menuItem}>Balances</Text></TouchableOpacity>
-        <TouchableOpacity onPress={()=>{navigation.navigate("csettings")}}><Text style={styles.menuItem}>Settings</Text></TouchableOpacity>
-        
+        <TouchableOpacity onPress={()=>{navigation.navigate("cprofile")}} style={styles.menuItem}>
+          <Ionicons name="person-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Profile</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={()=>{navigation.navigate("cmakerequest")}} style={styles.menuItem}>
+          <Ionicons name="add-circle-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Make Request</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={()=>{navigation.navigate("cHousehelplist")}} style={styles.menuItem}>
+          <Ionicons name="people-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Househelp List</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={()=>{navigation.navigate("requestconfirmation")}} style={styles.menuItem}>
+          <Ionicons name="clipboard-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Pending Jobs</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={()=>{navigation.navigate("profile")}} style={styles.menuItem}>
+          <Ionicons name="wallet-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Balances</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={()=>{navigation.navigate("csettings")}} style={styles.menuItem}>
+          <Ionicons name="settings-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Settings</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate("referandearn")} style={styles.menuItem}>
+  <Ionicons name="gift-outline" size={20} color="#fff" />
+  <Text style={styles.menuText}>Refer & Earn</Text>
+</TouchableOpacity>
+<TouchableOpacity onPress={() => navigation.navigate("cmappage")} style={styles.menuItem}>
+  <Ionicons name="map" size={20} color="#fff" />
+  <Text style={styles.menuText}>Map</Text>
+</TouchableOpacity>
 
         <TouchableOpacity onPress={()=>{
           AsyncStorage.clear().then(()=>{
-            Alert.alert("logged Out See you soon")
-            setTimeout(()=>{navigation.navigate("Home")},1000)
-            
-          })
-          }}><Text style={styles.menuItem}>Logout</Text></TouchableOpacity>
+            Alert.alert("Logged Out", "See you soon");
+            setTimeout(()=>{navigation.navigate("Home")},1000);
+          });
+        }} style={styles.menuItem}>
+          <Ionicons name="log-out-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Logout</Text>
+        </TouchableOpacity>
       </Animated.View>
     </>
   );
@@ -73,50 +102,59 @@ const Hmenu = ({navigation}) => {
 
   return (
     <>
-      {/* Floating Button to Open Menu */}
       <TouchableOpacity style={styles.menuButton} onPress={toggleMenu}>
         <Ionicons name="menu" size={40} color="white" />
         <Text style={{ color: "white" }}>MENU</Text>
       </TouchableOpacity>
 
-      {/* Side Menu */}
       <Animated.View style={[styles.menu, { left: menuAnimation }]}>
         <TouchableOpacity onPress={toggleMenu}>
           <Text style={styles.closeMenu}>×</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={()=>{
-          navigation.navigate("hdashboard")}
-        }><Text style={styles.menuItem}>Dashboard</Text></TouchableOpacity>
-        
-        <TouchableOpacity onPress={()=>{
-          navigation.navigate("hfulltime")}
-        }><Text style={styles.menuItem}>Fulltime Request</Text></TouchableOpacity>
-         <TouchableOpacity onPress={()=>{
-          navigation.navigate("hpartime")}   
-        }><Text style={styles.menuItem}>Partime  Request</Text></TouchableOpacity>
-           <TouchableOpacity onPress={()=>{
-          navigation.navigate("hweekly")}
-        }><Text style={styles.menuItem}>Weekly Request</Text></TouchableOpacity>
-        <TouchableOpacity onPress={()=>{
-          navigation.navigate("hprofile")}
-        }><Text style={styles.menuItem}>Profile</Text></TouchableOpacity>
-        <TouchableOpacity onPress={()=>{
-          navigation.navigate("hsettings")}
-        }><Text style={styles.menuItem}>Settings</Text></TouchableOpacity>
-        
+        <TouchableOpacity onPress={()=>{navigation.navigate("hdashboard")}} style={styles.menuItem}>
+          <Ionicons name="home-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Dashboard</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={()=>{navigation.navigate("hfulltime")}} style={styles.menuItem}>
+          <Ionicons name="briefcase-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Fulltime Request</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={()=>{navigation.navigate("hpartime")}} style={styles.menuItem}>
+          <Ionicons name="time-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Partime Request</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={()=>{navigation.navigate("hweekly")}} style={styles.menuItem}>
+          <Ionicons name="calendar-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Weekly Request</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={()=>{navigation.navigate("hprofile")}} style={styles.menuItem}>
+          <Ionicons name="person-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Profile</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={()=>{navigation.navigate("hsettings")}} style={styles.menuItem}>
+          <Ionicons name="settings-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Settings</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={()=>{
           AsyncStorage.clear().then(()=>{
-            Alert.alert("logged Out See you soon")
-            setTimeout(()=>{navigation.navigate("Home")},1000)
-            
-          })
-          }}><Text style={styles.menuItem}>Logout</Text></TouchableOpacity>
+            Alert.alert("Logged Out", "See you soon");
+            setTimeout(()=>{navigation.navigate("Home")},1000);
+          });
+        }} style={styles.menuItem}>
+          <Ionicons name="log-out-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Logout</Text>
+        </TouchableOpacity>
       </Animated.View>
     </>
   );
 };
-
 
 const styles = StyleSheet.create({
   menuButton: {
@@ -147,10 +185,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  menuText: {
     color: '#fff',
     fontSize: 18,
-    marginBottom: 20,
+    marginLeft: 10,
   },
 });
 
-export { Cmenu ,Hmenu};
+export { Cmenu , Hmenu };

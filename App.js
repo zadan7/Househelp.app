@@ -34,14 +34,21 @@ import { Arriving } from './Dashboard/CDASHBOARD/Arriving';
 import { RequestConfirmation } from './Dashboard/CDASHBOARD/ConfirmingRequest';
 import { HousehelpList } from './Dashboard/CDASHBOARD/Househelplist';
 import { HousehelpDetail } from './Dashboard/CDASHBOARD/Househelplist';
-import { HPartimeRquest } from './Dashboard/HDASHBOARD/HPartimeRequest';
+import { HPartimeRequest } from './Dashboard/HDASHBOARD/HPartimeRequest';
 import { CStartJob } from './Dashboard/CDASHBOARD/StartJob';
 import { HcurrentJob } from './Dashboard/HDASHBOARD/HcurrentJob';
 import { AwaitingConfirmationScreen } from './Dashboard/HDASHBOARD/AwaitingConfirmation';
 import { HStartJob } from './Dashboard/HDASHBOARD/HStartJob';
+import { ReferAndEarn } from './Dashboard/CDASHBOARD/ReferandEarn';
+// import ReferAndEarn from './Dashboard/CDASHBOARD/ReferandEarn';
+import { CMappage } from './Dashboard/CDASHBOARD/CMappage';
+
 
 // import {    UploadScreen} from './pages/upload';
 const Stack = createNativeStackNavigator();
+
+
+
 
 const MyStack = () => {
   return (
@@ -50,21 +57,18 @@ const MyStack = () => {
 
         <Stack.Screen name="Home" component={Home}  options={{ headerShown: false }}/>
         <Stack.Screen name="Request" component={Request}  options={{ headerShown: false }}/>
-
         <Stack.Screen name="HSignup" component={HSignup}  options={{ headerShown: false }}/>
         <Stack.Screen name="Login" component={Login}  options={{ headerShown: false }}/>
         <Stack.Screen name="partime" component={SelectApartment}  options={{ headerShown: false }}/>
         <Stack.Screen name="fulltime" component={Fulltime}  options={{ headerShown: false }}/>
         <Stack.Screen name="selectchores" component={SelectChores}  options={{ headerShown: false }}/>
         <Stack.Screen name="Partdetails" component={PartDetails}  options={{ headerShown: false }}/>
-        <Stack.Screen name="mappage" component={MapPage}  options={{ headerShown: false }}/>
+        {/* <Stack.Screen name="mappage" component={MapPage}  options={{ headerShown: false }}/> */}
         <Stack.Screen name="Signup" component={Signup}  options={{ headerShown: false }}/>
         <Stack.Screen name="Guarantor" component={Guarantor}  options={{ headerShown: false }}/>
         <Stack.Screen name="codevalidation" component={CodeValidation}  options={{ headerShown: false }}/>
         <Stack.Screen name="CSignup" component={CSignup}  options={{ headerShown: false }}/>
-
         <Stack.Screen name="codevalidation2" component={CodeValidation2}  options={{ headerShown: false }}/>
-
         <Stack.Screen name="Login2" component={Login2}  options={{ headerShown: false }}/>
         <Stack.Screen name="hdashboard" component={HousehelpDashboard}  options={{ headerShown: false }}/>
         <Stack.Screen name="cdashboard" component={ClientDashboard}  options={{ headerShown: false }}/>
@@ -73,34 +77,17 @@ const MyStack = () => {
       <Stack.Screen name="cmakerequest" component={MakeRequest}  options={{ headerShown: false }}/>
       <Stack.Screen name="arriving" component={Arriving}  options={{ headerShown: false }}/>     
       <Stack.Screen name="requestconfirmation" component={RequestConfirmation} options={{ headerShown: false }} />
-      {/* <Stack.Screen name="requestconfirmation" component={RequestConfirmation} options={{ headerShown: false }} /> */}
-
       <Stack.Screen name="cHousehelplist" component={HousehelpList}  options={{ headerShown: false }}/>
       <Stack.Screen name="HousehelpDetail" component={HousehelpDetail}  options={{ headerShown: false }}/> 
-      <Stack.Screen name="hpartime" component={HPartimeRquest}  options={{ headerShown: false }}/> 
+      <Stack.Screen name="hpartime" component={HPartimeRequest}  options={{ headerShown: false }}/> 
       <Stack.Screen name="cstartjob" component={CStartJob}  options={{ headerShown: false }}/> 
       <Stack.Screen name="hstartjob" component={HStartJob}  options={{ headerShown: false }}/> 
-
       <Stack.Screen name="hcurrentjob" component={HcurrentJob}  options={{ headerShown: false }}/> 
-      {/* <Stack.Screen name="hcurrentjob" component={HcurrentJob}  options={{ headerShown: false }}/>  */}
-
       <Stack.Screen name="awaitingconfirmation" component={AwaitingConfirmationScreen}  options={{ headerShown: false }}/> 
-
-
-
+      <Stack.Screen name="referandearn" component={ReferAndEarn}  options={{ headerShown: false }}/> 
+      <Stack.Screen name="cmappage" component={CMappage}  options={{ headerShown: false }}/>  
 
       
-
-
-
-
-
-
-
-        {/* <Stack.Screen name="" component={Cmenu}  options={{ headerShown: false }}/> */}
-
-        
-
 
 
         

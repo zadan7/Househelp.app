@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { collection, getDocs, doc, updateDoc, onSnapshot      } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, onSnapshot,    } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 
 import { Header2 } from '../../component/Header';
@@ -8,40 +8,38 @@ import { Cmenu } from '../../component/Menu';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RequestConfirmation = ({ navigation, route }) => {
-
-  const [clientId,setClientId]   =  useState(route.params);
+  const [clientId, setClientId] = useState(route.params);
   const [pendingJobs, setPendingJobs] = useState([]);
   const [selectedHelpers, setSelectedHelpers] = useState({});  
   const [loading, setLoading] = useState(true);
-
 
   useEffect(() => {
     const fetchClientId = async () => {
       const user = await AsyncStorage.getItem('clientdata');
       const parsedUser = JSON.parse(user);
-      setClientId(parsedUser.id); // Ensure clientId is set before fetching data
+      setClientId(parsedUser.id);
     };
-  
-    // First, fetch the clientId, then start the snapshot listener
+
     fetchClientId();
-  }, []); // Runs only once when the component mounts
-  
+  }, []);
+
   useEffect(() => {
-    if (!clientId) return; // Don't start the listener until clientId is set
-  
+    if (!clientId) return;
+
     const unsubscribe = onSnapshot(collection(db, 'partimeRequest'), snapshot => {
       const jobs = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(job => job.clientId === clientId );
-  
+        .filter(job => job.clientId === clientId);
+
       setPendingJobs(jobs);
       setLoading(false);
     });
-  
-    return () => unsubscribe(); // Cleanup the listener on component unmount
-  }, [clientId]); // Re-run this effect whenever clientId changes
-  
+
+    return () => unsubscribe();
+  }, [clientId]);
+
   const handleConfirm = async (jobId) => {
+    console.log("Job ID:", jobId);
     const selectedHelper = selectedHelpers[jobId];
     if (!selectedHelper) {
       Alert.alert("Please select a househelp before confirming.");
@@ -51,13 +49,15 @@ const RequestConfirmation = ({ navigation, route }) => {
     try {
       const jobRef = doc(db, 'partimeRequest', jobId);
       await updateDoc(jobRef, {
-        househelpName: selectedHelper,
+        househelpName: selectedHelper.househelpName,
+        househelpId: selectedHelper.househelpId,
+        househelpdata: selectedHelper.househelpdata,
         status: 'confirmed',
       });
 
-      Alert.alert("Job Confirmed", `You selected ${selectedHelper}.`);
+      Alert.alert("Job Confirmed", `You selected ${selectedHelper.name}.`);
       AsyncStorage.setItem('jobId', jobId);
-      navigation.navigate('arriving', { clientId });
+      navigation.navigate('cmappage', { clientId });
     } catch (error) {
       console.error("Error confirming job:", error);
       Alert.alert("Error", "Failed to confirm job.");
@@ -96,23 +96,26 @@ const RequestConfirmation = ({ navigation, route }) => {
               ))}
 
               <Text style={styles.subHeader}>Available Househelps:</Text>
-              {job.acceptedBy ? (
-                <TouchableOpacity
-                  style={[
-                    styles.helperButton,
-                    selectedHelpers[job.id] === job.acceptedBy && styles.selectedHelper,
-                  ]}
-                  onPress={() => setSelectedHelpers((prev) => ({ ...prev, [job.id]: job.acceptedBy }))}
-                >
-                  <Text
+              {job.acceptedHelpers && job.acceptedHelpers.length > 0 ? (
+                job.acceptedHelpers.map((helper, index) => (
+                  <TouchableOpacity
+                    key={index}
                     style={[
-                      styles.helperText,
-                      selectedHelpers[job.id] === job.acceptedBy && styles.selectedHelperText,
+                      styles.helperButton,
+                      selectedHelpers[job.id]?.id === helper.id && styles.selectedHelper,
                     ]}
+                    onPress={() => setSelectedHelpers((prev) => ({ ...prev, [job.id]: helper }))}
                   >
-                    {job.acceptedBy}
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.helperText,
+                        selectedHelpers[job.id]?.id === helper.id && styles.selectedHelperText,
+                      ]}
+                    >
+                      {helper.househelpName}
+                    </Text>
+                  </TouchableOpacity>
+                ))
               ) : (
                 <Text style={styles.waitingText}>Waiting for househelps to accept...</Text>
               )}
@@ -134,6 +137,7 @@ const RequestConfirmation = ({ navigation, route }) => {
     </View>
   );
 };
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
   scrollView: { paddingBottom: 30 },

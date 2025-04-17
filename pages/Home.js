@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 
 function Home({ navigation }) {
   useEffect(()=>{
-    // navigation.navigate("hstartjob")
+    navigation.navigate("cmappage")
     
   },[])
   return (
