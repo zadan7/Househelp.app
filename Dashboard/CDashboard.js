@@ -8,9 +8,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const menuItems = [
   { title: 'Profile', icon: 'person-circle-outline', screen: 'cprofile' },
   { title: 'Make Request', icon: 'create-outline', screen: 'cmakerequest' },
-  { title: 'Househelp List', icon: 'people-outline', screen: 'cHousehelplist' },
+  { title: 'Request fulltime live-in ', icon: 'create-outline', screen: 'cfulltime' },
+
+  // { title: 'Househelp List', icon: 'people-outline', screen: 'cHousehelplist' },
   { title: 'Pending Jobs', icon: 'hourglass-outline', screen: 'requestconfirmation' },
-  { title: 'Job History', icon: 'document-text-outline', screen: 'ClientJobHistory' },
+  { title: 'Job History', icon: 'document-text-outline', screen: 'ccompletedjobs' },
   { title: 'Favorites', icon: 'heart-outline', screen: 'FavoriteHelpers' },
   { title: 'Refer & Earn', icon: 'gift-outline', screen: 'referandearn' },
   { title: 'Settings', icon: 'settings-outline', screen: 'csettings' },
@@ -20,7 +22,7 @@ const menuItems = [
 ];
 
 const ClientDashboard = ({ navigation, route }) => {
-  const { user } = route.params;
+  // const { user } = route.params;
   const [userData, setUserData] = React.useState();
 
   useEffect(() => {

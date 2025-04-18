@@ -29,7 +29,7 @@ const RequestConfirmation = ({ navigation, route }) => {
     const unsubscribe = onSnapshot(collection(db, 'partimeRequest'), snapshot => {
       const jobs = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(job => job.clientId === clientId);
+        .filter(job => job.clientId === clientId && job.status === 'pending' || job.status === 'accepted');
 
       setPendingJobs(jobs);
       setLoading(false);
@@ -143,9 +143,9 @@ const RequestConfirmation = ({ navigation, route }) => {
                 onPress={() => handleConfirm2(job.id, job)}
                 style={[
                   styles.confirmButton,
-                  !selectedHelpers[job.id] && { backgroundColor: '#ccc' },
+                  selectedHelpers[job.id] && { backgroundColor: '#ccc' },
                 ]}
-                disabled={!selectedHelpers[job.id]}
+                disabled={selectedHelpers[job.id]}
               >
                 <Text style={styles.confirmButtonText}>Proceed With this pending Job</Text>
               </TouchableOpacity>

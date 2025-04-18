@@ -42,6 +42,8 @@ import { HStartJob } from './Dashboard/HDASHBOARD/HStartJob';
 import { ReferAndEarn } from './Dashboard/CDASHBOARD/ReferandEarn';
 // import ReferAndEarn from './Dashboard/CDASHBOARD/ReferandEarn';
 import { CMappage } from './Dashboard/CDASHBOARD/CMappage';
+import { CcompletedJobs } from './Dashboard/CDASHBOARD/CcompletedJobs';
+import { CFulltime } from './Dashboard/CDASHBOARD/Cfulltime';
 
 
 // import {    UploadScreen} from './pages/upload';
@@ -69,7 +71,7 @@ const MyStack = () => {
         <Stack.Screen name="codevalidation" component={CodeValidation}  options={{ headerShown: false }}/>
         <Stack.Screen name="CSignup" component={CSignup}  options={{ headerShown: false }}/>
         <Stack.Screen name="codevalidation2" component={CodeValidation2}  options={{ headerShown: false }}/>
-        <Stack.Screen name="Login2" component={Login2}  options={{ headerShown: false }}/>
+        {/* <Stack.Screen name="Login2" component={Login2}  options={{ headerShown: false }}/> */}
         <Stack.Screen name="hdashboard" component={HousehelpDashboard}  options={{ headerShown: false }}/>
         <Stack.Screen name="cdashboard" component={ClientDashboard}  options={{ headerShown: false }}/>
         <Stack.Screen name="cprofile" component={Profile}  options={{ headerShown: false }}/> 
@@ -85,7 +87,11 @@ const MyStack = () => {
       <Stack.Screen name="hcurrentjob" component={HcurrentJob}  options={{ headerShown: false }}/> 
       <Stack.Screen name="awaitingconfirmation" component={AwaitingConfirmationScreen}  options={{ headerShown: false }}/> 
       <Stack.Screen name="referandearn" component={ReferAndEarn}  options={{ headerShown: false }}/> 
-      <Stack.Screen name="cmappage" component={CMappage}  options={{ headerShown: false }}/>  
+      <Stack.Screen name="cmappage" component={CMappage}  options={{ headerShown: false }}/> 
+      <Stack.Screen name="ccompletedjobs" component={CcompletedJobs}  options={{ headerShown: false }}/>  
+      <Stack.Screen name="cfulltime" component={CFulltime}  options={{ headerShown: false }}/>  
+
+
 
       
 

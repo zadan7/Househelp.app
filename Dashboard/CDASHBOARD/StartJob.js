@@ -96,6 +96,28 @@ const [documentId, setDocumentId] = useState(null); // State to hold document ID
   const handlePayment = () => {
     // Implement payment processing logic here
     Alert.alert('Payment', 'Your payment has been processed successfully.');
+    Alert.alert('Success', documentId);
+
+    // code to update the job status in Firestore
+    const jobRef = doc(db, 'partimeRequest', documentId);
+    updateDoc(jobRef, {
+      status: 'completed',
+      rating: rating,
+      comment: comment,
+      //completedAt: new Date().toISOString(), // Optional: add a timestamp for when the job was completed
+      // paymentStatus: 'paid', // Optional: add a payment status field
+      // paymentDetails: paymentDetails, // Optional: add payment details if needed
+      //code for completedAt timestamp
+      completedAt: new Date().toISOString(), // Optional: add a timestamp for when the job was completed
+    })
+      .then(() => {
+        Alert.alert('Success', 'Job marked as completed and payment processed.');
+        // navigation.navigate('cmappage', { jobId: documentId });
+      })
+      .catch((error) => {
+        console.error('Error updating job status:', error);
+        Alert.alert('Error', 'Failed to update job status.');
+      });
   };
 
   // Enable payment button only if rating and comment are provided

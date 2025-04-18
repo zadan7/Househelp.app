@@ -43,15 +43,19 @@ const Cmenu = ({navigation}) => {
           <Ionicons name="add-circle-outline" size={20} color="#fff" />
           <Text style={styles.menuText}>Make Request</Text>
         </TouchableOpacity>
-
+{/* 
         <TouchableOpacity onPress={()=>{navigation.navigate("cHousehelplist")}} style={styles.menuItem}>
           <Ionicons name="people-outline" size={20} color="#fff" />
           <Text style={styles.menuText}>Househelp List</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity onPress={()=>{navigation.navigate("requestconfirmation")}} style={styles.menuItem}>
           <Ionicons name="clipboard-outline" size={20} color="#fff" />
           <Text style={styles.menuText}>Pending Jobs</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={()=>{navigation.navigate("ccompletedjobs")}} style={styles.menuItem}>
+          <Ionicons name="done-all" size={20} color="#fff" />
+          <Text style={styles.menuText}>Completed Jobs</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={()=>{navigation.navigate("profile")}} style={styles.menuItem}>
@@ -76,7 +80,7 @@ const Cmenu = ({navigation}) => {
         <TouchableOpacity onPress={()=>{
           AsyncStorage.clear().then(()=>{
             Alert.alert("Logged Out", "See you soon");
-            setTimeout(()=>{navigation.navigate("Home")},1000);
+            setTimeout(()=>{navigation.navigate("login")},1000);
           });
         }} style={styles.menuItem}>
           <Ionicons name="log-out-outline" size={20} color="#fff" />

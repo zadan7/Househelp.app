@@ -8,7 +8,7 @@ import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const MakeRequest = ({ navigation }) => {
+const MakeRequest = ({ navigation }) => { 
   const [selectedChores, setSelectedChores] = useState([]);
   const [customChore, setCustomChore] = useState('');
   const [customPrice, setCustomPrice] = useState('');
@@ -97,10 +97,15 @@ const MakeRequest = ({ navigation }) => {
         status: 'pending',
       };
 
-      await addDoc(collection(db, 'partimeRequest'), requestData);
+      // await addDoc(collection(db, 'partimeRequest'), requestData);
+      const docRef = await addDoc(collection(db, 'partimeRequest'), requestData);
+const newDocId = docRef.id;
+
+console.log('New document created with ID:', newDocId);
       await AsyncStorage.setItem('chores', JSON.stringify(selectedChores));
       await AsyncStorage.setItem('total', `${totalCost}`);
       await AsyncStorage.setItem('requestdata', JSON.stringify(requestData));
+      await AsyncStorage.setItem('jobId', newDocId);
 
       Alert.alert('Success', 'Your request has been submitted!');
       navigation.navigate('cmappage', { clientId: user.id });

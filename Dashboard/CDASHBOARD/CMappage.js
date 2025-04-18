@@ -12,12 +12,13 @@ import {
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { db } from '../../pages/firebase';
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc ,onSnapshot} from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Header2 } from '../../component/Header';
 import { Cmenu } from '../../component/Menu';
 import { FontAwesome } from '@expo/vector-icons';
+
 
 const CMappage = ({ navigation }) => {
   const [location, setLocation] = useState(null);
@@ -98,6 +99,22 @@ const CMappage = ({ navigation }) => {
       ]).start();
     }
   }, [selectedHelper]);
+
+  useEffect(() => {
+    if (!jobId) return;
+  
+    const unsubscribe = onSnapshot(doc(db, 'partimeRequest', jobId), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = { id: snapshot.id, ...snapshot.data() };
+        setRequestData(data);
+        setCurrentJob(data);
+        console.log('🔄 Live update:', data);
+      }
+    });
+  
+    return () => unsubscribe(); // clean up listener on unmount
+  }, [jobId]);
+  
 
   const handleSendPushNotification = async () => {
     for (let help of househelps) {
