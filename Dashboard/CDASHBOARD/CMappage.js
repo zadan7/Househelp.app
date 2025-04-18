@@ -1,9 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  Image,
+  Animated,
+} from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { db } from '../../pages/firebase';
-import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Header2 } from '../../component/Header';
@@ -16,45 +25,79 @@ const CMappage = ({ navigation }) => {
   const [requestData, setRequestData] = useState(null);
   const [selectedHelper, setSelectedHelper] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const fetchHousehelps = async () => {
-    if (!requestData?.clientData.lga) return;
-
-    const q = query(collection(db, 'househelps'), where('lga', '==', requestData.clientData.lga));
-    const querySnapshot = await getDocs(q);
-    const helps = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setHousehelps(helps);
-    setLoading(false);
-  };
+  const [jobId, setJobId] = useState(null);
+  const [currentJob, setCurrentJob] = useState(null);
+  const bounceValue = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission to access location was denied');
-        return;
-      }
-      const loc = await Location.getCurrentPositionAsync({});
-      setLocation(loc.coords);
-    })();
-  }, []);
+    const initialize = async () => {
+      try {
+        setLoading(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const request = await AsyncStorage.getItem('requestdata');
-      if (request) {
-        setRequestData(JSON.parse(request));
+        const request = await AsyncStorage.getItem('requestdata');
+        const storedJobId = await AsyncStorage.getItem('jobId');
+
+        if (!request) {
+          Alert.alert('Error', 'No request data found.');
+          return;
+        }
+
+        const parsedRequest = JSON.parse(request);
+        setRequestData(parsedRequest);
+        setJobId(storedJobId);
+
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission to access location was denied');
+          return;
+        }
+
+        const loc = await Location.getCurrentPositionAsync({});
+        setLocation(loc.coords);
+
+        const househelpSnapshot = await getDocs(collection(db, 'househelps'));
+        const helps = househelpSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setHousehelps(helps);
+
+        const requestSnapshot = await getDocs(collection(db, 'partimeRequest'));
+        requestSnapshot.forEach((doc) => {
+          const data = { id: doc.id, ...doc.data() };
+          if (data.jobid === parsedRequest.jobid || storedJobId === data.id) {
+            setCurrentJob(data);
+            setRequestData(data);
+            console.log('Current Job:', data);
+          }
+        });
+      } catch (error) {
+        console.error('Initialization error:', error);
+        Alert.alert('Error', 'Something went wrong while initializing.');
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchData();
+    initialize();
   }, []);
 
   useEffect(() => {
-    if (requestData?.clientData?.lga) {
-      fetchHousehelps();
+    if (selectedHelper) {
+      Animated.sequence([
+        Animated.timing(bounceValue, {
+          toValue: 1.5,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(bounceValue, {
+          toValue: 1,
+          friction: 2,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
-  }, [requestData]);
+  }, [selectedHelper]);
 
   const handleSendPushNotification = async () => {
     for (let help of househelps) {
@@ -70,6 +113,7 @@ const CMappage = ({ navigation }) => {
       }
     }
     Alert.alert('Notified', 'Nearby househelps have been alerted.');
+    Alert.alert('Waiting', 'Waiting for nearby househelps to accept the job offer.');
   };
 
   const handleConfirm = async () => {
@@ -93,7 +137,7 @@ const CMappage = ({ navigation }) => {
     }
   };
 
-  if (loading || !location || !requestData) {
+  if (loading || !location) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#28a745" />
@@ -115,7 +159,6 @@ const CMappage = ({ navigation }) => {
           longitudeDelta: 0.05,
         }}
       >
-        {/* Client Marker */}
         <Marker
           coordinate={{
             latitude: location.latitude,
@@ -126,7 +169,6 @@ const CMappage = ({ navigation }) => {
           pinColor="green"
         />
 
-        {/* Househelp Markers with Image and Star Rating */}
         {househelps.map((helper, index) => {
           let loc;
           try {
@@ -137,9 +179,11 @@ const CMappage = ({ navigation }) => {
 
           const latitude = parseFloat(loc.latitude);
           const longitude = parseFloat(loc.longitude);
-          const rating = Math.round(helper.rating || 4); // default to 4 stars
+          const rating = Math.round(helper.rating || 4);
 
           if (isNaN(latitude) || isNaN(longitude)) return null;
+
+          const isSelected = selectedHelper?.househelpId === helper.id;
 
           return (
             <Marker
@@ -148,15 +192,20 @@ const CMappage = ({ navigation }) => {
               title={helper.name || 'Househelp'}
               description={`Experience: ${helper.experience || 'N/A'} yrs`}
             >
-              <View style={{ alignItems: 'center' }}>
+              <Animated.View
+                style={{
+                  alignItems: 'center',
+                  transform: [{ scale: isSelected ? bounceValue : 1 }],
+                }}
+              >
                 <Image
                   source={{ uri: helper.url }}
                   style={{
                     width: 50,
                     height: 50,
                     borderRadius: 25,
-                    borderWidth: 2,
-                    borderColor: '#fff',
+                    borderWidth: 3,
+                    borderColor: isSelected ? '#007bff' : '#fff',
                   }}
                 />
                 <View style={{ flexDirection: 'row', marginTop: 2 }}>
@@ -169,17 +218,16 @@ const CMappage = ({ navigation }) => {
                     />
                   ))}
                 </View>
-              </View>
+              </Animated.View>
             </Marker>
           );
         })}
       </MapView>
 
       <View style={{ padding: 15 }}>
-        {/* Accepted Helpers */}
         {requestData.acceptedHelpers?.length > 0 && (
           <View style={{ marginBottom: 15 }}>
-            <Text style={styles.sectionHeader}>Accepted Househelps</Text>
+            <Text style={styles.sectionHeader}>List of Househelps that Accepted this Request</Text>
             {requestData.acceptedHelpers.map((helper, index) => (
               <TouchableOpacity
                 key={index}
@@ -202,21 +250,19 @@ const CMappage = ({ navigation }) => {
           </View>
         )}
 
-        {/* Buttons */}
-        <TouchableOpacity onPress={handleSendPushNotification} style={styles.alertButton}>
-          <Text style={styles.alertButtonText}>Alert Nearby Househelps</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={fetchHousehelps} style={styles.alertButton}>
-          <Text style={styles.alertButtonText}>Fetch Nearby Househelps</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity
           onPress={handleConfirm}
-          style={[styles.confirmButton, !selectedHelper && { backgroundColor: '#ccc' }]}
+          style={[
+            styles.confirmButton,
+            !selectedHelper && { backgroundColor: '#ccc' },
+          ]}
           disabled={!selectedHelper}
         >
           <Text style={styles.confirmButtonText}>Confirm Selected Househelp</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleSendPushNotification} style={styles.alertButton}>
+          <Text style={styles.alertButtonText}>Alert Nearby Househelps</Text>
         </TouchableOpacity>
       </View>
     </View>

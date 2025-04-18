@@ -38,8 +38,9 @@ const RequestConfirmation = ({ navigation, route }) => {
     return () => unsubscribe();
   }, [clientId]);
 
-  const handleConfirm = async (jobId) => {
+  const handleConfirm = async (jobId,job) => {
     console.log("Job ID:", jobId);
+    console.log("Job details ",job)
     const selectedHelper = selectedHelpers[jobId];
     if (!selectedHelper) {
       Alert.alert("Please select a househelp before confirming.");
@@ -52,12 +53,30 @@ const RequestConfirmation = ({ navigation, route }) => {
         househelpName: selectedHelper.househelpName,
         househelpId: selectedHelper.househelpId,
         househelpdata: selectedHelper.househelpdata,
-        status: 'confirmed',
+        // status: 'confirmed',
       });
 
       Alert.alert("Job Confirmed", `You selected ${selectedHelper.name}.`);
       AsyncStorage.setItem('jobId', jobId);
-      navigation.navigate('cmappage', { clientId });
+      AsyncStorage.setItem('requestdata',JSON.stringify(job));
+      navigation.navigate('cmappage', { jobId }); 
+    } catch (error) {
+      console.error("Error confirming job:", error);
+      Alert.alert("Error", "Failed to confirm job.");
+    }
+  };
+  const handleConfirm2 = async (jobId,job) => {
+    console.log("Job ID:", jobId);
+    console.log("Job details ",job)
+  
+
+    try {
+     
+
+      // Alert.alert("Job Confirmed", `You selected ${selectedHelper.name}.`);
+      AsyncStorage.setItem('jobId', jobId);
+      AsyncStorage.setItem('requestdata',JSON.stringify(job));
+      navigation.navigate('cmappage', { jobId }); 
     } catch (error) {
       console.error("Error confirming job:", error);
       Alert.alert("Error", "Failed to confirm job.");
@@ -121,14 +140,14 @@ const RequestConfirmation = ({ navigation, route }) => {
               )}
 
               <TouchableOpacity
-                onPress={() => handleConfirm(job.id)}
+                onPress={() => handleConfirm2(job.id, job)}
                 style={[
                   styles.confirmButton,
                   !selectedHelpers[job.id] && { backgroundColor: '#ccc' },
                 ]}
                 disabled={!selectedHelpers[job.id]}
               >
-                <Text style={styles.confirmButtonText}>Confirm & Continue</Text>
+                <Text style={styles.confirmButtonText}>Proceed With this pending Job</Text>
               </TouchableOpacity>
             </View>
           ))

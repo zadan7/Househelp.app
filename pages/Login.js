@@ -25,7 +25,7 @@ function Login({ navigation }) {
           id: doc.id,
           ...doc.data(),
         }));
-        console.log(househelpsArray);
+        // console.log(househelpsArray);
         setHousehelps(househelpsArray);
       } catch (error) {
         console.error("Error fetching househelps:", error);
