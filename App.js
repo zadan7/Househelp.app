@@ -43,7 +43,7 @@ import { ReferAndEarn } from './Dashboard/CDASHBOARD/ReferandEarn';
 // import ReferAndEarn from './Dashboard/CDASHBOARD/ReferandEarn';
 import { CMappage } from './Dashboard/CDASHBOARD/CMappage';
 import { CcompletedJobs } from './Dashboard/CDASHBOARD/CcompletedJobs';
-import { CFulltime } from './Dashboard/CDASHBOARD/Cfulltime';
+import { CFulltimelivein,CFulltimeliveout,CFulltimeSelection } from './Dashboard/CDASHBOARD/Cfulltime';
 
 
 // import {    UploadScreen} from './pages/upload';
@@ -60,7 +60,7 @@ const MyStack = () => {
         <Stack.Screen name="Home" component={Home}  options={{ headerShown: false }}/>
         <Stack.Screen name="Request" component={Request}  options={{ headerShown: false }}/>
         <Stack.Screen name="HSignup" component={HSignup}  options={{ headerShown: false }}/>
-        <Stack.Screen name="Login" component={Login}  options={{ headerShown: false }}/>
+        <Stack.Screen name="login" component={Login}  options={{ headerShown: false }}/>
         <Stack.Screen name="partime" component={SelectApartment}  options={{ headerShown: false }}/>
         <Stack.Screen name="fulltime" component={Fulltime}  options={{ headerShown: false }}/>
         <Stack.Screen name="selectchores" component={SelectChores}  options={{ headerShown: false }}/>
@@ -89,7 +89,10 @@ const MyStack = () => {
       <Stack.Screen name="referandearn" component={ReferAndEarn}  options={{ headerShown: false }}/> 
       <Stack.Screen name="cmappage" component={CMappage}  options={{ headerShown: false }}/> 
       <Stack.Screen name="ccompletedjobs" component={CcompletedJobs}  options={{ headerShown: false }}/>  
-      <Stack.Screen name="cfulltime" component={CFulltime}  options={{ headerShown: false }}/>  
+      <Stack.Screen name="cfulltimelivein" component={CFulltimelivein}  options={{ headerShown: false }}/>  
+      <Stack.Screen name="cfulltimeliveout" component={CFulltimeliveout}  options={{ headerShown: false }}/>  
+      <Stack.Screen name="cfulltimeselection" component={CFulltimeSelection}  options={{ headerShown: false }}/>  
+
 
 
 

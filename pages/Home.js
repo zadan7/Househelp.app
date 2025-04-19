@@ -25,7 +25,7 @@ function Home({ navigation }) {
         </Pressable>
         <Text>or</Text>
 
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('Login')}>
+        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('login')}>
           <Text style={styles.buttonText2}>Login</Text>
         </Pressable>
         <Text>Click to order househelp</Text>

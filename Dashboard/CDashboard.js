@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const menuItems = [
   { title: 'Profile', icon: 'person-circle-outline', screen: 'cprofile' },
   { title: 'Make Request', icon: 'create-outline', screen: 'cmakerequest' },
-  { title: 'Request fulltime live-in ', icon: 'create-outline', screen: 'cfulltime' },
+  { title: 'Request fulltime', icon: 'create-outline', screen: 'cfulltimeselection' },
 
   // { title: 'Househelp List', icon: 'people-outline', screen: 'cHousehelplist' },
   { title: 'Pending Jobs', icon: 'hourglass-outline', screen: 'requestconfirmation' },

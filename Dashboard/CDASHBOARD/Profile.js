@@ -42,7 +42,7 @@ const Profile = ({ navigation }) => {
 
         <View style={styles.profileContainer}>
           <View style={styles.profileHeader}>
-            <Image source={{ uri: user.profilePic }} style={styles.profilePic} />
+            <Image source={{ uri: user.facepicture }} style={styles.profilePic} />
             <View style={styles.profileInfo}>
               <Text style={styles.name}>{user.name}</Text>
               <Text style={styles.email}>{user.email}</Text>
@@ -91,12 +91,12 @@ const Profile = ({ navigation }) => {
 
             <View style={styles.imageRow}>
               <Text style={styles.imageLabel}>Apartment Inside:</Text>
-              <Image source={{ uri: user.apartmentInside }} style={styles.image} />
+              <Image source={{ uri: user.insideview }} style={styles.image} />
             </View>
 
             <View style={styles.imageRow}>
               <Text style={styles.imageLabel}>House Front:</Text>
-              <Image source={{ uri: user.houseFront }} style={styles.image} />
+              <Image source={{ uri: user.frontview }} style={styles.image} />
             </View>
           </View>
         </View>

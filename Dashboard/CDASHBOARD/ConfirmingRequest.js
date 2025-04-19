@@ -38,33 +38,33 @@ const RequestConfirmation = ({ navigation, route }) => {
     return () => unsubscribe();
   }, [clientId]);
 
-  const handleConfirm = async (jobId,job) => {
-    console.log("Job ID:", jobId);
-    console.log("Job details ",job)
-    const selectedHelper = selectedHelpers[jobId];
-    if (!selectedHelper) {
-      Alert.alert("Please select a househelp before confirming.");
-      return;
-    }
+  // const handleConfirm = async (jobId,job) => {
+  //   console.log("Job ID:", jobId);
+  //   console.log("Job details ",job)
+  //   const selectedHelper = selectedHelpers[jobId];
+  //   if (!selectedHelper) {
+  //     Alert.alert("Please select a househelp before confirming.");
+  //     return;
+  //   }
 
-    try {
-      const jobRef = doc(db, 'partimeRequest', jobId);
-      await updateDoc(jobRef, {
-        househelpName: selectedHelper.househelpName,
-        househelpId: selectedHelper.househelpId,
-        househelpdata: selectedHelper.househelpdata,
-        // status: 'confirmed',
-      });
+  //   try {
+  //     const jobRef = doc(db, 'partimeRequest', jobId);
+  //     await updateDoc(jobRef, {
+  //       househelpName: selectedHelper.househelpName,
+  //       househelpId: selectedHelper.househelpId,
+  //       househelpdata: selectedHelper.househelpdata,
+  //       // status: 'confirmed',
+  //     });
 
-      Alert.alert("Job Confirmed", `You selected ${selectedHelper.name}.`);
-      AsyncStorage.setItem('jobId', jobId);
-      AsyncStorage.setItem('requestdata',JSON.stringify(job));
-      navigation.navigate('cmappage', { jobId }); 
-    } catch (error) {
-      console.error("Error confirming job:", error);
-      Alert.alert("Error", "Failed to confirm job.");
-    }
-  };
+  //     Alert.alert("Job Confirmed", `You selected ${selectedHelper.name}.`);
+  //     AsyncStorage.setItem('jobId', jobId);
+  //     AsyncStorage.setItem('requestdata',JSON.stringify(job));
+  //     navigation.navigate('cmappage', { jobId }); 
+  //   } catch (error) {
+  //     console.error("Error confirming job:", error);
+  //     Alert.alert("Error", "Failed to confirm job.");
+  //   }
+  // };
   const handleConfirm2 = async (jobId,job) => {
     console.log("Job ID:", jobId);
     console.log("Job details ",job)
@@ -103,7 +103,7 @@ const RequestConfirmation = ({ navigation, route }) => {
         ) : (
           pendingJobs.map((job) => (
             <View key={job.id} style={styles.jobCard}>
-              <Text style={styles.jobTitle}>{job.clientName}'s Job Request</Text>
+              <Text style={styles.jobTitle}>{job.clientName}'s Job Request Partime</Text>
               <Text style={styles.jobInfo}>Location: {job.address}</Text>
               <Text style={styles.jobInfo}>Apartment Type: {job.apartmentType}</Text>
               <Text style={styles.jobInfo}>Price: ₦{job.totalCost}</Text>
@@ -114,30 +114,6 @@ const RequestConfirmation = ({ navigation, route }) => {
                 <Text key={index} style={styles.choreItem}>- {chore.chore} (₦{chore.price})</Text>
               ))}
 
-              <Text style={styles.subHeader}>Available Househelps:</Text>
-              {job.acceptedHelpers && job.acceptedHelpers.length > 0 ? (
-                job.acceptedHelpers.map((helper, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.helperButton,
-                      selectedHelpers[job.id]?.id === helper.id && styles.selectedHelper,
-                    ]}
-                    onPress={() => setSelectedHelpers((prev) => ({ ...prev, [job.id]: helper }))}
-                  >
-                    <Text
-                      style={[
-                        styles.helperText,
-                        selectedHelpers[job.id]?.id === helper.id && styles.selectedHelperText,
-                      ]}
-                    >
-                      {helper.househelpName}
-                    </Text>
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <Text style={styles.waitingText}>Waiting for househelps to accept...</Text>
-              )}
 
               <TouchableOpacity
                 onPress={() => handleConfirm2(job.id, job)}
