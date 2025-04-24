@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Vibration } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Vibration, Pressable } from 'react-native';
 import { collection, updateDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -87,6 +87,7 @@ const HPartimeRequest = ({ navigation }) => {
           <Text style={{ textAlign: 'center', marginTop: 20 }}>No job requests available.</Text>
         ) : (
           jobRequests.map((job) => (
+            <Pressable onPress={() => {}}>
             <View key={job.id2} style={styles.jobCard}>
               <Text style={styles.jobTitle}>{job.clientName}</Text>
               <Text style={styles.jobAmount}>₦{job.totalCost}</Text>
@@ -111,6 +112,7 @@ const HPartimeRequest = ({ navigation }) => {
                 )}
               </TouchableOpacity>
             </View>
+            </Pressable>
           ))
         )}
       </ScrollView>

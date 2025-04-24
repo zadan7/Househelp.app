@@ -6,6 +6,9 @@ import { addDoc, collection, Timestamp, updateDoc,doc } from 'firebase/firestore
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import { Picker } from '@react-native-picker/picker';
+import { arrayUnion } from 'firebase/firestore';
+
+
 // import {Modal} from 'react-native-modal';
 
 
@@ -223,7 +226,7 @@ const CFulltimeliveout = ({ navigation }) => {
     }
 
     try {
-    var fulltimeRequestdata=  await addDoc(collection(db, 'fulltimeRequest-liveout'), {
+    var fulltimeRequestdata=  await addDoc(collection(db, 'fulltimeRequest'), {
         clientData: client,
         requestType: 'fulltime-liveout',
         description: description,

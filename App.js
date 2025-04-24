@@ -44,6 +44,9 @@ import { ReferAndEarn } from './Dashboard/CDASHBOARD/ReferandEarn';
 import { CMappage } from './Dashboard/CDASHBOARD/CMappage';
 import { CcompletedJobs } from './Dashboard/CDASHBOARD/CcompletedJobs';
 import { CFulltimelivein,CFulltimeliveout,CFulltimeSelection } from './Dashboard/CDASHBOARD/Cfulltime';
+import { Hfulltime } from './Dashboard/HDASHBOARD/Hfulltime';
+import { Hprofile } from './Dashboard/HDASHBOARD/Hprofile';
+import { HappliedJobs } from './Dashboard/HDASHBOARD/HappliedJobs';
 
 
 // import {    UploadScreen} from './pages/upload';
@@ -91,7 +94,14 @@ const MyStack = () => {
       <Stack.Screen name="ccompletedjobs" component={CcompletedJobs}  options={{ headerShown: false }}/>  
       <Stack.Screen name="cfulltimelivein" component={CFulltimelivein}  options={{ headerShown: false }}/>  
       <Stack.Screen name="cfulltimeliveout" component={CFulltimeliveout}  options={{ headerShown: false }}/>  
-      <Stack.Screen name="cfulltimeselection" component={CFulltimeSelection}  options={{ headerShown: false }}/>  
+      <Stack.Screen name="cfulltimeselection" component={CFulltimeSelection}  options={{ headerShown: false }}/> 
+      <Stack.Screen name="hfulltime" component={Hfulltime}  options={{ headerShown: false }}/> 
+      <Stack.Screen name="hprofile" component={Hprofile}  options={{ headerShown: false }}/> 
+      <Stack.Screen name="happliedjobs" component={HappliedJobs}  options={{ headerShown: false }}/> 
+
+
+
+
 
 
 

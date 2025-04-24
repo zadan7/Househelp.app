@@ -215,7 +215,7 @@ const CSignup = ({ navigation }) => {
         console.log("Validation failed. Fix errors.");
         return;
       }
-    
+      const pushToken = await registerForPushNotificationsAsync();
       var verificationCode = generateVerificationCode();
     
       const newData = {
@@ -235,6 +235,8 @@ const CSignup = ({ navigation }) => {
         apartmentsize: apartmentsize,
         password: password,
         Cpassword: Cpassword,
+        token: pushToken,
+        createdAt: serverTimestamp(),
       };
 
        emailjs.send("service_y6igit7","template_a7bqysj",{

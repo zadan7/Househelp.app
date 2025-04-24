@@ -14,9 +14,8 @@ const Arriving = ({ navigation }) => {
   useEffect(() => {
     const fetchConfirmedJobs = async () => {
       try {
-       
         const storedJobId = await AsyncStorage.getItem('jobId');
-        console.log("storedJobId",storedJobId)
+        console.log("storedJobId", storedJobId);
         const querySnapshot = await getDocs(collection(db, 'partimeRequest'));
         const confirmedJobs = querySnapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
@@ -31,6 +30,26 @@ const Arriving = ({ navigation }) => {
     fetchConfirmedJobs();
   }, []);
 
+  // Show alert before starting job
+  const confirmStartJob = (jobId, job) => {
+    Alert.alert(
+      'Confirm Arrival',
+      'Has the househelp arrived at the location?',
+      [
+        {
+          text: 'No, not yet',
+          style: 'cancel',
+        },
+        {
+          text: 'Yes, the househelp has arrived',
+          onPress: () => handleStartJob(jobId, job),
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  // Start the job and update Firestore
   const handleStartJob = async (jobId, job) => {
     try {
       const jobRef = doc(db, 'partimeRequest', jobId);
@@ -39,7 +58,7 @@ const Arriving = ({ navigation }) => {
         startedAt: new Date(),
       });
       Alert.alert("Success", "Job started successfully!");
-      setJobs(prev => prev.map(job => job.id === jobId ? { ...job, status: 'in-progress' } : job));
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: 'in-progress' } : j));
       console.log("Job started successfully:", job);
       AsyncStorage.setItem('jobId', jobId);
       navigation.navigate('cstartjob', { job });
@@ -97,7 +116,7 @@ const Arriving = ({ navigation }) => {
 
               {job.status === 'confirmed' && (
                 <TouchableOpacity
-                  onPress={() => handleStartJob(job.id,job)}
+                  onPress={() => confirmStartJob(job.id, job)}
                   style={styles.startButton}
                 >
                   <Text style={styles.startButtonText}>Start Job</Text>

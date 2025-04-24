@@ -12,6 +12,12 @@
       "backgroundColor": "#ffffff",
       "newArchEnabled": true
     },
+    "notification": {
+      "icon": "./assets/notification-icon.png", 
+      "color": "#00aa00",
+      "androidMode": "default",
+      "androidCollapsedTitle": "New alert from Househelp"
+    },
     "ios": {
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need access to your location to show it on the map"
@@ -25,8 +31,10 @@
     },
     "android": {
       "permissions": [
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "NOTIFICATIONS"
       ],
+      "useNextNotificationsApi": true,
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyB_Xm0x7Xz4UqRh-q4ftiIx4-D8AjLpePE"

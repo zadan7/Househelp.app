@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
-
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,7 +13,7 @@ const Star = ({ filled, onPress }) => (
   </TouchableOpacity>
 );
 
-const CStartJob = ({ navigation,route }) => {
+const CStartJob = ({ navigation, route }) => {
   const { job } = route.params;
   const [jobData, setJobData] = useState(job);
   const [loading, setLoading] = useState(true);
@@ -22,11 +21,11 @@ const CStartJob = ({ navigation,route }) => {
   const [comment, setComment] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
   const [paymentEnabled, setPaymentEnabled] = useState(false); // Added state to track if payment can be enabled
-const [documentId, setDocumentId] = useState(null); // State to hold document ID
-   // Get the document ID from AsyncStorage
+  const [documentId, setDocumentId] = useState(null); // State to hold document ID
+  // Get the document ID from AsyncStorage
   console.log(documentId)
-  console.log("job",job)
-  console.log("jobData",jobData)
+  console.log("job", job)
+  console.log("jobData", jobData)
 
   useEffect(() => {
     const fetchDocumentId = async () => {
@@ -39,45 +38,45 @@ const [documentId, setDocumentId] = useState(null); // State to hold document ID
         console.error('Error retrieving jobId from AsyncStorage:', error);
       }
     };
-  
+
     fetchDocumentId();
   }, []);
-  
+
   useEffect(() => {
     if (!documentId) return;
-    console.log("documentId",documentId)
-  
+    console.log("documentId", documentId)
+
     const unsubscribe = onSnapshot(doc(db, 'partimeRequest', documentId), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         // setJobData(data);
         setLoading(false);
-  
+
         const allCompleted = data.chores.every((chore) => chore.completed);
         setIsCompleted(allCompleted);
       }
     });
-  
+
     return () => unsubscribe();
   }, [documentId]);
-  
+
   const toggleChore = async (index) => {
     if (!jobData || !documentId) return;
-  
+
     const updatedChores = [...jobData.chores];
-  
+
     if (updatedChores[index].completed) {
       Alert.alert('Notice', 'This chore has already been completed.');
       return;
     }
-  
+
     updatedChores[index].completed = true;
-  
+
     try {
       await updateDoc(doc(db, 'partimeRequest', documentId), {
         chores: updatedChores,
       });
-  
+
       setJobData((prevData) => ({
         ...prevData,
         chores: updatedChores,
@@ -87,7 +86,6 @@ const [documentId, setDocumentId] = useState(null); // State to hold document ID
       Alert.alert("Error", "Failed to update chore status.");
     }
   };
-  
 
   const handleRating = (stars) => {
     setRating(stars);
@@ -104,11 +102,7 @@ const [documentId, setDocumentId] = useState(null); // State to hold document ID
       status: 'completed',
       rating: rating,
       comment: comment,
-      //completedAt: new Date().toISOString(), // Optional: add a timestamp for when the job was completed
-      // paymentStatus: 'paid', // Optional: add a payment status field
-      // paymentDetails: paymentDetails, // Optional: add payment details if needed
-      //code for completedAt timestamp
-      completedAt: new Date().toISOString(), // Optional: add a timestamp for when the job was completed
+      completedAt: new Date().toISOString(),  // Optional: add a timestamp for when the job was completed
     })
       .then(() => {
         Alert.alert('Success', 'Job marked as completed and payment processed.');
@@ -143,60 +137,67 @@ const [documentId, setDocumentId] = useState(null); // State to hold document ID
   }
 
   return (
-    <View style={styles.container}>
-      <Header2 />
-      <Cmenu navigation={navigation} />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.container}>
+          <Header2 />
+          <Cmenu navigation={navigation} />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.header}>Client: {jobData.clientName}</Text>
-        <Text style={styles.header}>Househelp: {jobData.househelpName}</Text>
+          <ScrollView contentContainerStyle={styles.content}>
+            <Text style={styles.header}>Client: {jobData.clientName}</Text>
+            <Text style={styles.header}>Househelp: {jobData.househelpName}</Text>
 
-        <Text style={styles.header}>Chores for Job</Text>
+            <Text style={styles.header}>Chores for Job</Text>
 
-        {jobData.chores.map((chore, index) => (
-          <Pressable
-            key={index}
-            style={[styles.choreItem, chore.completed ? styles.choreCompleted : styles.chorePending]}
-            onPress={() => toggleChore(index)}
-          >
-            <Text style={styles.choreText}>
-              {chore.chore} - ₦{Number(chore.price).toLocaleString()}{chore.completed ? ' ✅' : ''}
-            </Text>
-          </Pressable>
-        ))}
+            {jobData.chores.map((chore, index) => (
+              <Pressable
+                key={index}
+                style={[styles.choreItem, chore.completed ? styles.choreCompleted : styles.chorePending]}
+                onPress={() => toggleChore(index)}
+              >
+                <Text style={styles.choreText}>
+                  {chore.chore} - ₦{Number(chore.price).toLocaleString()}{chore.completed ? ' ✅' : ''}
+                </Text>
+              </Pressable>
+            ))}
 
-        {/* If all chores are completed, show the rating and comment section */}
-        {isCompleted && (
-          <View style={styles.ratingContainer}>
-            <Text style={styles.ratingHeader}>Rate the Service</Text>
-            <View style={styles.starsContainer}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  filled={star <= rating}
-                  onPress={() => handleRating(star)}
+            {/* If all chores are completed, show the rating and comment section */}
+            {isCompleted && (
+              <View style={styles.ratingContainer}>
+                <Text style={styles.ratingHeader}>Rate the Service</Text>
+                <View style={styles.starsContainer}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      filled={star <= rating}
+                      onPress={() => handleRating(star)}
+                    />
+                  ))}
+                </View>
+
+                <TextInput
+                  style={styles.commentBox}
+                  placeholder="Leave a comment..."
+                  value={comment}
+                  onChangeText={setComment}
+                  multiline
+                  onEndEditing={enablePaymentButton} // Enable payment when user finishes editing the comment
                 />
-              ))}
-            </View>
 
-            <TextInput
-              style={styles.commentBox}
-              placeholder="Leave a comment..."
-              value={comment}
-              onChangeText={setComment}
-              multiline
-              onEndEditing={enablePaymentButton} // Enable payment when user finishes editing the comment
-            />
-
-            {paymentEnabled && (
-              <TouchableOpacity style={styles.paymentButton} onPress={handlePayment}>
-                <Text style={styles.paymentText}>Process Payment</Text>
-              </TouchableOpacity>
+                {paymentEnabled && (
+                  <TouchableOpacity style={styles.paymentButton} onPress={handlePayment}>
+                    <Text style={styles.paymentText}>Process Payment</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
-          </View>
-        )}
-      </ScrollView>
-    </View>
+          </ScrollView>
+        </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 

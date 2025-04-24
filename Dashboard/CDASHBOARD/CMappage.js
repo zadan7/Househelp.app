@@ -61,6 +61,7 @@ const CMappage = ({ navigation }) => {
           id: doc.id,
           ...doc.data(),
         }));
+        console.log('Househelps:', helps.length);
         setHousehelps(helps);
 
         const requestSnapshot = await getDocs(collection(db, 'partimeRequest'));
@@ -69,7 +70,7 @@ const CMappage = ({ navigation }) => {
           if (data.jobid === parsedRequest.jobid || storedJobId === data.id) {
             setCurrentJob(data);
             setRequestData(data);
-            console.log('Current Job:', data);
+            // console.log('Current Job:', data);
           }
         });
       } catch (error) {
@@ -108,7 +109,7 @@ const CMappage = ({ navigation }) => {
         const data = { id: snapshot.id, ...snapshot.data() };
         setRequestData(data);
         setCurrentJob(data);
-        console.log('🔄 Live update:', data);
+        // console.log('🔄 Live update:', data);
       }
     });
   
@@ -118,20 +119,57 @@ const CMappage = ({ navigation }) => {
 
   const handleSendPushNotification = async () => {
     for (let help of househelps) {
-      if (help.token) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
+      if (help.pushToken) {
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Accept-Encoding': 'gzip, deflate',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: help.pushToken,
+            sound: 'default',
             title: 'New Job Alert!',
             body: `A client in ${requestData.location.lga} needs help.`,
-            data: { requestId: requestData.id },
-          },
-          trigger: null,
+            data: { requestId: requestData.totalCost, jobId: requestData.jobid },
+          }),
         });
+
+      console.log('Househelp notified:', help.pushToken);
       }
     }
-    Alert.alert('Notified', 'Nearby househelps have been alerted.');
-    Alert.alert('Waiting', 'Waiting for nearby househelps to accept the job offer.');
+
+    // code to send notification to the selected client
+
+    const notifyClient = async () => {
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: requestData.clientData.pushToken,
+        sound: 'default',
+        title: 'New Job Alert!',
+        body: `A client in ${requestData.location.lga} needs help.`,
+        data: { requestId: requestData.totalCost, jobId: requestData.jobid },
+      }),
+    });
+    console.log('Client notified:', requestData.clientData.pushToken);
   };
+
+  notifyClient();
+
+   {
+  
+    Alert.alert('Notified', 'Nearby househelps have been alerted.');
+    // Alert.alert('Waiting', 'Waiting for nearby househelps to accept the job offer.');
+  };
+  };
+  
 
   const handleConfirm = async () => {
     if (!selectedHelper || !requestData) return;
@@ -191,6 +229,7 @@ const CMappage = ({ navigation }) => {
           try {
             loc = typeof helper.location === 'string' ? JSON.parse(helper.location) : helper.location;
           } catch {
+            console.error('Error parsing location:', helper);
             return null;
           }
 
@@ -206,8 +245,15 @@ const CMappage = ({ navigation }) => {
             <Marker
               key={index}
               coordinate={{ latitude, longitude }}
+
               title={helper.name || 'Househelp'}
-              description={`Experience: ${helper.experience || 'N/A'} yrs`}
+              // calloutAnchor={{ x: 0.5, y: 0.5 }}
+              //code for more info about the helper
+
+
+              description={`Experience: ${helper.experience || 'N/A'} yrs  \n LGA: ${helper.lga || 'N/A'}  \n State: ${helper.state || 'N/A'} \n Employment Type: ${helper.employmentType || 'N/A'}`}
+
+              
             >
               <Animated.View
                 style={{
@@ -278,7 +324,9 @@ const CMappage = ({ navigation }) => {
           <Text style={styles.confirmButtonText}>Confirm Selected Househelp</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={handleSendPushNotification} style={styles.alertButton}>
+        <TouchableOpacity onPress={ async ()=>{var notification = await handleSendPushNotification()
+          console.log(notification.json())
+        }} style={styles.alertButton}>
           <Text style={styles.alertButtonText}>Alert Nearby Househelps</Text>
         </TouchableOpacity>
       </View>

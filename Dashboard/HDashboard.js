@@ -5,6 +5,11 @@ import { db } from './../pages/firebase';
 import { Header2 } from '../component/Header';
 import { Ionicons } from '@expo/vector-icons';
 import { Hmenu } from '../component/Menu';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Picker } from '@react-native-picker/picker';
+import {Notifications} from 'expo-notifications';
+import { getExpoPushTokenAsync } from 'expo-notifications';
+
 
 const gridItems = [
   { title: 'Current Job', icon: 'briefcase-outline', screen: 'HcurrentJob' },
@@ -81,7 +86,7 @@ const HousehelpDashboard = ({ navigation }) => {
           )}
         />
 
-        <Text style={styles.subHeader}>Available Jobs</Text>
+        <Text style={styles.subHeader}>Example Jobs</Text>
 
         <FlatList
           data={jobandclientsdata}
@@ -102,11 +107,11 @@ const HousehelpDashboard = ({ navigation }) => {
                   - {chore.chore}: ₦{chore.price}
                 </Text>
               ))}
-              {item.status !== 'Accepted' && (
+              {/* {item.status !== 'Accepted' && (
                 <TouchableOpacity style={styles.acceptButton} onPress={() => acceptJob(item.id)}>
                   <Text style={styles.acceptButtonText}>Accept Job</Text>
                 </TouchableOpacity>
-              )}
+              )} */}
             </View>
           )}
         />

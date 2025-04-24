@@ -13,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, updateDoc ,doc} from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import {db} from "./firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
@@ -185,14 +185,14 @@ function HSignup({ navigation }) {
       console.log(firstname,lastname,email,phone,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode,facePicture,password,experience)
       navigation.navigate("codevalidation") 
       
-      // navigation.navigate("codevalidation")
-      // emailjs.send("service_y6igit7","template_a7bqysj",{
-      //   name: firstname+ lastname,
-      //   code: verificationCode,
-      //   message: "welcome Onboard",
-      //   from_name: "Househelp.ng",
-      //   email:email,
-      //   },"tqnSNSHM6dMmakDbI");
+      navigation.navigate("codevalidation")
+      emailjs.send("service_y6igit7","template_a7bqysj",{
+        name: firstname+ lastname,
+        code: verificationCode,
+        message: "welcome Onboard",
+        from_name: "Househelp.ng",
+        email:email,
+        },"tqnSNSHM6dMmakDbI");
     } else {
       Alert.alert('Validation Failed', 'Please correct the highlighted fields.');
     }
@@ -331,9 +331,15 @@ function CodeValidation({ navigation }) {
 
 const uploadDataToFirestore = async (collectionName, data) => {
   try {
-    await addDoc(collection(db, collectionName), {
+
+   var househelp= await addDoc(collection(db, collectionName), {
       ...data,
       createdAt: serverTimestamp(),
+    });
+
+    console.log("Document written with ID: ", househelp.id);
+    updateDoc(doc(db, collectionName, househelp.id), {
+      id: househelp.id,
     });
     console.log("Data uploaded successfully!");
   } catch (error) {

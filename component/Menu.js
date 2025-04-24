@@ -131,9 +131,9 @@ const Hmenu = ({navigation}) => {
           <Text style={styles.menuText}>Partime Request</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={()=>{navigation.navigate("hweekly")}} style={styles.menuItem}>
+        <TouchableOpacity onPress={()=>{navigation.navigate("happliedjobs")}} style={styles.menuItem}>
           <Ionicons name="calendar-outline" size={20} color="#fff" />
-          <Text style={styles.menuText}>Weekly Request</Text>
+          <Text style={styles.menuText}>Applied Jobs</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={()=>{navigation.navigate("hprofile")}} style={styles.menuItem}>

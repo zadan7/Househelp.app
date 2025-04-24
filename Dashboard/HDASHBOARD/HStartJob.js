@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 
-import { Cmenu } from '../../component/Menu';
+import { Hmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -91,7 +91,7 @@ const HStartJob = ({ navigation, route }) => {
   return (
     <View style={styles.container}>
       <Header2 />
-      <Cmenu navigation={navigation} />
+      <Hmenu navigation={navigation} />
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.header}>Client: {jobData.clientName}</Text>

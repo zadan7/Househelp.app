@@ -1,175 +1,190 @@
-import * as React from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { Pressable, StyleSheet, Text, View, ScrollView, TextInput, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  ActivityIndicator
+} from 'react-native';
 import { Header } from '../component/Header';
 import { Footer } from '../component/Footer';
-import {db} from "./firebase";
-import { Firestore } from 'firebase/firestore';
-import { useState,useEffect } from 'react';
-import { collection } from 'firebase/firestore';
-import { getDocs } from 'firebase/firestore';
+import { db } from './firebase';
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 
 function Login({ navigation }) {
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [househelps, setHousehelps] = React.useState([]);
-  const [clients, setClients] = React.useState([]);
-  const [loading, setLoading] = React.useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [househelps, setHousehelps] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchHousehelps = async () => {
+    const fetchData = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, "househelps"));
-        const househelpsArray = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        // console.log(househelpsArray);
-        setHousehelps(househelpsArray);
+        const [hhSnap, clSnap] = await Promise.all([
+          getDocs(collection(db, 'househelps')),
+          getDocs(collection(db, 'clients')),
+        ]);
+        setHousehelps(hhSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setClients(clSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (error) {
-        console.error("Error fetching househelps:", error);
+        console.error('Error fetching users:', error);
       }
     };
-  
-    fetchHousehelps();
+    fetchData();
   }, []);
-  
-  useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "clients"));
-        const clientsArray = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        console.log(clientsArray);
-        setClients(clientsArray);
-      } catch (error) {
-        console.error("Error fetching clients:", error);
-      }
-    };
-  
-    fetchClients();
-  }, []);
-  
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
-      return;
+  const storeData = async (key, data) => {
+    await AsyncStorage.setItem(key, JSON.stringify(data));
+  };
+
+  const registerForPushNotificationsAsync = async () => {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
     }
-  
-    if (loading) return; // Prevent multiple logins
-    setLoading(true);
-  
-    try {
-      // Query Firestore for matching user
-      const househelpSnapshot = await getDocs(collection(db, "househelps"));
-      const clientSnapshot = await getDocs(collection(db, "clients"));
-  
-      const househelp = househelpSnapshot.docs.find(doc => doc.data().email === email && doc.data().password === password);
-      const client = clientSnapshot.docs.find(doc => doc.data().email === email && doc.data().password === password);
-  
-      if (househelp && client) {
-        Alert.alert(
-          "Multiple Accounts Found",
-          "You are registered as both a client and a househelp. Choose how you want to log in:",
-          [
-            {
-              text: "Login as Client",
-              onPress: () => {
-                if (client.data().password === password) {
-                  Alert.alert("Success", "Logged in as Client.");
-                  var clientId = client.id;
-                  var clientdata = client.data();
-                  clientdata.id = clientId;
-                  // AsyncStorage.setItem("clientId", clientId);
-                  AsyncStorage.setItem("clientdata", JSON.stringify(clientdata));
-                  navigation.navigate("cdashboard", { clientdata });  
-                } else {
-                  Alert.alert("Error", "Invalid password for Client account.");
-                }
-              },
-            },
-            {
-              text: "Login as Househelp",
-              onPress: () => {
-                if (househelp.data().password === password) {
-                  Alert.alert("Success", "Logged in as Househelp.");
-                  var househelpId = househelp.id;
-                  var househelpdata = househelp.data();
-                  househelpdata.id = househelpId;
-                  AsyncStorage.setItem("househelpId", househelpId);
-                  AsyncStorage.setItem("househelpdata", JSON.stringify(househelpdata));
-                  navigation.navigate("hdashboard");
-                } else {
-                  Alert.alert("Error", "Invalid password for Househelp account.");
-                }
-              },
-            },
-            // { text: "Cancel", style: "cancel" },
-          ]
-        );
-        setLoading(false);
-        return;
+
+    if (finalStatus !== 'granted') {
+      Alert.alert('Permission denied', 'Unable to get push notification permission.');
+      return null;
+    }
+
+    const token = (await Notifications.getExpoPushTokenAsync()).data;
+    console.log('Push Token:', token);
+    return token;
+  };
+  const loginAsHousehelp = async (househelp) => {
+
+    try{
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        const househelpRef = doc(db, 'househelps', househelp.id);
+        await updateDoc(househelpRef, { pushToken: token });
       }
+
+    }catch(error){
+      console.error('Error updating push token:', error);
+      Alert.alert('Error', 'Failed to update push token. Please try again.',error);
+      // Alert.alert('Error', 'Something went wrong. Please try again.');
+    }
+   
+
+    const househelpdata = { ...househelp, id: househelp.id };
+    await storeData('househelpdata', househelpdata);
+    navigation.navigate('hdashboard');
+  };
   
-      if (client && client.data().password === password) {
-        Alert.alert("Success", "Login successful! Welcome Client.");
-        var clientId = client.id;
-        var clientdata = client.data();
-        clientdata.id = clientId;
-        AsyncStorage.setItem("clientId", clientId);
-        AsyncStorage.setItem("clientdata", JSON.stringify(clientdata));
-        navigation.navigate("cdashboard");
-      } else if (househelp && househelp.data().password === password) {
-        Alert.alert("Success", "Login successful! Welcome Househelp.");
-        var househelpId = househelp.id;
-        var househelpdata = househelp.data();
-        househelpdata.id = househelpId;
-        AsyncStorage.setItem("househelpId", househelpId); 
-        AsyncStorage.setItem("househelpdata", JSON.stringify(househelpdata));
-        navigation.navigate("hdashboard");
-      } else {
-        Alert.alert("Error", "Invalid email or password.");
+  const loginAsClient = async (client) => {
+
+    try {
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        const clientRef = doc(db, 'clients', client.id);
+        await updateDoc(clientRef, { pushToken: token });
       }
     } catch (error) {
-      console.error("Login error:", error);
-      Alert.alert("Error", "Something went wrong. Please try again.");
+      console.error('Error updating push token:', error);
+      Alert.alert('Error', 'Failed to update push token. Please try again.',error);
+      // Alert.alert('Error', 'Something went wrong. Please try again.');
+      
+    }
+   
+
+    const clientdata = { ...client, id: client.id };
+    await storeData('clientdata', clientdata);
+    navigation.navigate('cdashboard', { clientdata });
+  };
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Missing Fields', 'Please enter both email and password.');
+      return;
+    }
+
+    if (loading) return;
+    setLoading(true);
+
+    try {
+      const househelp = househelps.find(u => u.email === email && u.password === password);
+      const client = clients.find(u => u.email === email && u.password === password);
+
+   
+
+
+   
+
+      if (househelp && client) {
+        Alert.alert(
+          'Multiple Accounts Found',
+          'Choose how to login:',
+          [
+            { text: 'Login as Client', onPress: loginAsClient },
+            { text: 'Login as Househelp', onPress: loginAsHousehelp },
+          ]
+        );
+      } else if (client) {
+        await loginAsClient(client);
+        Alert.alert('Login Successful', 'Welcome Client!');
+      } else if (househelp) {
+        await loginAsHousehelp(househelp);
+        Alert.alert('Login Successful', 'Welcome Househelp!');
+      } else {
+        Alert.alert('Login Failed', 'Incorrect email or password.');
+      }
+     } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
-  
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Header navigation={navigation} />
-      <Text style={styles.title}>Login</Text>
-      
-      <View style={styles.formContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <Pressable style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Login</Text>
-        </Pressable>
-      </View>
-      
-      <Footer />
-    </ScrollView>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <Header navigation={navigation} />
+        <Text style={styles.title}>Login</Text>
+
+        <View style={styles.formContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+          <Pressable style={styles.button} onPress={handleLogin}>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Login</Text>
+            )}
+          </Pressable>
+        </View>
+
+        <Footer />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -181,16 +196,16 @@ const styles = StyleSheet.create({
   },
   title: {
     color: 'green',
-    fontSize: 39,
+    fontSize: 36,
     fontWeight: 'bold',
     marginVertical: 10,
-    fontFamily:"serif"
+    fontFamily: 'serif',
   },
   formContainer: {
     width: '100%',
     maxWidth: 400,
     alignItems: 'center',
-    padding:10,
+    padding: 10,
   },
   input: {
     width: '100%',

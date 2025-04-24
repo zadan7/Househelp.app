@@ -16,6 +16,7 @@ import { collection, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firesto
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../pages/firebase';
 
+import { useRef } from 'react';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 
@@ -42,28 +43,45 @@ const HcurrentJob = ({ route, navigation }) => {
     fetchHousehelp();
   }, []);
 
-  useEffect(() => {
-    if (!househelpId) return;
 
-    const unsubscribe = onSnapshot(collection(db, 'partimeRequest'), (snapshot) => {
-      const allJobs = snapshot.docs.map(doc => ({ id2: doc.id, ...doc.data() }));
-      const filteredJobs = allJobs.filter(job =>
-        job.status === 'confirmed' &&
-        job.househelpId === househelpId 
-        && job.jobid === jobdata.jobid
-      );
 
-      setConfirmedJobs(filteredJobs);
 
-      if (filteredJobs.length > 0) {
-        getClientData(filteredJobs[0].clientId);
-      }
+const hasNavigatedRef = useRef(false); // <- Prevent repeated navigation
 
-      setLoading(false);
-    });
+useEffect(() => {
+  if (!househelpId || !jobdata?.jobid) return;
 
-    return () => unsubscribe();
-  }, [househelpId]);
+  const unsubscribe = onSnapshot(collection(db, 'partimeRequest'), (snapshot) => {
+    const allJobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const filteredJobs = allJobs.filter(job =>
+      job.status === 'confirmed' &&
+      job.househelpId === househelpId &&
+      job.jobid === jobdata.jobid
+    );
+
+    const inProgressJob = allJobs.find(job =>
+      job.status === 'in-progress' &&
+      job.househelpId === househelpId &&
+      job.jobid === jobdata.jobid
+    );
+
+    setConfirmedJobs(filteredJobs);
+
+    if (filteredJobs.length > 0) {
+      getClientData(filteredJobs[0].clientId);
+    }
+
+    if (inProgressJob && !hasNavigatedRef.current) {
+      hasNavigatedRef.current = true;
+      navigation.navigate('hstartjob', { job: inProgressJob });
+    }
+
+    setLoading(false);
+  });
+
+  return () => unsubscribe();
+}, [househelpId, jobdata?.jobid]);
 
   const getClientData = async (clientId) => {
     try {
