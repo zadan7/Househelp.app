@@ -131,7 +131,7 @@ const CMappage = ({ navigation }) => {
             to: help.pushToken,
             sound: 'default',
             title: 'New Job Alert!',
-            body: `A client in ${requestData.location.lga} needs help.`,
+            body: `A client in ${requestData.clientData.lga} needs help.`,
             data: { requestId: requestData.totalCost, jobId: requestData.jobid },
           }),
         });

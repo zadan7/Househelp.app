@@ -430,7 +430,7 @@ const uploadDataToFirestore = async (collectionName, data) => {
     console.log("Stored Code:", code);
     console.log("uri",facePicture)
 
-    if (code2 === code) {
+    if (Number(code2) == Number(code)) {
       Alert.alert("Success", "Code verified successfully!");
       if (facePicture) {
         const uploadedURL = await uploadImageToFirebase(facePicture);
@@ -461,7 +461,7 @@ const uploadDataToFirestore = async (collectionName, data) => {
       AsyncStorage.setItem("househelpdata", JSON.stringify(data2) )  
       navigation.navigate("Guarantor",{data2}); // Navigate after successful verification
     } else {
-      Alert.alert("Error", "Invalid verification code. Please try again.");
+      Alert.alert("Error" +` ${code2} `, "Invalid verification code. Please try again.");
     }
   };
 

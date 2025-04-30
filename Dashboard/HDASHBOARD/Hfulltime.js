@@ -7,6 +7,10 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { collection, getDocs, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
@@ -19,6 +23,7 @@ const Hfulltime = ({ navigation }) => {
   const [househelp, setHousehelp] = useState({});
   const [loading, setLoading] = useState(true);
   const [appliedJobs, setAppliedJobs] = useState([]);
+  const [applicationReason, setApplicationReason] = useState('');
 
   useEffect(() => {
     const fetchHousehelpData = async () => {
@@ -29,6 +34,7 @@ const Hfulltime = ({ navigation }) => {
     };
     fetchHousehelpData();
   }, []);
+
   const fetchFulltimeJobs = async () => {
     setLoading(true);
     try {
@@ -52,31 +58,8 @@ const Hfulltime = ({ navigation }) => {
       setLoading(false);
     }
   };
+
   useEffect(() => {
-    const fetchFulltimeJobs = async () => {
-      setLoading(true);
-      try {
-        const querySnapshot = await getDocs(collection(db, 'fulltimeRequest'));
-        const jobList = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        const filteredJobs = jobList.filter((job) => {
-          const alreadyApplied = job.acceptedHelpers?.some(
-            (helper) => helper.id === househelp.id
-          );
-          return !alreadyApplied;
-        });
-
-        setJobs(filteredJobs);
-      } catch (error) {
-        console.error('Error fetching full-time jobs: ', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (househelp.lga) {
       fetchFulltimeJobs();
     }
@@ -86,9 +69,14 @@ const Hfulltime = ({ navigation }) => {
     setAppliedJobs((prevState) => [...prevState, jobId]);
 
     try {
+        househelp.description = applicationReason; // Add the reason for applying to the househelp object
+      // Update the job document in Firestore to include the househelp's application
       await updateDoc(doc(db, 'fulltimeRequest', jobId), {
         status: 'applied',
-        acceptedHelpers: arrayUnion(househelp), // Direct object, not nested
+        acceptedHelpers: arrayUnion({
+          ...househelp,
+        
+        }),
       });
       console.log('Job application submitted successfully!');
       fetchFulltimeJobs(); // Refresh the job list after applying
@@ -140,17 +128,21 @@ const Hfulltime = ({ navigation }) => {
         <Text style={styles.jobValue}>{item.clientData.address}</Text>
 
         {item.closingTime !== "" && (
-  <View>
-    <Text style={styles.jobLabel}>Resumption Time: {item.resuptionTime}</Text>
-    <Text style={styles.jobLabel}>Closing Time: {item.closingTime}</Text>
-  </View>
-)}
-
-
-
-
-        <Text style={styles.jobValue}>{item.clientData.address}</Text>
+          <View>
+            <Text style={styles.jobLabel}>Resumption Time: {item.resuptionTime}</Text>
+            <Text style={styles.jobLabel}>Closing Time: {item.closingTime}</Text>
+          </View>
+        )}
       </View>
+
+      {/* Add a TextInput for the househelp to write why they are the best candidate for the job */}
+      <TextInput
+        style={styles.textInput}
+        placeholder="Why are you the best candidate for this job?"
+        value={applicationReason}
+        onChangeText={setApplicationReason}
+        multiline
+      />
 
       <TouchableOpacity
         style={styles.acceptButton}
@@ -173,24 +165,28 @@ const Hfulltime = ({ navigation }) => {
   }
 
   return (
-    <View style={styles.container}>
-      <Header2 />
-      <Hmenu navigation={navigation} />
-      {jobs.length > 0 && (
-  <Text style={styles.header}>Available Full-time Jobs</Text>
-)}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        <Header2 />
+        <Hmenu navigation={navigation} />
+        {jobs.length > 0 && (
+          <Text style={styles.header}>Available Full-time Jobs</Text>
+        )}
 
-<FlatList
-  contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
-  data={jobs}
-  renderItem={renderJobCard}
-  keyExtractor={(item) => item.id}
-  ListEmptyComponent={
-    <Text style={styles.header}>No Available Full-time Jobs Yet</Text>
-  }
-/>
-
-    </View>
+        <FlatList
+          contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
+          data={jobs}
+          renderItem={renderJobCard}
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={
+            <Text style={styles.header}>No Available Full-time Jobs Yet</Text>
+          }
+        />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -267,6 +263,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#444',
     marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    marginTop: 10,
+    height: 80,
+    textAlignVertical: 'top',
+    fontSize: 14,
   },
   acceptButton: {
     backgroundColor: '#28a745',

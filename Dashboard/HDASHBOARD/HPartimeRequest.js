@@ -82,7 +82,7 @@ const HPartimeRequest = ({ navigation }) => {
       <Hmenu navigation={navigation} />
 
       <ScrollView>
-        <Text style={styles.header}>Available Jobs</Text>
+        <Text style={styles.header}>Available  sssss Jobs</Text>
         {jobRequests.length === 0 ? (
           <Text style={{ textAlign: 'center', marginTop: 20 }}>No job requests available.</Text>
         ) : (

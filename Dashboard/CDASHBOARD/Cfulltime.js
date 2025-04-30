@@ -180,7 +180,7 @@ const CFulltimelivein = ({ navigation }) => {
               style={styles.closeButton}
               onPress={() => {
                 setModalVisible(false);
-                navigation.navigate('Home'); // Navigate to home or other page
+                navigation.navigate('cdashboard'); // Navigate to home or other page
               }}
             >
               <Text style={styles.closeText}>Close</Text>

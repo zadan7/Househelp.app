@@ -10,9 +10,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from './firebase';
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { Notifications } from 'expo-notifications';
+// import { getPermissionsAsync, Notifications } from 'expo-notifications';
+import * as Notifications from 'expo-notifications';
+
 import { getDocs } from 'firebase/firestore';
 import emailjs from 'emailjs-com';
+
+
 async function registerForPushNotificationsAsync() {
   let token;
 
@@ -205,61 +209,84 @@ const CSignup = ({ navigation }) => {
     };
     
     const handleDone = async () => {
-      console.log("clients", clients);
-      if (clients.some(client => client.email === email)) {
+      // 1. Check if email already exists in clients collection
+      const emailExists = clients.some(client => client.email === email);
+      if (emailExists) {
         Alert.alert("Email already exists", "Please use a different email address.");
         return;
       }
     
-      if (!validateInputs()) {
+      // 2. Validate form inputs
+      const validationPassed = validateInputs();
+      if (!validationPassed) {
         console.log("Validation failed. Fix errors.");
         return;
       }
-      const pushToken = await registerForPushNotificationsAsync();
-      var verificationCode = generateVerificationCode();
     
-      const newData = {
-        facepicture: facePicture,
-        frontview: frontview,
-        insideview: insideview,
-        location: location,
-        state: state,
-        lga: lga,
-        firstname: firstname,
-        lastname: lastname,
-        phone: phone,
-        email: email,
-        address: address,
-        verificationCode: verificationCode,
-        gender: gender,
-        apartmentsize: apartmentsize,
-        password: password,
-        Cpassword: Cpassword,
-        token: pushToken,
-        createdAt: serverTimestamp(),
-      };
-
-       emailjs.send("service_y6igit7","template_a7bqysj",{
-        name: firstname+ lastname,
-        code: verificationCode,
-        message: "welcome Onboard",
-        from_name: "Househelp.ng",
-        email:email,
-        },"tqnSNSHM6dMmakDbI");
+      try {
+        // 3. Generate a verification code
+        const verificationCode = generateVerificationCode();
+        
+        // 4. Register for push notifications
+        const pushToken = await registerForPushNotificationsAsync();
     
-      setdata(newData); // State update is asynchronous
+        // 5. Prepare new data to save
+        const newData = {
+          facepicture: facePicture,
+          frontview: frontview,
+          insideview: insideview,
+          location: location,
+          state: state,
+          lga: lga,
+          firstname: firstname,
+          lastname: lastname,
+          phone: phone,
+          email: email,
+          address: address,
+          verificationCode: verificationCode,
+          gender: gender,
+          apartmentsize: apartmentsize,
+          password: password,
+          Cpassword: Cpassword,
+          token: pushToken,
+          createdAt: serverTimestamp(),
+        };
     
-      // Save to AsyncStorage AFTER state is updated
-      setTimeout(async () => {
-        try {
-          await AsyncStorage.setItem('data', JSON.stringify(newData));
-          console.log("Data saved to AsyncStorage", newData);
-          navigation.navigate('codevalidation2');
-        } catch (error) {
-          console.error("Error saving to AsyncStorage:", error);
+        // 6. Send email notification (Optional step)
+        await emailjs.send("service_y6igit7", "template_a7bqysj", {
+          name: `${firstname} ${lastname}`,
+          code: verificationCode,
+          message: "Welcome Onboard",
+          from_name: "Househelp.ng",
+          email: email,
+        }, "tqnSNSHM6dMmakDbI");
+    
+        console.log("Email sent successfully.");
+    
+        // 7. Upload image to Firebase Storage (Check if image upload is needed)
+        if (facePicture) {
+          const uploadedImageUrl = await uploadImageToFirebase(facePicture);
+    
+          if (uploadedImageUrl) {
+            newData.facePictureUrl = uploadedImageUrl; // Add image URL to newData if available
+          } else {
+            console.log("Failed to upload image.");
+          }
         }
-      }, 100); // Small delay to ensure state updates
+    
+        // 8. Save newData to AsyncStorage
+        await AsyncStorage.setItem('data', JSON.stringify(newData));
+        console.log("Data saved to AsyncStorage", newData);
+    
+        // 9. Navigate to the next screen
+        navigation.navigate('codevalidation2');
+        
+      } catch (error) {
+        // 10. Catch any errors in the process and log them
+        console.error("Error in handleDone: ", error);
+      }
     };
+    
     
 
   return (
@@ -472,7 +499,7 @@ const uploadDataToFirestore = async (collectionName, data) => {
   const handleDone = async () => {
     Alert.alert("verifiying code ", "Please wait a moment");
     console.log("data", data);
-    if (code2 !== data.verificationCode) {
+    if (Number(code2) != Number(data.verificationCode)) {
       Alert.alert("Invalid Code", "Please enter the correct verification code.");
       return;
     }

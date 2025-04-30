@@ -16,12 +16,12 @@ function Home({ navigation }) {
         <View style={styles.container}>
       <Header navigation={navigation} />
 
-      <Text style={styles.titleText}>Start Earning With us ($)</Text>
+      <Text style={styles.titleText}>Start Earning With us good ($)</Text>
 
       <View style={styles.buttonContainer}>
       <Text style={{color:"green",fontSize:30,fontWeight:"bold"}}>Welcome!</Text>
         <Pressable style={styles.Pressable} onPress={() => navigation.navigate('Signup')}>
-          <Text style={styles.buttonText}>Registration process</Text>
+          <Text style={styles.buttonText}>Registration process </Text>
         </Pressable>
         <Text>or</Text>
 

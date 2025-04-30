@@ -1,112 +1,74 @@
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
-  ActivityIndicator
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { db } from './firebase';
 import { Header } from '../component/Header';
 import { Footer } from '../component/Footer';
-import { db } from './firebase';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
 
-function Login({ navigation }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [househelps, setHousehelps] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(false);
+import * as Notifications from "expo-notifications";
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [hhSnap, clSnap] = await Promise.all([
-          getDocs(collection(db, 'househelps')),
-          getDocs(collection(db, 'clients')),
-        ]);
-        setHousehelps(hhSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        setClients(clSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      } catch (error) {
-        console.error('Error fetching users:', error);
-      }
-    };
-    fetchData();
-  }, []);
-  const storeData = async (key, data) => {
-    await AsyncStorage.setItem(key, JSON.stringify(data));
-  };
-
-  const registerForPushNotificationsAsync = async () => {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      Alert.alert('Permission denied', 'Unable to get push notification permission.');
+// Push notification registration
+async function registerForPushNotificationsAsync() {
+  let token;
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== "granted") {
+    const { status: newStatus } = await Notifications.requestPermissionsAsync();
+    if (newStatus !== "granted") {
+      alert("Failed to get push token for notifications!");
       return null;
     }
+  }
+  token = (await Notifications.getExpoPushTokenAsync()).data;
+  console.log("Push Token:", token);
+  return token;
+}
 
-    const token = (await Notifications.getExpoPushTokenAsync()).data;
-    console.log('Push Token:', token);
-    return token;
-  };
-  const loginAsHousehelp = async (househelp) => {
+export const Login = ({ navigation }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [clients, setClients] = useState([]);
+  const [househelps, setHousehelps] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [pushToken, setPushToken] = useState(null); // <-- New state
 
-    try{
-      const token = await registerForPushNotificationsAsync();
-      if (token) {
-        const househelpRef = doc(db, 'househelps', househelp.id);
-        await updateDoc(househelpRef, { pushToken: token });
+  useEffect(() => {
+    const fetchDataAndToken = async () => {
+      try {
+        // Fetch clients and househelps
+        const clientSnapshot = await getDocs(collection(db, 'clients'));
+        const househelpSnapshot = await getDocs(collection(db, 'househelps'));
+        setClients(clientSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setHousehelps(househelpSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+        // Fetch push token
+        const token = await registerForPushNotificationsAsync();
+        if (token) {
+          setPushToken(token);
+        }
+      } catch (error) {
+        console.error('Error initializing data:', error);
       }
+    };
 
-    }catch(error){
-      console.error('Error updating push token:', error);
-      Alert.alert('Error', 'Failed to update push token. Please try again.',error);
-      // Alert.alert('Error', 'Something went wrong. Please try again.');
-    }
-   
-
-    const househelpdata = { ...househelp, id: househelp.id };
-    await storeData('househelpdata', househelpdata);
-    navigation.navigate('hdashboard');
-  };
-  
-  const loginAsClient = async (client) => {
-
-    try {
-      const token = await registerForPushNotificationsAsync();
-      if (token) {
-        const clientRef = doc(db, 'clients', client.id);
-        await updateDoc(clientRef, { pushToken: token });
-      }
-    } catch (error) {
-      console.error('Error updating push token:', error);
-      Alert.alert('Error', 'Failed to update push token. Please try again.',error);
-      // Alert.alert('Error', 'Something went wrong. Please try again.');
-      
-    }
-   
-
-    const clientdata = { ...client, id: client.id };
-    await storeData('clientdata', clientdata);
-    navigation.navigate('cdashboard', { clientdata });
-  };
+    fetchDataAndToken();
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Missing Fields', 'Please enter both email and password.');
+      Alert.alert('Validation Error', 'Email and password are required.');
       return;
     }
 
@@ -114,57 +76,68 @@ function Login({ navigation }) {
     setLoading(true);
 
     try {
-      const househelp = househelps.find(u => u.email === email && u.password === password);
-      const client = clients.find(u => u.email === email && u.password === password);
+      const client = clients.find(user => user.email === email && user.password === password);
+      const househelp = househelps.find(user => user.email === email && user.password === password);
 
-   
-
-
-   
-
-      if (househelp && client) {
-        Alert.alert(
-          'Multiple Accounts Found',
-          'Choose how to login:',
-          [
-            { text: 'Login as Client', onPress: loginAsClient },
-            { text: 'Login as Househelp', onPress: loginAsHousehelp },
-          ]
-        );
+      if (client && househelp) {
+        Alert.alert('Login As', 'Select your role:', [
+          { text: 'Client', onPress: () => loginUser(client, 'client') },
+          { text: 'Househelp', onPress: () => loginUser(househelp, 'househelp') },
+        ]);
       } else if (client) {
-        await loginAsClient(client);
-        Alert.alert('Login Successful', 'Welcome Client!');
+        loginUser(client, 'client');
       } else if (househelp) {
-        await loginAsHousehelp(househelp);
-        Alert.alert('Login Successful', 'Welcome Househelp!');
+        loginUser(househelp, 'househelp');
       } else {
-        Alert.alert('Login Failed', 'Incorrect email or password.');
+        Alert.alert('Login Failed', 'Invalid email or password.');
       }
-     } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } catch (error) {
+      console.error('Login Error:', error);
+      Alert.alert('Error', 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Reusable login function
+  const loginUser = async (user, role) => {
+    try {
+      if (pushToken) {
+        const userRef = doc(db, role === 'client' ? 'clients' : 'househelps', user.id);
+        await updateDoc(userRef, { PushToken: pushToken });
+      }
+
+      if (role === 'client') {
+        await AsyncStorage.setItem('clientdata', JSON.stringify({ ...user, PushToken: pushToken }));
+        navigation.navigate('cdashboard', { clientdata: { ...user, PushToken: pushToken } });
+      } else {
+        await AsyncStorage.setItem('househelpdata', JSON.stringify({ ...user, PushToken: pushToken }));
+        navigation.navigate('hdashboard');
+      }
+    } catch (error) {
+      console.error('Error during login:', error);
+      Alert.alert('Error', 'Could not complete login.');
+    }
+  };
+
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1 }}
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Header navigation={navigation} />
+
         <Text style={styles.title}>Login</Text>
 
-        <View style={styles.formContainer}>
+        <View style={styles.form}>
           <TextInput
             style={styles.input}
             placeholder="Email"
             value={email}
             onChangeText={setEmail}
-            keyboardType="email-address"
             autoCapitalize="none"
+            keyboardType="email-address"
           />
           <TextInput
             style={styles.input}
@@ -173,6 +146,7 @@ function Login({ navigation }) {
             onChangeText={setPassword}
             secureTextEntry
           />
+
           <Pressable style={styles.button} onPress={handleLogin}>
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -186,7 +160,7 @@ function Login({ navigation }) {
       </ScrollView>
     </KeyboardAvoidingView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -195,42 +169,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: 'green',
-    fontSize: 36,
-    fontWeight: 'bold',
-    marginVertical: 10,
-    fontFamily: 'serif',
+    fontSize: 28,
+    fontWeight: '700',
+    marginVertical: 24,
+    color: '#2e7d32',
   },
-  formContainer: {
+  form: {
     width: '100%',
     maxWidth: 400,
-    alignItems: 'center',
-    padding: 10,
+    paddingHorizontal: 16,
   },
   input: {
-    width: '100%',
     height: 50,
-    borderColor: 'green',
     borderWidth: 1,
+    borderColor: '#2e7d32',
     borderRadius: 10,
-    paddingHorizontal: 15,
-    marginVertical: 10,
+    paddingHorizontal: 16,
+    marginBottom: 16,
     fontSize: 16,
   },
   button: {
-    backgroundColor: 'green',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
+    backgroundColor: '#2e7d32',
+    paddingVertical: 14,
     borderRadius: 10,
-    marginTop: 20,
-    width: '100%',
     alignItems: 'center',
+    marginTop: 10,
   },
   buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
-
-export { Login };
