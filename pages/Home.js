@@ -16,7 +16,7 @@ function Home({ navigation }) {
         <View style={styles.container}>
       <Header navigation={navigation} />
 
-      <Text style={styles.titleText}>Start Earning With us good ($)</Text>
+      <Text style={styles.titleText}>Start Earning With us ($)</Text>
 
       <View style={styles.buttonContainer}>
       <Text style={{color:"green",fontSize:30,fontWeight:"bold"}}>Welcome!</Text>

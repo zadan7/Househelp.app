@@ -150,7 +150,31 @@ function HSignup({ navigation }) {
       console.log(firstname,lastname,email,phone,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode,facePicture,password,experience)
        console.log(location)
 
-      try{
+      try{  
+
+        await AsyncStorage.setItem("userData", JSON.stringify({
+          firstname:firstname,
+          lastname:lastname,
+          email:email,
+          phone:phone,
+          address:address,
+          state:state,
+          lga:lga,
+          gender:gender,
+          location:location,
+          dateOfBirth:dateOfBirth,
+          selectedJobs:selectedJobs,
+          verificationCode:verificationCode,
+          facePicture:facePicture,
+          password:password,
+          experience:experience,
+          face:face,
+          // idPicture:idPicture,
+          employmentType:employmentType,
+
+
+          
+      }))
         await Promise.all([ 
           AsyncStorage.setItem("hname", firstname+"  "+ lastname ),
           AsyncStorage.setItem("hemail", email),
@@ -183,9 +207,8 @@ function HSignup({ navigation }) {
         console.log(error)
       }
       console.log(firstname,lastname,email,phone,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode,facePicture,password,experience)
-      navigation.navigate("codevalidation") 
+      // navigation.navigate("codevalidation") 
       
-      navigation.navigate("codevalidation")
       emailjs.send("service_y6igit7","template_a7bqysj",{
         name: firstname+ lastname,
         code: verificationCode,
@@ -193,6 +216,8 @@ function HSignup({ navigation }) {
         from_name: "Househelp.ng",
         email:email,
         },"tqnSNSHM6dMmakDbI");
+        
+      navigation.navigate("codevalidation")
     } else {
       Alert.alert('Validation Failed', 'Please correct the highlighted fields.');
     }
@@ -284,6 +309,7 @@ function CodeValidation({ navigation }) {
   const[face,setFace]=useState("");
   const[password,setPassword]=useState("");
   const[Cpassword,setCPassword]=useState("");
+  const [househelpData, setHousehelpData] = useState(null);
 
 
   // const [idPicture, setIDPicture] = useState(null);
@@ -355,6 +381,10 @@ const uploadDataToFirestore = async (collectionName, data) => {
   
     const fetchCode = async () => {
       try {
+        const userData = await AsyncStorage.getItem("userData");
+        const parsedData = JSON.parse(userData);
+        console.log("Parsed Data:", parsedData);
+        setHousehelpData(parsedData); // Set the fetched data to state
         const storedCode = await AsyncStorage.getItem("code");
         const hname = await AsyncStorage.getItem("hname");  // Re-added hname
         const hemail = await AsyncStorage.getItem("hemail");

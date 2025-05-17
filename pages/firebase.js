@@ -1,7 +1,12 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import {
+  initializeAuth,
+  getReactNativePersistence,
+  getAuth,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -14,13 +19,15 @@ const firebaseConfig = {
   measurementId: "G-SLELK741QB",
 };
 
-// Initialize Firebase (Prevent duplicate initialization)
+// Initialize Firebase
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// Correct way to get Firestore, Auth, and Storage references
-const auth = getAuth(app);
-const db = getFirestore(app); // ✅ FIXED Firestore instance
+// Initialize Auth with persistence for React Native (Hermes-compatible)
+// const auth = initializeAuth(app, {
+//   persistence: getReactNativePersistence(AsyncStorage),
+// });
+
+const db = getFirestore(app);
 const storage = getStorage(app);
 
-export { auth, db, storage };
-  
+export { app, db, storage };
