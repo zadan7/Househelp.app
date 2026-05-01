@@ -8,9 +8,9 @@ const app = express();
 const port = 3000; // Or whatever port your backend runs on
 
 // Initialize the Admin SDK
-// Replace './path/to/your-service-account-file.json' with your actual path
+// Replace './path/to/your-service-account-file.json' with yoAur actual path
 // It's crucial to load this securely, e.g., from an environment variable
-import serviceAccount from './househelporg.json' with { type: 'json' };
+// import serviceAccount from './househelporg.json' with { type: 'json' };
 
 // admin.initializeApp({
 //   credential: admin.credential.cert(serviceAccount)
