@@ -15,10 +15,10 @@ const port = 3000; // Or whatever port your backend runs on
 
 admin.initializeApp({
     credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      projectId: process.env.project_id,
+      clientEmail: process.env.client_email,
       // This line fixes the "Invalid JWT" error by handling the newlines
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      privateKey: process.env.private_key?.replace(/\\n/g, '\n'),
     }),
   });
 
