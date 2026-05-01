@@ -12,9 +12,6 @@ const port = 3000; // Or whatever port your backend runs on
 // It's crucial to load this securely, e.g., from an environment variable
 // import serviceAccount from './househelporg.json' with { type: 'json' };
 
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount)
-// });
 
 admin.initializeApp({
     credential: admin.credential.cert({
@@ -44,7 +41,7 @@ app.post('/registerFCMToken', (req, res) => {
   res.status(200).json({ message: 'FCM Token registered successfully.' });
 });
 
-
+s
 // Notification Sending Logic
 async function sendTestNotification(targetFCMToken) {
   if (!targetFCMToken) {
