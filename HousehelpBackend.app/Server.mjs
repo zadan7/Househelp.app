@@ -99,9 +99,9 @@ app.post('/sendNotificationToUser', async (req, res) => {
 });
 
 
-app.listen(port, () => {
-  console.log(`Backend server listening at http://localhost:${port}`);
-});
+// app.listen(port, () => {
+//   console.log(`Backend server listening at http://localhost:${port}`);
+// });
 
 // You could also call sendTestNotification directly from a script for quick testing:
 // (async () => {
@@ -119,4 +119,4 @@ app.listen(port, () => {
 //   }, 5000); // Wait 5 seconds for token registration for this example
 // })();
 
-export default sendTestNotification; // Export the function for use in other modules if needed
+export default app; // Export the function for use in other modules if needed
