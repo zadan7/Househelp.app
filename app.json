@@ -1,0 +1,70 @@
+{ 
+  "expo": {
+    "name": "Househelp",
+    "slug": "HousehelpApp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "package": "com.househelp.app",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "bundleIdentifier": "com.househelpapp",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We need access to your location to show it on the map"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB_Xm0x7Xz4UqRh-q4ftiIx4-D8AjLpePE"
+        }
+      }
+    },
+    "android": {
+      "package": "com.househelpapp",
+      "googleServicesFile": "./google-services.json",
+      "enableMultiDex": true,
+       "useNextNotificationsApi": true,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "NOTIFICATIONS"
+
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB_Xm0x7Xz4UqRh-q4ftiIx4-D8AjLpePE"
+        }
+      },
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      "expo-build-properties",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "expo-notifications",
+
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to access your location even when the app is in the background. This is necessary for showing your location on the map and providing location-based services.",
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to access your location while you are using the app. This is necessary for showing your location on the map and providing location-based services."
+        }
+      ] 
+    
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c70029a4-00df-4498-8268-457bce765bf4"
+      }
+    }
+  }
+}
