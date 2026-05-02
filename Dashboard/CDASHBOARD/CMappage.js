@@ -205,8 +205,8 @@ const CMappage = ({ navigation }) => {
     body: JSON.stringify({
       token: help.fcmtoken,
       title: `A Client in ${requestData.clientData.lga} is in need of a Househelp`,
-      body: `Total: ₦${requestData.totalCost}. job Details : Chores: ${requestData.chores.map(chore => chore.chore).join(', ')}
-      /n ApartmentSize: ${requestData.apartmentSize}/n  `
+      body: `Total: ₦${requestData.totalCost}. job Details: ${requestData.chores.map(chore => chore.chore).join(', ')} Only
+      \n ApartmentSize: ${requestData.clientData.apartmentsize}  \n Address: ${requestData.clientData.address} \n`,
     }),
   });
 
