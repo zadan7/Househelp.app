@@ -3,6 +3,12 @@
 # dependencies
 node_modules/
 android/
+HousehelpBackend/node_modules/
+HousehelpBackend/.env/
+HousehelpBackend/househelporg.json/
+HousehelpBackend/househelporg5.json/
+
+
 
 # Expo
 .expo/
