@@ -41,7 +41,7 @@ app.post('/registerFCMToken', (req, res) => {
   res.status(200).json({ message: 'FCM Token registered successfully.' });
 });
 
-s
+
 // Notification Sending Logic
 async function sendTestNotification(targetFCMToken) {
   if (!targetFCMToken) {
