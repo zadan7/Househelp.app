@@ -17,6 +17,7 @@ import { db } from './firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import messaging from '@react-native-firebase/messaging';
+import { useCallback } from 'react';
 
 function Login({ navigation }) {
   const [email, setEmail] = useState('');
@@ -54,8 +55,9 @@ function Login({ navigation }) {
       const hhData = hhSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const clData = clSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      setHousehelps(hhData);
-      setClients(clData);
+    setHousehelps(hhData);
+       setClients(clData);
+      // console.log('Data fetched successfully:', { househelps: househelps.length, clients: clients.length });
     } catch (error) {
       console.error('Initial fetch error:', error);
     }
@@ -145,33 +147,66 @@ function Login({ navigation }) {
     }
   };
 
-  const handleLogin = () => {
+const handleLogin = useCallback(() => {
+    // 1. Initial Validation
     if (!email || !password) {
       Alert.alert('Missing Fields', 'Please enter email and password.');
       return;
     }
 
-    setLoading(true);
-    
-    // Check against pre-fetched state (INSTANT)
-    const hhUser = househelps.find(u => u.email?.toLowerCase() === email.toLowerCase() && u.password === password);
-    const clUser = clients.find(u => u.email?.toLowerCase() === email.toLowerCase() && u.password === password);
+    // 2. Logging for Debugging
+    console.log('--- Login Attempt ---');
+    console.log('Stored Househelps:', househelps.length);
+    console.log('Stored Clients:', clients.length);
 
+    // 3. Safety Check: If data hasn't arrived yet
+    if (househelps.length === 0 && clients.length === 0) {
+      setLoading(false);
+      Alert.alert(
+        'Data Loading', 
+        'We are still syncing user data from the cloud. Please wait a few seconds and try again.'
+      );
+      console.warn('Login attempted before data was loaded. Triggering fetch again.');
+      fetchData(); // Trigger a fetch in case it failed the first time
+      return;
+    }
+
+    setLoading(true);
+    const emailLower = email.toLowerCase();
+
+    // 4. Find the user in the pre-fetched lists
+    const hhUser = househelps.find(
+      (u) => u.email?.toLowerCase() === emailLower && u.password === password
+    );
+    const clUser = clients.find(
+      (u) => u.email?.toLowerCase() === emailLower && u.password === password
+    );
+
+    console.log('Search Results:', { 
+      foundHousehelp: !!hhUser, 
+      foundClient: !!clUser 
+    });
+
+    // 5. Logic for Dual-Role Users
     if (hhUser && clUser) {
       setLoading(false);
-      Alert.alert('Account Type', 'How would you like to log in?', [
+      Alert.alert('Account Type', 'Which account would you like to access?', [
         { text: 'Client', onPress: () => loginAsClient(clUser) },
         { text: 'Househelp', onPress: () => loginAsHousehelp(hhUser) },
       ]);
-    } else if (clUser) {
+    } 
+    // 6. Logic for Single-Role Users
+    else if (clUser) {
       loginAsClient(clUser);
     } else if (hhUser) {
       loginAsHousehelp(hhUser);
-    } else {
+    } 
+    // 7. Fallback for incorrect credentials
+    else {
       setLoading(false);
-      Alert.alert('Login Failed', 'Incorrect email or password.');
+      Alert.alert('Login Failed', 'Incorrect email or password. Please try again.');
     }
-  };
+  }, [email, password, househelps, clients]); // These dependencies are CRITICAL
 
   const spin = spinValue.interpolate({
     inputRange: [0, 1],
