@@ -43,7 +43,7 @@ app.post('/registerFCMToken', (req, res) => {
 
 
 // Notification Sending Logic
-async function sendTestNotification(targetFCMToken) {
+async function sendTestNotification(targetFCMToken,title,body,userId) {
   if (!targetFCMToken) {
     console.error('No FCM token provided to send notification.');
     return;
@@ -51,8 +51,8 @@ async function sendTestNotification(targetFCMToken) {
 
   const message = {
     notification: {
-      title: 'Hello from Firebase Admin!',
-      body: 'This is a test notification sent from your backend.',
+      title: title,
+      body: body,
     },
     data: {
       screen: 'details', // Example: data your app can use to navigate
@@ -95,7 +95,7 @@ app.post('/sendNotificationToUser', async (req, res) => {
     return res.status(404).json({ message: `No FCM token found for user ${userId}.` });
   }
 
-  const result = await sendTestNotification(targetFCMToken, title, body);
+  const result = await sendTestNotification(targetFCMToken, title, body,userId);
 
   if (result.success) {
     res.status(200).json({ message: 'Notification sent!', messageId: result.messageId });

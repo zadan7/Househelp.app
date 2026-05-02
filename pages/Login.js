@@ -10,14 +10,13 @@ import {
   TextInput,
   View,
   Animated,
-  Image
 } from 'react-native';
 import { Header } from '../component/Header';
 import { Footer } from '../component/Footer';
 import { db } from './firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
-import messaging from '@react-native-firebase/messaging'; // Ensure this is installed
+import messaging from '@react-native-firebase/messaging';
 
 function Login({ navigation }) {
   const [email, setEmail] = useState('');
@@ -26,8 +25,8 @@ function Login({ navigation }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
   const spinValue = useRef(new Animated.Value(0)).current;
-  const [fcmtoken , setFcmToken] = useState(null); // State to hold FCM token
-  const [expotoken , setExpoToken] = useState(null); // State to hold Expo token
+  const [fcmtoken, setFcmToken] = useState(null);
+  const [expotoken, setExpoToken] = useState(null);
 
   // Animation logic
   useEffect(() => {
@@ -44,42 +43,31 @@ function Login({ navigation }) {
     }
   }, [loading]);
 
+  // Optimized Fetch: Gets data once when the app opens
   const fetchData = async () => {
     try {
-      // Parallel fetch for performance
       const [hhSnap, clSnap] = await Promise.all([
         db.collection('househelps').get(),
         db.collection('clients').get()
       ]);
 
-      const househelpsData = hhSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const clientsData = clSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const hhData = hhSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const clData = clSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      setHousehelps(househelpsData);
-      setClients(clientsData);
-
-      return { househelps: househelpsData, clients: clientsData };
+      setHousehelps(hhData);
+      setClients(clData);
     } catch (error) {
-      console.error('Fetch error:', error);
-      return { househelps: [], clients: [] };
+      console.error('Initial fetch error:', error);
     }
   };
 
   useEffect(() => {
-    // Optional: Pre-fetch data on mount for faster login experience
-    fetchData();
+    fetchData(); // Pre-load data so login is instant later
 
-     registerForPushNotificationsAsync().then(token => {
-      setExpoToken(token);
-      console.log('Expo Push Token:', token);
-    })
-
-    registerForFcmToken().then(token => {
-      console.log('FCM Token:', token);
-      setFcmToken(token); 
-
-  })
-}, []);
+    // Run token logic in background
+    registerForPushNotificationsAsync().then(token => setExpoToken(token));
+    registerForFcmToken().then(token => setFcmToken(token));
+  }, []);
 
   const storeData = async (key, data) => {
     try {
@@ -90,126 +78,99 @@ function Login({ navigation }) {
   };
 
   const registerForPushNotificationsAsync = async () => {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') return null;
-
-    const token = (await Notifications.getExpoPushTokenAsync()).data;
-    return token;
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') return null;
+      return (await Notifications.getExpoPushTokenAsync()).data;
+    } catch (e) { return null; }
   };
 
   const registerForFcmToken = async () => {
     try {
       const authStatus = await messaging().requestPermission();
-      const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
+      const enabled = authStatus === messaging.AuthorizationStatus.AUTHORIZED || authStatus === messaging.AuthorizationStatus.PROVISIONAL;
       if (!enabled) return null;
       return await messaging().getToken();
-    } catch (e) {
-      return null;
-    }
+    } catch (e) { return null; }
   };
 
-  const loginAsHousehelp = async (househelp) => {
-    const clientdata = { ...househelp, id: househelp.id };
-    await storeData('clientdata', clientdata);
-
-     try {
-      // 1. Fetch push tokens
-      
-
-      // 2. Update Firestore if tokens exist
-      if (expotoken || fcmtoken) {
-        await db.collection('househelps').doc(househelp.id).update({
-          expotoken: expotoken || '',
-          fcmtoken: fcmtoken || ''
-        });
-        console.log('Push tokens updated successfully');
-      }
-
-      // 3. Prepare and store user data locally
-      const househelpdata = { ...househelp, id: househelp.id };
-      await storeData('househelpdata', househelpdata);
-      
-      // 4. Navigate to the client dashboard
-      navigation.navigate('hdashboard', { househelpdata });
-
-    } catch (error) {
-      console.error('Error during househelp login:', error);
-      Alert.alert('Login Error', 'We could not complete your login. Please check your connection.');
-    } finally {
-      // Essential: Stop the loading spinner even if an error occurs
-      setLoading(false);
-    }
-    navigation.navigate("hdashboard", { househelp });
-  };
-
-const loginAsClient = async (client) => {
+  // Optimized Login Handlers
+  const loginAsHousehelp = async (user) => {
+    setLoading(true);
     try {
-      // 1. Fetch push tokens
+      const userData = { ...user, id: user.id };
       
-
-      // 2. Update Firestore if tokens exist
-      if (expotoken || fcmtoken) {
-        await db.collection('clients').doc(client.id).update({
+      // Update DB and LocalStorage in parallel (FAST)
+      await Promise.all([
+        storeData('househelpdata', userData),
+        db.collection('househelps').doc(user.id).update({
           expotoken: expotoken || '',
           fcmtoken: fcmtoken || ''
-        });
-        console.log('Push tokens updated successfully');
-      }
+        })
+      ]);
 
-      // 3. Prepare and store user data locally
-      const clientdata = { ...client, id: client.id };
-      await storeData('clientdata', clientdata);
-      
-      // 4. Navigate to the client dashboard
-      navigation.navigate('cdashboard', { clientdata });
-
+      navigation.navigate('hdashboard', { househelpdata: userData });
     } catch (error) {
-      console.error('Error during client login:', error);
-      Alert.alert('Login Error', 'We could not complete your login. Please check your connection.');
+      console.error(error);
+      Alert.alert('Login Error', 'Failed to update session.');
     } finally {
-      // Essential: Stop the loading spinner even if an error occurs
       setLoading(false);
     }
-  }; 
-  
+  };
 
+  const loginAsClient = async (user) => {
+    setLoading(true);
+    try {
+      const userData = { ...user, id: user.id };
 
-  const handleLogin = async () => {
-    console.log('Attempting login with:', { email, password });
-    if (!email || !password  ) {
+      await Promise.all([
+        storeData('clientdata', userData),
+        db.collection('clients').doc(user.id).update({
+          expotoken: expotoken || '',
+          fcmtoken: fcmtoken || ''
+        })
+      ]);
+
+      navigation.navigate('cdashboard', { clientdata: userData });
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Login Error', 'Failed to update session.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = () => {
+    if (!email || !password) {
       Alert.alert('Missing Fields', 'Please enter email and password.');
       return;
     }
 
     setLoading(true);
-    const { househelps: hh, clients: cl } = await fetchData();
+    
+    // Check against pre-fetched state (INSTANT)
+    const hhUser = househelps.find(u => u.email?.toLowerCase() === email.toLowerCase() && u.password === password);
+    const clUser = clients.find(u => u.email?.toLowerCase() === email.toLowerCase() && u.password === password);
 
-    const househelpUser = hh.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-    const clientUser = cl.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-
-    if (househelpUser && clientUser) {
+    if (hhUser && clUser) {
+      setLoading(false);
       Alert.alert('Account Type', 'How would you like to log in?', [
-        { text: 'Client', onPress: () => loginAsClient(clientUser) },
-        { text: 'Househelp', onPress: () => loginAsHousehelp(househelpUser) },
+        { text: 'Client', onPress: () => loginAsClient(clUser) },
+        { text: 'Househelp', onPress: () => loginAsHousehelp(hhUser) },
       ]);
-    } else if (clientUser) {
-      await loginAsClient(clientUser);
-    } else if (househelpUser) {
-      await loginAsHousehelp(househelpUser);
+    } else if (clUser) {
+      loginAsClient(clUser);
+    } else if (hhUser) {
+      loginAsHousehelp(hhUser);
     } else {
+      setLoading(false);
       Alert.alert('Login Failed', 'Incorrect email or password.');
     }
-    setLoading(false);
   };
 
   const spin = spinValue.interpolate({
@@ -263,216 +224,15 @@ const loginAsClient = async (client) => {
 }
 
 const styles = StyleSheet.create({
-
-  container: {
-
-    flexGrow: 1,
-
-    backgroundColor: '#fff',
-
-    alignItems: 'center',
-
-  },
-
-  title: {
-
-    color: 'green',
-
-    fontSize: 36,
-
-    fontWeight: 'bold',
-
-    marginVertical: 10,
-
-    fontFamily: 'serif',
-
-  },
-
-  formContainer: {
-
-    width: '100%',
-
-    maxWidth: 400,
-
-    alignItems: 'center',
-
-    padding: 10,
-
-  },
-
-  input: {
-
-    width: '100%',
-
-    height: 50,
-
-    borderColor: 'green',
-
-    borderWidth: 1,
-
-    borderRadius: 25,
-
-    paddingHorizontal: 15,
-
-    marginVertical: 10,
-
-    fontSize: 16,
-
-  },
-
-  button: {
-
-    backgroundColor: 'green',
-
-    paddingVertical: 12,
-
-    paddingHorizontal: 30,
-
-    borderRadius: 25,
-
-    marginTop: 20,
-
-    width: '100%',
-
-    alignItems: 'center',
-
-  },
-
-  buttonText: {
-
-    color: 'white',
-
-    fontSize: 18,
-
-    fontWeight: 'bold',
-
-  },
-
-  loadingOverlay: {
-
-    position: 'absolute',
-
-    top: 0,
-
-    left: 0,
-
-    right: 0,
-
-    bottom: 0,
-
-    backgroundColor: 'rgba(255, 255, 255, 0.88)',
-
-    justifyContent: 'center',
-
-    alignItems: 'center',
-
-    //  border: '5px solid green',
-
-    width:'100%',
-
-    height:'100%',
-
-    // borderWidth: 2,
-
-    borderColor: 'green',
-
-borderLeftWidth: 5,
-
-borderRightWidth: 5,
-
-
-
-
-
-   zIndex:999
-
-  },
-
-  spinnerContainer: {
-
-    alignItems: 'center',
-
-    justifyContent: 'center',
-
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-
-    borderRadius: 55,
-
-    // padding: 0,
-
-    color: 'white',
-
-    width:'auto',
-
-    height:'auto',
-
-     border: '5px solid green',
-
-
-
-     borderColor: 'green',
-
-     borderWidth: 5,
-
-   
-
-
-
-  },
-
- 
-
-  spinnerIcon: {
-
-    width: 100,
-
-    height: 100,
-
-    // marginBottom: 20,
-
-    borderRadius: 50,
-
- 
-
-    borderWidth: 4,
-
-     borderColor: 'white',
-
-     boxShadowColor: 'white',
-
-    //  boxShadowOffset: { width: 20, height: 20 },
-
-     boxShadowOpacity: 1,
-
-    //  boxShadowRadius: 10,
-
-
-
-  },
-
- 
-
-  loadingText: {
-
-    color: '#003f1c',
-
-    fontSize: 18,
-
-    fontWeight: 'bold',
-
-    marginTop: 10,
-
-     border: '5px solid green',
-
-    //  width: '100%',
-
-    //  height: '100%',
-
-
-
-  },
-
+  container: { flexGrow: 1, backgroundColor: '#fff', alignItems: 'center' },
+  title: { color: 'green', fontSize: 36, fontWeight: 'bold', marginVertical: 10 },
+  formContainer: { width: '100%', maxWidth: 400, alignItems: 'center', padding: 10 },
+  input: { width: '100%', height: 50, borderColor: 'green', borderWidth: 1, borderRadius: 25, paddingHorizontal: 15, marginVertical: 10, fontSize: 16 },
+  button: { backgroundColor: 'green', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 25, marginTop: 20, width: '100%', alignItems: 'center' },
+  buttonText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255, 255, 255, 0.88)', justifyContent: 'center', alignItems: 'center', zIndex: 999 },
+  spinnerContainer: { alignItems: 'center', justifyContent: 'center', borderRadius: 55, borderColor: 'green', borderWidth: 5 },
+  spinnerIcon: { width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: 'white' },
 });
 
-       
-export  {Login};
+export { Login };
