@@ -196,7 +196,7 @@ const CMappage = ({ navigation }) => {
       if (help.lga === requestData.clientData.lga && help.fcmtoken) {
         console.log(`Sending FCM notification to ${help.name} with token: ${help.fcmtoken}`);
         try {
-          const response = await fetch('https://househelp-app-h28t.vercel.app/sendFCMNotification', {
+         const response = await fetch('https://househelp-app-h28t.vercel.app/sendNotificationToUser', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
