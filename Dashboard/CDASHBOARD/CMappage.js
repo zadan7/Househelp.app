@@ -195,19 +195,30 @@ const CMappage = ({ navigation }) => {
     for (let help of househelps) {
       if (help.lga === requestData.clientData.lga && help.fcmtoken) {
         console.log(`Sending FCM notification to ${help.name} with token: ${help.fcmtoken}`);
+        console.log(requestData);
         try {
-         const response = await fetch('https://househelp-app-h28t.vercel.app/sendNotificationToUser', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fcmToken: help.fcmtoken,
-              title: 'New Job Alert!',
-              body: `A client in ${requestData.location.lga} needs help.`,
-            }),
-          });
-        } catch (error) {
-          console.error('FCM Notification Error:', error);
-        }
+  const response = await fetch('https://househelp-app-h28t.vercel.app/sendNotificationToUser', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      token: help.fcmtoken,
+      title: `A Client in ${requestData.clientData.lga} is in need of a Househelp`,
+      body: `Total: ₦${requestData.totalCost}. job Details : Chores: ${requestData.chores.map(chore => chore.chore).join(', ')}
+      /n ApartmentSize: ${requestData.apartmentSize}/n  `
+    }),
+  });
+
+  console.log("Status Code:", response.status); // Check if this is still 404
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.log("Server Error Message:", errorText);
+  }
+} catch (e) {
+  console.log("Network Error:", e);
+}
       }
     }
   };
