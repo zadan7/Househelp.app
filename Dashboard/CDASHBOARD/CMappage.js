@@ -6,24 +6,15 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  Image,
   Animated,
-  Platform,
 } from 'react-native';
-import MapView ,{PROVIDER_GOOGLE} from 'react-native-maps';
-import { Marker } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { db } from '../../pages/firebase';
-// import { collection, getDocs, updateDoc, doc ,onSnapshot} from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
 import { Header2 } from '../../component/Header';
 import { Cmenu } from '../../component/Menu';
 import { FontAwesome } from '@expo/vector-icons';
-import messaging from '@react-native-firebase/messaging';
-import { where } from '@react-native-firebase/firestore';
-// import sendTestNotification from '../../pages/server';
-
 
 const CMappage = ({ navigation }) => {
   const [location, setLocation] = useState(null);
@@ -32,9 +23,9 @@ const CMappage = ({ navigation }) => {
   const [selectedHelper, setSelectedHelper] = useState(null);
   const [loading, setLoading] = useState(true);
   const [jobId, setJobId] = useState(null);
-  const [currentJob, setCurrentJob] = useState(null);
   const bounceValue = useRef(new Animated.Value(1)).current;
 
+  // 1. Initial Data & Location Loading
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -50,37 +41,28 @@ const CMappage = ({ navigation }) => {
 
         const parsedRequest = JSON.parse(request);
         setRequestData(parsedRequest);
-        setJobId(storedJobId);
+        setJobId(storedJobId || parsedRequest.id);
 
+        // Get Current Location
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission to access location was denied');
+          Alert.alert('Permission denied', 'Location access is required for the map.');
           return;
         }
 
-        const loc = await Location.getCurrentPositionAsync({});
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
         setLocation(loc.coords);
 
+        // Fetch Househelps
         const househelpSnapshot = await db.collection('househelps').get();
         const helps = househelpSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
         }));
-        console.log('Househelps:', helps.length);
         setHousehelps(helps);
 
-        const requestSnapshot = await db.collection('partimeRequest').get();
-        requestSnapshot.forEach((doc) => {
-          const data = { id: doc.id, ...doc.data() };
-          if (data.jobid === parsedRequest.jobid || storedJobId === data.id) {
-            setCurrentJob(data);
-            setRequestData(data);
-            // console.log('Current Job:', data);
-          }
-        });
       } catch (error) {
         console.error('Initialization error:', error);
-        Alert.alert('Error', 'Something went wrong while initializing.');
       } finally {
         setLoading(false);
       }
@@ -89,171 +71,82 @@ const CMappage = ({ navigation }) => {
     initialize();
   }, []);
 
+  // 2. Real-time Job Listener
+  useEffect(() => {
+    if (!jobId) return;
+
+    const unsubscribe = db
+      .collection('partimeRequest')
+      .doc(jobId)
+      .onSnapshot((docSnap) => {
+        if (docSnap.exists) {
+          setRequestData({ id: docSnap.id, ...docSnap.data() });
+        }
+      }, (err) => console.error("Snapshot error:", err));
+
+    return () => unsubscribe();
+  }, [jobId]);
+
+  // 3. Selection Animation
   useEffect(() => {
     if (selectedHelper) {
       Animated.sequence([
-        Animated.timing(bounceValue, {
-          toValue: 1.5,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(bounceValue, {
-          toValue: 1,
-          friction: 2,
-          useNativeDriver: true,
-        }),
+        Animated.timing(bounceValue, { toValue: 1.5, duration: 200, useNativeDriver: true }),
+        Animated.spring(bounceValue, { toValue: 1, friction: 3, useNativeDriver: true }),
       ]).start();
     }
   }, [selectedHelper]);
 
-  useEffect(() => {
-    if (!jobId) return;
-  
-   const unsubscribe = db
-  .collection('partimeRequest')
-  .doc(jobId)
-  .onSnapshot((documentSnapshot) => {
-    if (documentSnapshot.exists) {
-      const data = {
-        id: documentSnapshot.id,
-        ...documentSnapshot.data(),
-      };
-
-      setRequestData(data);
-      setCurrentJob(data);
-      // console.log('🔄 Live update:', data);
-    }
-  });
-  
-    return () => unsubscribe(); // clean up listener on unmount
-  }, [jobId]);
-  
-
+  // 4. Notification Logic
   const handleSendPushNotification = async () => {
+    if (!requestData?.clientData) return Alert.alert("Error", "Missing request details");
 
-  
-
-    for (let help of househelps) {
-      if (help.pushToken) {
-        await fetch('https://exp.host/--/api/v2/push/send', {
-          method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            'Accept-Encoding': 'gzip, deflate',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            to: help.pushToken,
-            sound: 'default',
-            title: 'New Job Alert!',
-            body: `A client in ${requestData.location.lga} needs help.`,
-            data: { requestId: requestData.totalCost, jobId: requestData.jobid },
-          }),
-        });
-
-      console.log('Househelp notified:', help.pushToken);
+    try {
+      for (let help of househelps) {
+        // Only notify those in the same LGA with a token
+        if (help.lga === requestData.clientData.lga && help.fcmtoken) {
+          await fetch('https://househelp-app-h28t.vercel.app/sendNotificationToUser', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: help.fcmtoken,
+              title: `New Job in ${requestData.clientData.lga}`,
+              body: `Job: ${requestData.chores?.map(c => c.chore).join(', ')} \nPay: ₦${requestData.totalCost}
+             \n Client: ${requestData.clientData.name} Apartment Size:${requestData.clientData.apartmentsize}`,
+            }),
+          });
+        }
       }
-    }
-
-    // code to send notification to the selected client
-
-    const notifyClient = async () => {
-    await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-Encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: requestData.clientData.pushToken,
-        sound: 'default',
-        title: 'New Job Alert!',
-        body: `A client in ${requestData.location.lga} needs help.`,
-        data: { requestId: requestData.totalCost, jobId: requestData.jobid },
-      }),
-    });
-    console.log('Client notified:', requestData.clientData.pushToken);
-  };
-
-  notifyClient();
-  handlefcmPushNotification();
-
-   {
-  
-    Alert.alert('Notified', 'Nearby househelps have been alerted.');
-    // Alert.alert('Waiting', 'Waiting for nearby househelps to accept the job offer.');
-  };
-  };
-
- 
-  const handlefcmPushNotification = async () => {
-    console.log('Attempting to send FCM notification to nearby househelps...');
-    console.log('Househelps available for notification:', househelps.length);
-    console.log('Request Location:', requestData.clientData.lga);
-
-    for (let help of househelps) {
-      if (help.lga === requestData.clientData.lga && help.fcmtoken) {
-        console.log(`Sending FCM notification to ${help.name} with token: ${help.fcmtoken}`);
-        console.log(requestData);
-        try {
-  const response = await fetch('https://househelp-app-h28t.vercel.app/sendNotificationToUser', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      token: help.fcmtoken,
-      title: `A Client in ${requestData.clientData.lga} is in need of a Househelp`,
-      body: `Total: ₦${requestData.totalCost}. job Details: ${requestData.chores.map(chore => chore.chore).join(', ')} Only
-      \n ApartmentSize: ${requestData.clientData.apartmentsize}  \n Address: ${requestData.clientData.address} \n`,
-    }),
-  });
-
-  console.log("Status Code:", response.status); // Check if this is still 404
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.log("Server Error Message:", errorText);
-  }
-} catch (e) {
-  console.log("Network Error:", e);
-}
-      }
+      Alert.alert('Sent', 'Nearby househelps have been notified.');
+    } catch (e) {
+      console.error("Notification failed", e);
     }
   };
 
+  const handleConfirm = async () => {
+    if (!selectedHelper || !requestData) return;
 
- const handleConfirm = async () => {
-  if (!selectedHelper || !requestData) return;
-
-  try {
-    await db
-      .collection('partimeRequest')
-      .doc(requestData.id)
-      .update({
+    try {
+      await db.collection('partimeRequest').doc(requestData.id).update({
         househelpName: selectedHelper.househelpName,
         househelpId: selectedHelper.househelpId,
         househelpdata: selectedHelper.househelpdata,
         status: 'confirmed',
       });
 
-    Alert.alert('Success', `You confirmed ${selectedHelper.househelpName}`);
+      await AsyncStorage.setItem('jobId', requestData.id);
+      navigation.navigate('arriving', { clientId: requestData.clientId });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to confirm selection.');
+    }
+  };
 
-    await AsyncStorage.setItem('jobId', requestData.id);
-
-    navigation.navigate('arriving', { clientId: requestData.clientId });
-
-  } catch (error) {
-    console.error(error);
-    Alert.alert('Error', 'Failed to confirm househelp.');
-  }
-};
-
-  if (loading || !location) {
+  // CRITICAL: Safety Check for Undefined Location
+  if (loading || !location || !location.latitude) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#28a745" />
+        <Text style={{ marginTop: 10 }}>Setting up the map...</Text>
       </View>
     );
   }
@@ -264,7 +157,7 @@ const CMappage = ({ navigation }) => {
       <Cmenu navigation={navigation} />
 
       <MapView
-      provider={PROVIDER_GOOGLE}
+        provider={PROVIDER_GOOGLE}
         style={{ flex: 1 }}
         initialRegion={{
           latitude: location.latitude,
@@ -273,100 +166,79 @@ const CMappage = ({ navigation }) => {
           longitudeDelta: 0.05,
         }}
       >
+        {/* User Marker */}
         <Marker
-          coordinate={{
-            latitude: location.latitude,
-            longitude: location.longitude,
-          }}
-          title="You"
-          description="Client Location"
+          coordinate={{ latitude: location.latitude, longitude: location.longitude }}
+          title="My Location"
           pinColor="green"
         />
 
+        {/* Househelp Markers */}
         {househelps.map((helper, index) => {
-          let loc;
+          let helperLoc;
           try {
-            loc = typeof helper.location === 'string' ? JSON.parse(helper.location) : helper.location;
-          } catch {
-            console.error('Error parsing location:', helper);
-            return null;
-          }
+            if (!helper.location) return null;
+            helperLoc = typeof helper.location === 'string' ? JSON.parse(helper.location) : helper.location;
+            
+            // Check if coordinates exist within the helper object
+            if (!helperLoc?.latitude || !helperLoc?.longitude) return null;
 
-          const latitude = parseFloat(loc.latitude);
-          const longitude = parseFloat(loc.longitude);
-          const rating = Math.round(helper.rating || 4);
+            const lat = parseFloat(helperLoc.latitude);
+            const lng = parseFloat(helperLoc.longitude);
+            const isSelected = selectedHelper?.househelpId === helper.id;
 
-          if (isNaN(latitude) || isNaN(longitude)) return null;
-
-          const isSelected = selectedHelper?.househelpId === helper.id;
-
-          return (
-            <Marker
-              key={index}
-              coordinate={{ latitude, longitude }}
-
-              title={helper.name || 'Househelp'}
-              // calloutAnchor={{ x: 0.5, y: 0.5 }}
-              //code for more info about the helper
-
-
-              description={`Experience: ${helper.experience || 'N/A'} yrs  \n LGA: ${helper.lga || 'N/A'}  \n State: ${helper.state || 'N/A'} \n Employment Type: ${helper.employmentType || 'N/A'}`}
-
-              
-            >
-              <Animated.View
-                style={{
-                  alignItems: 'center',
-                  transform: [{ scale: isSelected ? bounceValue : 1 }],
-                }}
+            return (
+              <Marker
+                key={helper.id || index}
+                coordinate={{ latitude: lat, longitude: lng }}
+                title={helper.name}
+                onPress={() => setSelectedHelper({
+                    househelpId: helper.id,
+                    househelpName: helper.name,
+                    househelpdata: helper
+                })}
               >
-                {/* <Image
-                  source={{ uri: helper.url }}
-                  style={{
-                    width: 50,
-                    height: 50,
-                    borderRadius: 25,
-                    borderWidth: 3,
-                    borderColor: isSelected ? '#007bff' : '#fff',
-                  }}
-                /> */}
-                <View style={{ flexDirection: 'row', marginTop: 2 }}>
-                  {[...Array(5)].map((_, i) => (
-                    <FontAwesome
-                      key={i}
-                      name={i < rating ? 'star' : 'star-o'}
-                      size={12}
-                      color="#f1c40f"
-                    />
-                  ))}
-                </View>
-              </Animated.View>
-            </Marker>
-          );
+                <Animated.View style={{
+                  transform: [{ scale: isSelected ? bounceValue : 1 }],
+                  alignItems: 'center'
+                }}>
+                  <View style={styles.markerContainer}>
+                    <FontAwesome name="user-circle" size={30} color={isSelected ? "#007bff" : "#555"} />
+                    <View style={{ flexDirection: 'row' }}>
+                      {[...Array(5)].map((_, i) => (
+                        <FontAwesome 
+                          key={i} 
+                          name={i < (helper.rating || 4) ? 'star' : 'star-o'} 
+                          size={10} 
+                          color="#f1c40f" 
+                        />
+                      ))}
+                    </View>
+                  </View>
+                </Animated.View>
+              </Marker>
+            );
+          } catch (e) { return null; }
         })}
       </MapView>
 
-      <View style={{ padding: 15 }}>
-        {requestData.acceptedHelpers?.length > 0 && (
-          <View style={{ marginBottom: 15 }}>
-            <Text style={styles.sectionHeader}>List of Househelps that Accepted this Request</Text>
-            {requestData.acceptedHelpers.map((helper, index) => (
+      <View style={styles.bottomSheet}>
+        {requestData?.acceptedHelpers?.length > 0 && (
+          <View style={{ marginBottom: 10 }}>
+            <Text style={styles.sectionHeader}>Helpers who accepted:</Text>
+            {requestData.acceptedHelpers.map((helper, idx) => (
               <TouchableOpacity
-                key={index}
+                key={idx}
+                onPress={() => setSelectedHelper(helper)}
                 style={[
                   styles.helperButton,
-                  selectedHelper?.househelpId === helper.househelpId && styles.selectedHelper,
+                  selectedHelper?.househelpId === helper.househelpId && styles.selectedHelper
                 ]}
-                onPress={() => setSelectedHelper(helper)}
               >
-                <Text
-                  style={[
-                    styles.helperText,
-                    selectedHelper?.househelpId === helper.househelpId && styles.selectedHelperText,
-                  ]}
-                >
-                  {helper.househelpName}
-                </Text>
+                <Text style={[
+                  styles.helperText,
+                  selectedHelper?.househelpId === helper.househelpId && styles.selectedHelperText
+                ]}>{helper.househelpName}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -374,18 +246,13 @@ const CMappage = ({ navigation }) => {
 
         <TouchableOpacity
           onPress={handleConfirm}
-          style={[
-            styles.confirmButton,
-            !selectedHelper && { backgroundColor: '#ccc' },
-          ]}
           disabled={!selectedHelper}
+          style={[styles.confirmButton, !selectedHelper && { backgroundColor: '#ccc' }]}
         >
           <Text style={styles.confirmButtonText}>Confirm Selected Househelp</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={ async ()=>{var notification = await handleSendPushNotification()
-          console.log(notification.json())
-        }} style={styles.alertButton}>
+        <TouchableOpacity onPress={handleSendPushNotification} style={styles.alertButton}>
           <Text style={styles.alertButtonText}>Alert Nearby Househelps</Text>
         </TouchableOpacity>
       </View>
@@ -394,58 +261,18 @@ const CMappage = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-  },
-  sectionHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  helperButton: {
-    backgroundColor: '#eee',
-    padding: 10,
-    borderRadius: 6,
-    marginTop: 8,
-  },
-  selectedHelper: {
-    backgroundColor: '#007bff',
-  },
-  helperText: {
-    fontSize: 16,
-    color: '#000',
-  },
-  selectedHelperText: {
-    color: '#fff',
-  },
-  alertButton: {
-    backgroundColor: '#ffc107',
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  alertButtonText: {
-    color: '#000',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  confirmButton: {
-    backgroundColor: '#28a745',
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  confirmButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  markerContainer: { alignItems: 'center', backgroundColor: 'white', padding: 5, borderRadius: 10, elevation: 3 },
+  bottomSheet: { padding: 15, backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  sectionHeader: { fontSize: 16, fontWeight: 'bold', marginBottom: 5 },
+  helperButton: { backgroundColor: '#f0f0f0', padding: 12, borderRadius: 8, marginVertical: 4 },
+  selectedHelper: { backgroundColor: '#007bff' },
+  helperText: { fontSize: 15, color: '#333' },
+  selectedHelperText: { color: 'white', fontWeight: 'bold' },
+  confirmButton: { backgroundColor: '#28a745', padding: 15, borderRadius: 10, alignItems: 'center' },
+  confirmButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  alertButton: { padding: 15, alignItems: 'center', marginTop: 5 },
+  alertButtonText: { color: '#007bff', fontWeight: '600' },
 });
 
 export { CMappage };

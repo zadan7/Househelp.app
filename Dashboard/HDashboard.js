@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Animated, StyleSheet, ScrollView, Image } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Animated, StyleSheet, ScrollView, Image,Button } from 'react-native';
 // import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from './../pages/firebase';
 import { Header2 } from '../component/Header';
@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import {Notifications} from 'expo-notifications';
 import { getExpoPushTokenAsync } from 'expo-notifications';
+// import { Button } from 'react-native-web';
 
 
 const gridItems = [
@@ -64,6 +65,9 @@ const HousehelpDashboard = ({ navigation }) => {
 
     fetchJobRequests();
   }, []);
+  useEffect(() => {
+    console.log ("househelpdata :",AsyncStorage.getItem("househelpdata"));
+  }, []);
 
   const acceptJob = async (jobId) => {
     try {
@@ -97,6 +101,12 @@ const HousehelpDashboard = ({ navigation }) => {
             </TouchableOpacity>
           )}
         />
+
+        <Button title="Get Expo Push Token" onPress={async () => {
+         helpdata= await AsyncStorage.getItem("househelpdata");
+         console.log("Househelpdata in HDashboard:", helpdata);
+        
+        }} />
 
         <Text style={styles.subHeader}>Example Jobs</Text>
 

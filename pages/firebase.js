@@ -5,17 +5,17 @@
 // import { getStorage } from "firebase/storage";
 
 // Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyB43keeLt_07HXfNp9xvXpOk6ckX_iUvh4",
-  authDomain: "househelporg-7c2cd.firebaseapp.com",
-  projectId: "househelporg-7c2cd",
-  storageBucket: "househelporg-7c2cd.firebasestorage.app",
-  messagingSenderId: "989310710388",
-  appId: "1:989310710388:web:894c817be377af9f5a1721",
-  measurementId: "G-BK7XQH32CM"
-};
+// const firebaseConfig = {
+//   apiKey: "AIzaSyB43keeLt_07HXfNp9xvXpOk6ckX_iUvh4",
+//   authDomain: "househelporg-7c2cd.firebaseapp.com",
+//   projectId: "househelporg-7c2cd",
+//   storageBucket: "househelporg-7c2cd.firebasestorage.app",
+//   messagingSenderId: "989310710388",
+//   appId: "1:989310710388:web:894c817be377af9f5a1721",
+//   measurementId: "G-BK7XQH32CM"
+// };
 
-// // Initialize Firebase (prevent duplicate initialization)
+// Initialize Firebase (prevent duplicate initialization)
 // const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 // console.log("Firebase app initialized:", app.name);
 

@@ -104,6 +104,7 @@ function Login({ navigation }) {
   // Optimized Login Handlers
   const loginAsHousehelp = async (user) => {
     setLoading(true);
+    console.log('Logging in as Househelp:', user);
     try {
       const userData = { ...user, id: user.id };
       

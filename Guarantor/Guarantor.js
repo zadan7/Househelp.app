@@ -6,10 +6,10 @@ import NigerianStateAndLGASelector from "../component/NigerianStateAndLGASelecto
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+// import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+// import { getAuth } from 'firebase/auth';
+// import { getFirestore } from 'firebase/firestore';
+// import { getStorage } from 'firebase/storage';
 import {db} from "../pages/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import firebase from 'firebase/compat/app';
@@ -36,6 +36,10 @@ function Guarantor({ navigation ,route}) {
   const [data, setdata] = useState({});
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
+  const [hphonenumber, setHphonenumber] = useState("");
+  const [hemail, setHemail] = useState("");
+
+
   const selectPicture = async (setter) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -52,10 +56,7 @@ function Guarantor({ navigation ,route}) {
 
   const uploadDataToFirestore = async (collectionName, data) => {
     try {
-      await addDoc(collection(db, collectionName), {
-        ...data,
-        createdAt: serverTimestamp(),
-      });
+      await db.collection(collectionName).add(data);
       console.log("Data uploaded successfully!");
     } catch (error) {
       console.error("Error uploading data to Firestore:", error);
@@ -66,9 +67,13 @@ function Guarantor({ navigation ,route}) {
       try {
         var hname = await AsyncStorage.getItem("hname"); 
         const storedCode = await AsyncStorage.getItem("code");
-        var data = await AsyncStorage.getItem("househelpdata")
+        var data = await AsyncStorage.getItem("househelpdata");
+        var hemail = await AsyncStorage.getItem("hemail");
+        var hphonenumber = await AsyncStorage.getItem("hphonenumber");
         const parsedData = JSON.parse(data);
         setHousehelpdata(parsedData);
+        setHemail(hemail);
+        setHphonenumber(hphonenumber);
         setHname(hname);
         setcode(storedCode);
       } catch (error) {
@@ -136,8 +141,8 @@ function Guarantor({ navigation ,route}) {
         facePicture: GfacePicture,
         idImage: idImage,
         househelpName: Hname,
-        househelpemail: househelpdata.email,
-        househelpphone: househelpdata.phonenumber,
+        househelpemail: hemail,
+        househelpphone: hphonenumber,
         code: code,
         timestamp: serverTimestamp(),
       };

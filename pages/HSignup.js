@@ -8,39 +8,22 @@ import * as Location from 'expo-location';
 import { Picker } from '@react-native-picker/picker';
 import emailjs from "emailjs-com";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import messaging from '@react-native-firebase/messaging';
 
 
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getStorage } from 'firebase/storage';
+// import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+// import { getStorage } from 'firebase/storage';
 import {db} from "./firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { storage } from './firebase';
+
+// import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import * as Notifications from "expo-notifications";
 
-async function registerForPushNotificationsAsync() {
-  console.log("HSignup: Registering for push notifications");
-  let token;
 
-  const { status } = await Notifications.getPermissionsAsync();
-  if (status !== "granted") {
-    console.log("HSignup: Push permissions not granted, requesting");
-    const { status: newStatus } = await Notifications.requestPermissionsAsync();
-    if (newStatus !== "granted") {
-      console.log("HSignup: Push permissions denied");
-      alert("Failed to get push token for notifications!");
-      return null;
-    }
-  }
-
-  console.log("HSignup: Getting Expo push token");
-  token = (await Notifications.getExpoPushTokenAsync()).data;
-  console.log("Push Token:", token);
-
-  return token;
-}
 // import { db } from "./firebaseConfig"; // Import Firestore instance
 
 // import { firebase } from '@react-native-firebase/storage';
-import firebase from 'firebase/compat/app';
+// import firebase from 'firebase/compat/app';
 
 
 
@@ -146,12 +129,33 @@ function HSignup({ navigation }) {
       console.log("HSignup: Generated verification code", verificationCode);
       Alert.alert('Success', 'Form submitted successfully!');
 
-      console.log(firstname,lastname,email,phone,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode,facePicture,password,experience)
+   
+      // console.log(firstname,lastname,email,phone,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode,facePicture,password,experience)
        console.log(location)
+       let househelpData = {
+        "firstname":firstname,
+        "lastname":lastname,
+        "email":email,
+        "phone":phone,
+        "address":address,
+        "state":state,
+        "lga":lga,
+        "gender":gender,
+        "location":location,
+        "dateOfBirth":dateOfBirth,
+        "employmentType":employmentType,
+        "experience":experience,
+        "selectedJobs":selectedJobs,
+        "verificationCode":verificationCode,
+        "facePicture":facePicture,
+        "password":password}
+      //  db.collection("househelps").add({"firstname":firstname,"lastname":lastname,"email":email,"phone":phone})
+   
 
       try{
         console.log("HSignup: Saving to AsyncStorage");
         await Promise.all([ 
+          AsyncStorage.add("househelpdata",JSON.stringify(househelpData)),
           AsyncStorage.setItem("hname", firstname+"  "+ lastname ),
           AsyncStorage.setItem("hemail", email),
           AsyncStorage.setItem("haddress", address),
@@ -185,7 +189,9 @@ function HSignup({ navigation }) {
       }
       console.log(firstname,lastname,email,phone,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode,facePicture,password,experience)
       console.log("HSignup: Sending verification email");
-      navigation.navigate("codevalidation") 
+      
+
+      // navigation.navigate("codevalidation") 
       
       navigation.navigate("codevalidation")
       emailjs.send("service_y6igit7","template_a7bqysj",{
@@ -297,74 +303,130 @@ function CodeValidation({ navigation }) {
   const [facePicture, setFacePicture] = useState(null);
   const [downloadURL, setDownloadURL] = useState("");
   const [data ,setdata]=useState({});
-  const [token ,setToken]=useState("");
+  const [expotoken ,setExpoToken]=useState("");
+  const [fcmtoken ,setFcmToken]=useState(""); 
+
 
   const [isLoading, setIsLoading] = useState(true); // Track loading state
 
   // Function to upload image to Firebase
-  const uploadImageToFirebase = async (imageUri, verificationCode, userName) => {
-    try {
-      console.log("uploadImageToFirebase: Starting upload for URI:", imageUri);
-      if (!imageUri || imageUri.trim() === "") {
-        console.log("Error: Image URI is empty or invalid");
-        return null;
-      }
+  // const uploadImageToFirebase = async (imageUri, verificationCode, userName) => {
+  //   try {
+  //     console.log("uploadImageToFirebase: Starting upload for URI:", imageUri);
+  //     if (!imageUri || imageUri.trim() === "") {
+  //       console.log("Error: Image URI is empty or invalid");
+  //       return null;
+  //     }
 
-      console.log("uploadImageToFirebase: Fetching image from URI");
-      const response = await fetch(imageUri);
-      console.log("uploadImageToFirebase: Fetch response status:", response.status);
+  //     console.log("uploadImageToFirebase: Fetching image from URI");
+  //     const response = await fetch(imageUri);
+  //     console.log("uploadImageToFirebase: Fetch response status:", response.status);
       
-      if (!response.ok) {
-        console.log("Error: Fetch failed with status", response.status);
-        return null;
-      }
+  //     if (!response.ok) {
+  //       console.log("Error: Fetch failed with status", response.status);
+  //       return null;
+  //     }
       
-      const blob = await response.blob();
-      console.log("uploadImageToFirebase: Blob created, size:", blob.size);
+  //     const blob = await response.blob();
+  //     console.log("uploadImageToFirebase: Blob created, size:", blob.size);
 
-      const storage = getStorage();
-      const fileName = `profile_pictures/${verificationCode}+${userName}.jpg`;
-      console.log("uploadImageToFirebase: Uploading with fileName:", fileName);
+  //     const storage = getStorage();
+  //     const fileName = `profile_pictures/${verificationCode}+${userName}.jpg`;
+  //     console.log("uploadImageToFirebase: Uploading with fileName:", fileName);
       
-      const imageRef = ref(storage, fileName);
-      await uploadBytes(imageRef, blob);
-      console.log("uploadImageToFirebase: Upload successful");
+  //     const imageRef = ref(storage, fileName);
+  //     await uploadBytes(imageRef, blob);
+  //     console.log("uploadImageToFirebase: Upload successful");
       
-      const downloadURL = await getDownloadURL(imageRef);
-      console.log("Image uploaded successfully:", downloadURL);
-      return downloadURL;
-    } catch (error) {
-      console.log("Error uploading image:", error.message);
-      return null;
-    }
-  };
+  //     const downloadURL = await getDownloadURL(imageRef);
+  //     console.log("Image uploaded successfully:", downloadURL);
+  //     return downloadURL;
+  //   } catch (error) {
+  //     console.log("Error uploading image:", error.message);
+  //     return null;
+  //   }
+  // };
+const uploadImageToFirebase = async (imageUri, verificationCode, userName) => {
+  try {
+    console.log("CodeValidation: Starting Native Upload...");
+    if (!imageUri) return null;
 
+    // 1. Create a reference in Storage
+    // Use the storage instance imported from your firebase file
+    const fileName = `profile_pictures/${verificationCode}_${userName.replace(/\s/g, '_')}.jpg`;
+    const reference = storage.ref(fileName);
+
+    // 2. Upload the file directly from the URI
+    await reference.putFile(imageUri); 
+    console.log("CodeValidation: File uploaded to storage");
+
+    // 3. Get the download URL
+    const url = await reference.getDownloadURL();
+    console.log("CodeValidation: Download URL obtained:", url);
+    return url;
+  } catch (error) {
+    console.error("Native Storage Error:", error);
+    return null; // Return null so handleDone can still finish the registration
+  }
+};
   // Import Firebase configuration
 
 // Function to upload data to Firestore
 
 const uploadDataToFirestore = async (collectionName, data) => {
   try {
-    console.log("Uploading data to Firestore collection:", collectionName, "with data:", data);
-    var househelp = await addDoc(collection(db, collectionName), {
+    console.log("Attempting Native Firestore Upload...");
+    // @react-native-firebase/firestore uses this syntax
+    const docRef = await db.collection(collectionName).add({
       ...data,
-      createdAt: serverTimestamp(),
+      // createdAt: firestore.FieldValue.serverTimestamp(), // Use native timestamp
     });
 
-    console.log("Document written with ID: ", househelp.id);
-    // Update with ID if needed
-    console.log("Data uploaded successfully!");
-    return househelp.id; // Return ID if needed
+    console.log("Document written with ID: ", docRef.id);
+    return docRef.id;
   } catch (error) {
-    console.error("Error uploading data to Firestore:", error);
+    console.error("Firestore Error:", error.message);
+    Alert.alert("Database Error", "Check your internet or Firebase permissions.");
   }
 };
+
+
+async function registerForPushNotificationsAsync() {
+  console.log("HSignup: Registering for push notifications");
+  let token;
+
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== "granted") {
+    console.log("HSignup: Push permissions not granted, requesting");
+    const { status: newStatus } = await Notifications.requestPermissionsAsync();
+    if (newStatus !== "granted") {
+      console.log("HSignup: Push permissions denied");
+      alert("Failed to get push token for notifications!");
+      return null;
+    }
+  }
+
+  console.log("HSignup: Getting Expo push token");
+  token = (await Notifications.getExpoPushTokenAsync()).data;
+  console.log("Push Token:", token);
+
+  return token;
+}
+ const registerForFcmToken = async () => {
+    try {
+      const authStatus = await messaging().requestPermission();
+      const enabled = authStatus === messaging.AuthorizationStatus.AUTHORIZED || authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      if (!enabled) return null;
+      return await messaging().getToken();
+    } catch (e) { return null; }
+  };
+
 
 
 
   // Fetch stored data from AsyncStorage
   useEffect(() => {
-    console.log("CodeValidation: useEffect started, db:", db);
+    console.log("CodeValidation: useEffect started, db:");
   
     const fetchCode = async () => {
       console.log("CodeValidation: Fetching data from AsyncStorage");
@@ -387,8 +449,9 @@ const uploadDataToFirestore = async (collectionName, data) => {
         const storedURI = await AsyncStorage.getItem("facepicture");
         console.log("CodeValidation: Fetched all data, hname:", hname, "hemail:", hemail, "storedURI:", storedURI);
         
-        const pushToken = await registerForPushNotificationsAsync();
-        console.log("CodeValidation: Push token:", pushToken);
+        const expotoken = await registerForPushNotificationsAsync();
+        const fcmtoken = await registerForFcmToken();
+        console.log("CodeValidation: Push token:", expotoken);
         
         setCode(storedCode);
         setFacePicture(storedURI);
@@ -406,7 +469,8 @@ const uploadDataToFirestore = async (collectionName, data) => {
         setExperience(hexperience);
         setSelectedJobs(JSON.parse(hselectedJob || "[]"));
         setLocation(JSON.parse(hLocation || "{}"));
-        setToken(pushToken);
+        setExpoToken(expotoken);
+        setFcmToken(fcmtoken);
         
         // Consolidated data object
         setdata({ 
@@ -425,7 +489,8 @@ const uploadDataToFirestore = async (collectionName, data) => {
           selectedJobs: JSON.parse(hselectedJob || "[]"),
           password: hpassword,
           location: JSON.parse(hLocation || "{}"),
-          token: pushToken,
+          expotoken: expotoken,
+          fcmtoken: fcmtoken
         });
         console.log("CodeValidation: Data set:", { code: storedCode, name: hname, email: hemail });
   
@@ -442,60 +507,38 @@ const uploadDataToFirestore = async (collectionName, data) => {
     
   }, []); // Empty dependency array to run only once on mount
   
-  const handleDone = async () => {
-    console.log("CodeValidation: handleDone started");
-    console.log("Entered Code:", code2);
-    console.log("Stored Code:", code);
-    console.log("facePicture:", facePicture);
-    console.log("data object:", data);
+ const handleDone = async () => {
+  if (code2 == code) {
+    Alert.alert("Success", "Code verified! Completing registration...");
+    
+    try {
+      // let finalImageUrl = null;
 
-    if (code2 === code) {
-      console.log("CodeValidation: Code verified");
-      Alert.alert("Success", "Code verified successfully!");
-      
-      try {
-        let uploadedURL = null;
+      // 1. Try Image Upload
+      // if (facePicture) {
+      //   // finalImageUrl = await uploadImageToFirebase(facePicture, code, data.name);
+      // }
+
+      // 2. Prepare Final Data
+      // const finalData = { 
+      //   ...data, 
+      //   uri: finalImageUrl || "No Image" 
+      // };
+
+      // 3. Upload to Firestore
+      const docId = await uploadDataToFirestore("househelps", data);
+
+      if (docId) {
         
-        // Upload image if it exists
-        if (facePicture) {
-          console.log("CodeValidation: Starting image upload with verificationCode:", code, "userName:", data.name);
-          uploadedURL = await uploadImageToFirebase(facePicture, code, data.name);
-          console.log("CodeValidation: Upload result:", uploadedURL);
-          
-          if (!uploadedURL) {
-            console.log("CodeValidation: Image upload failed");
-            Alert.alert("Error", "Failed to upload image. Please try again.");
-            // return;
-          }
-        } else {
-          console.log("CodeValidation: No image provided");
-        }
-        
-        // Create final data object with URL
-        var data2 = { ...data, url: uploadedURL || null };
-        console.log("CodeValidation: data2 prepared:", data2);
-        
-        // Save to Firestore
-        console.log("CodeValidation: Saving to Firestore");
-        await uploadDataToFirestore("househelps", data2);
-        console.log("CodeValidation: Firestore save successful");
-        
-        // Save to AsyncStorage
-        await AsyncStorage.setItem("househelpdata", JSON.stringify(data2));
-        console.log("CodeValidation: AsyncStorage save successful");
-        
-        // Navigate to next screen
-        navigation.navigate("Guarantor", { data2 });
-      } catch (error) {
-        console.error("CodeValidation: Error during handleDone:", error);
-        Alert.alert("Error", "An error occurred. Please try again.");
+        navigation.navigate("Guarantor", { data2: data });
       }
-    } else {
-      console.log("CodeValidation: Invalid code");
-      Alert.alert("Error", "Invalid verification code. Please try again.");
+    } catch (error) {
+      console.log("Final submission failed:", error);
     }
-  };
-
+  } else {
+    Alert.alert("Error", "Invalid verification code.");
+  }
+};
   return (
     <ScrollView>
       <Header />

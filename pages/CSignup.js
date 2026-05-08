@@ -9,6 +9,7 @@ import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from './firebase';
+import messaging from '@react-native-firebase/messaging';
 // import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Notifications } from 'expo-notifications';
 // import { getDocs } from 'firebase/firestore';
@@ -235,12 +236,9 @@ const CSignup = ({ navigation }) => {
       }
       console.log("Validation passed");
       // Get push token in background (non-blocking)
-      registerForPushNotificationsAsync().then(pushToken => {
-        console.log("Push token obtained in background:", pushToken);
+     
         // Update the data with token if needed, but since we're saving immediately, perhaps store separately
-      }).catch(error => {
-        console.error("Push token failed:", error);
-      });
+     
       
       var verificationCode = generateVerificationCode();
       console.log("Generated verification code:", verificationCode);

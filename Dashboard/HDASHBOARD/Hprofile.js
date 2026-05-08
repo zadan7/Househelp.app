@@ -9,7 +9,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Hmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
-import { collection, getDocs } from 'firebase/firestore';
+// import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 
 const Hprofile = ({ navigation }) => {
@@ -33,7 +33,7 @@ const Hprofile = ({ navigation }) => {
 
     const fetchGuarantor = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, 'guarantors'));
+        const querySnapshot = await db.collection('guarantors').get();
         const guarantors = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -88,9 +88,11 @@ const Hprofile = ({ navigation }) => {
           <Text style={styles.info}>Address: {househelp.address}</Text>
           <Text style={styles.info}>Employment Type: {househelp.employmentType}</Text>
           <Text style={styles.info}>Years of Experience: {househelp.experience}</Text>
-          <Text style={styles.info}>
-            Selected Jobs: {JSON.parse(househelp.selectedJobs).join(', ')}
-          </Text>
+         <Text style={styles.info}>
+  Selected Jobs: {Array.isArray(househelp.selectedJobs) 
+    ? househelp.selectedJobs.join(', ') 
+    : househelp.selectedJobs}
+</Text>
           <Text style={styles.info}>
            {Guarantor ? `Guarantor Code: ${Guarantor.code}` : 'No Guarantor'}
           </Text>
