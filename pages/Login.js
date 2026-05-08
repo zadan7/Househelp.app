@@ -159,6 +159,7 @@ const handleLogin = useCallback(() => {
     console.log('--- Login Attempt ---');
     console.log('Stored Househelps:', househelps.length);
     console.log('Stored Clients:', clients.length);
+    console.log(clients);
 
     // 3. Safety Check: If data hasn't arrived yet
     if (househelps.length === 0 && clients.length === 0) {

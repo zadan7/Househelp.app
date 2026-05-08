@@ -9,11 +9,12 @@ import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from './firebase';
-import messaging from '@react-native-firebase/messaging';
+// import messaging from '@react-native-firebase/messaging';
 // import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Notifications } from 'expo-notifications';
 // import { getDocs } from 'firebase/firestore';
 import emailjs from 'emailjs-com';
+
 async function registerForPushNotificationsAsync() {
   console.log("Registering for push notifications");
   let token;
@@ -31,6 +32,16 @@ async function registerForPushNotificationsAsync() {
   console.log("Push Token:", token);
   return token;
 }
+
+ const registerForFcmToken = async () => {
+    try {
+      const authStatus = await messaging().requestPermission();
+      const enabled = authStatus === messaging.AuthorizationStatus.AUTHORIZED || authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      if (!enabled) return null;
+      return await messaging().getToken();
+    } catch (e) { return null; }
+  };
+
 const CSignup = ({ navigation }) => {
   const [firstname, setFirstName] = useState('');
   const [lastname, setLastName] = useState('');
@@ -209,10 +220,8 @@ const CSignup = ({ navigation }) => {
 
     const uploadDataToFirestore = async (collectionName, data) => {
       try {
-        await addDoc(collection(db, collectionName), {
-          ...data,
-          createdAt: serverTimestamp(),
-        });
+        await db.collection(collectionName).add(data);
+        
         console.log("Data uploaded successfully!");
       } catch (error) {
         console.error("Error uploading data to Firestore:", error);
@@ -260,8 +269,9 @@ const CSignup = ({ navigation }) => {
         apartmentsize: apartmentsize,
         password: password,
         Cpassword: Cpassword,
-        token: null, // Set to null initially, will be updated later if needed
-        createdAt: serverTimestamp(),
+        expotoken: null, 
+        fcmtoken: null, // Set to null initially, will be updated later if needed
+        
       };
       console.log("New data to save:", newData);
 
@@ -278,7 +288,7 @@ const CSignup = ({ navigation }) => {
       console.log("Data set in state");
     
       // Save to AsyncStorage AFTER state is updated
-      setTimeout(async () => {
+     
         try {
           console.log("Saving to AsyncStorage");
           await AsyncStorage.setItem('data', JSON.stringify(newData));
@@ -288,7 +298,7 @@ const CSignup = ({ navigation }) => {
         } catch (error) {
           console.error("Error saving to AsyncStorage:", error);
         }
-      }, 100); // Small delay to ensure state updates
+      // Small delay to ensure state updates
     };
     
 
@@ -385,7 +395,8 @@ function CodeValidation2({ navigation }) {
   const [code2, setCode2] = useState('');
   const [code, setCode] = useState(''); 
   const [data ,setdata]=useState({});
-  const [token ,setToken]=useState("");
+  const [expotoken ,setExpoToken]=useState("");
+  const [fcmtoken ,setFcmToken]=useState("");
   const [profilepicture, setProfilePicture] = useState('');
   const [housepicture, setHousePicture] = useState('');
   const [insidepicture, setInsidePicture] = useState('');
@@ -468,15 +479,29 @@ function CodeValidation2({ navigation }) {
 const uploadDataToFirestore = async (collectionName, data) => {
   try {
     console.log("Uploading data to Firestore collection:", collectionName);
-    await addDoc(collection(db, collectionName), {
-      ...data,
-      createdAt: serverTimestamp(),
-    });
+   db.collection(collectionName).add(data);
     console.log("Data uploaded successfully!");
   } catch (error) {
     console.error("Error uploading data to Firestore:", error);
   }
 };
+
+useEffect(() => {
+
+  const tokens = async () => {
+  let expotoken = await registerForPushNotificationsAsync().then(token => {
+    setExpoToken(token);
+    console.log("Expo token set in useEffect:", token);
+  });
+
+  let fcmtoken = await registerForFcmToken().then(token => {
+    setFcmToken(token);
+    console.log("FCM token set in useEffect:", token);
+  });
+
+}
+tokens();
+},[])
 
 
 
@@ -533,13 +558,14 @@ const uploadDataToFirestore = async (collectionName, data) => {
         facepicture: profileURL,
         frontview: houseURL,
         insideview: insideURL,
-        token: token
+        expotoken: expotoken,
+        fcmtoken:fcmtoken
       };
   
       console.log(updatedData, "inside handle done data");
   
       console.log("CodeValidation2: Saving to Firestore");
-      await uploadDataToFirestore('clients', updatedData);
+      uploadDataToFirestore('clients', updatedData);
       console.log("CodeValidation2: Data saved to Firestore");
       Alert.alert("Success", "Your account has been created successfully!");
       navigation.navigate("login"); // Replace with your next screen
