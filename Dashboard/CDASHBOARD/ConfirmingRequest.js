@@ -34,7 +34,7 @@ const RequestConfirmation = ({ navigation, route }) => {
         .filter(
           job =>
             job.clientId === clientId &&
-            (job.status === 'pending' || job.status === 'accepted')
+            (job.status === 'pending' || job.status === 'accepted' || job.isjobcompleted === false)
         );
 
       setPendingJobs(jobs);
@@ -58,7 +58,8 @@ const RequestConfirmation = ({ navigation, route }) => {
         househelpName: selectedHelper.househelpName,
         househelpId: selectedHelper.househelpId,
         househelpdata: selectedHelper.househelpdata,
-        // status: 'confirmed',
+        status: 'accepted',
+        isjobcompleted: false,
       });
 
       Alert.alert("Job Confirmed", `You selected ${selectedHelper.name}.`);

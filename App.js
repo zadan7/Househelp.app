@@ -37,6 +37,8 @@ import { CFulltimelivein, CFulltimeliveout, CFulltimeSelection } from './Dashboa
 import { Hfulltime } from './Dashboard/HDASHBOARD/Hfulltime';
 import { Hprofile } from './Dashboard/HDASHBOARD/Hprofile';
 import { HappliedJobs } from './Dashboard/HDASHBOARD/HappliedJobs';
+import { Hwallet } from './wallets/Hwallet';
+import { Cwallet } from './wallets/Cwallet';
 
 // --- APP CONFIG ---
 import { name as appName } from './app.json';
@@ -89,6 +91,8 @@ const MyStack = () => {
       <Stack.Screen name="hfulltime" component={Hfulltime} />
       <Stack.Screen name="hprofile" component={Hprofile} />
       <Stack.Screen name="happliedjobs" component={HappliedJobs} />
+      <Stack.Screen name="hwallet" component={Hwallet} />
+      <Stack.Screen name="cwallet" component={Cwallet} />
     </Stack.Navigator>
   );
 };

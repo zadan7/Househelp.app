@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Vibration, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Vibration, Pressable, RefreshControl } from 'react-native';
 // import { collection, updateDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,6 +14,7 @@ const HPartimeRequest = ({ navigation }) => {
   const [househelpId, setHousehelpId] = useState('');
   const [househelpdata, setHousehelpdata] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const fetchHousehelpName = async () => {
@@ -89,12 +90,47 @@ const HPartimeRequest = ({ navigation }) => {
     setIsLoading(false);
   }
 };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+
+
+    
+   const unsubscribe = db
+  .collection('partimeRequest')
+  .onSnapshot(snapshot => {
+    const jobs = snapshot.docs.map(doc => ({
+      id2: doc.id,
+      ...doc.data(),
+    }));
+
+    console.log('Fetched jobs on refresh:', jobs);
+    const pendingJobs = jobs.filter(job =>
+      job.status !== 'confirmed' &&
+      !(job.acceptedHelpers || []).some(
+        helper => helper.househelpId === househelpId
+      )
+    );
+
+    setJobRequests(pendingJobs);
+  });
+
+    // Since the data is updated in real-time via onSnapshot, 
+    // we simulate a refresh by briefly showing the indicator
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  };
   return (
     <View style={styles.container}>
       <Header2 />
       <Hmenu navigation={navigation} />
 
-      <ScrollView>
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <Text style={styles.header}>Available Jobs</Text>
         {jobRequests.length === 0 ? (
           <Text style={{ textAlign: 'center', marginTop: 20 }}>No job requests available.</Text>

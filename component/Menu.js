@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {CommonActions} from '@react-navigation/native';
 
 const Cmenu = ({navigation}) => {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -43,11 +44,11 @@ const Cmenu = ({navigation}) => {
           <Ionicons name="add-circle-outline" size={20} color="#fff" />
           <Text style={styles.menuText}>Make Request</Text>
         </TouchableOpacity>
-{/* 
+
         <TouchableOpacity onPress={()=>{navigation.navigate("cHousehelplist")}} style={styles.menuItem}>
           <Ionicons name="people-outline" size={20} color="#fff" />
           <Text style={styles.menuText}>Househelp List</Text>
-        </TouchableOpacity> */}
+        </TouchableOpacity>
 
         <TouchableOpacity onPress={()=>{navigation.navigate("requestconfirmation")}} style={styles.menuItem}>
           <Ionicons name="clipboard-outline" size={20} color="#fff" />
@@ -80,6 +81,17 @@ const Cmenu = ({navigation}) => {
         <TouchableOpacity onPress={()=>{
           AsyncStorage.clear().then(()=>{
             Alert.alert("Logged Out", "See you soon");
+
+              navigation.dispatch(
+                  CommonActions.reset({
+                    index: 0,
+                    routes: [{ name: 'login' }], 
+                  })
+                );
+
+
+
+
             setTimeout(()=>{navigation.navigate("login")},1000);
           });
         }} style={styles.menuItem}>
@@ -149,6 +161,15 @@ const Hmenu = ({navigation}) => {
         <TouchableOpacity onPress={()=>{
           AsyncStorage.clear().then(()=>{
             Alert.alert("Logged Out", "See you soon");
+
+
+
+            navigation.dispatch(
+                      CommonActions.reset({
+                        index: 0,
+                        routes: [{ name: 'login' }], 
+                      })
+                    );
             setTimeout(()=>{navigation.navigate("Home")},1000);
           });
         }} style={styles.menuItem}>

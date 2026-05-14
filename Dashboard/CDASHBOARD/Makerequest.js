@@ -95,6 +95,7 @@ const MakeRequest = ({ navigation }) => {
         totalCost,
         createdAt: Date.now(),
         status: 'pending',
+        isJobCompleted: false,
       };
 
       // await addDoc(collection(db, 'partimeRequest'), requestData);

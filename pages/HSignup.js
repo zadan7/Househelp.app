@@ -9,6 +9,7 @@ import { Picker } from '@react-native-picker/picker';
 import emailjs from "emailjs-com";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
+import BankPicker from '../component/Banks';
 
 
 // import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -49,7 +50,10 @@ function HSignup({ navigation }) {
   const[face,setFace]=useState("");
   const[password,setPassword]=useState("");
   const[Cpassword,setCPassword]=useState("");
-  const[downloadURL, setDownloadURL]=useState("")
+  const[downloadURL, setDownloadURL]=useState("");
+  // const [accountname , setAccountName] = useState("");
+  const [accountnumber , setAccountNumber] = useState("");
+  const [bankname , setBankName] = useState("");
 
 
   // const [idPicture, setIDPicture] = useState(null);
@@ -220,8 +224,14 @@ function HSignup({ navigation }) {
           <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail}/>
           <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} keyboardType="phone-pad" secureTextEntry />
           <TextInput style={styles.input} placeholder="Confirm Password" value={Cpassword} onChangeText={setCPassword} keyboardType="phone-pad" secureTextEntry />
+       <View style={{marginPadding:10,width:"100%"}}>
 
-
+       
+        <Text style={styles.title}>Bank Account Details for Recieving Your Payments<Text style={{color:"red",fontWeight:"bold"}}> (very crucial)</Text> </Text>
+          <TextInput style={styles.input} placeholder="Account Number" value={accountnumber} onChangeText={setAccountNumber} keyboardType="numeric" />
+          <BankPicker onBankSelect={setBankName} />
+          </View>
+          
           <TextInput style={styles.input} placeholder="Address" value={address} onChangeText={setAddress}/>
 
 
@@ -240,6 +250,8 @@ function HSignup({ navigation }) {
           <TextInput style={styles2.input} placeholder="Years of Experience" value={experience} onChangeText={setExperience} keyboardType="numeric" />
           <NigerianStateAndLGASelector onStateChange={setState} onLGAChange={setLGA} />
           <View >
+            <View>
+              </View>
             <Text style={styles2.title}>select the list of jobs that suits your preference</Text>
             {jobOptions.map((job) => (
               <Pressable key={job} onPress={() => {

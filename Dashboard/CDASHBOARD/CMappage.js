@@ -131,7 +131,7 @@ const CMappage = ({ navigation }) => {
         househelpName: selectedHelper.househelpName,
         househelpId: selectedHelper.househelpId,
         househelpdata: selectedHelper.househelpdata,
-        status: 'confirmed',
+        // status: 'confirmed',
       });
 
       await AsyncStorage.setItem('jobId', requestData.id);

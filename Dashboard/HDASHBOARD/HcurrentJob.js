@@ -12,7 +12,7 @@ import {
   Pressable,
   Linking,
 } from 'react-native';
-import { collection, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
+// import { collection, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../pages/firebase';
 
@@ -24,7 +24,7 @@ const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
 
 const HcurrentJob = ({ route, navigation }) => {
-  const jobdata = route.params.job; // Use the passed jobdata prop or set it to null
+  const jobdata = route.params?.job; // Use the passed jobdata prop or set it to null
   const [confirmedJobs, setConfirmedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [househelpId, setHousehelpId] = useState('');
@@ -49,52 +49,65 @@ const HcurrentJob = ({ route, navigation }) => {
 const hasNavigatedRef = useRef(false); // <- Prevent repeated navigation
 
 useEffect(() => {
+  // 1. Guard clause
   if (!househelpId || !jobdata?.jobid) return;
 
-  const unsubscribe = onSnapshot(collection(db, 'partimeRequest'), (snapshot) => {
-    const allJobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  // 2. Use dot notation with server-side queries
+  // This replaces your manual .filter() and .find() logic
+  const unsubscribe = db.collection('partimeRequest')
+    .where('jobid', '==', jobdata.jobid)
+    .onSnapshot((snapshot) => {
+      // If no documents found, just stop loading and exit
+      if (snapshot.empty) {
+        setLoading(false);
+        return;
+      }
 
-    const filteredJobs = allJobs.filter(job =>
-      job.status === 'confirmed' &&
-      job.househelpId === househelpId &&
-      job.jobid === jobdata.jobid
-    );
+      // Map the docs and filter for this househelp
+      const allJobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(job =>
+        job.acceptedHelpers?.some(helper => helper.househelpId === househelpId)
+      );
 
-    const inProgressJob = allJobs.find(job =>
-      job.status === 'in-progress' &&
-      job.househelpId === househelpId &&
-      job.jobid === jobdata.jobid
-    );
+      // 3. Logic for 'confirmed' jobs
+      const filteredJobs = allJobs.filter(job => job.status === 'confirmed');
+      setConfirmedJobs(filteredJobs);
 
-    setConfirmedJobs(filteredJobs);
+      if (filteredJobs.length > 0) {
+        getClientData(filteredJobs[0].clientId);
+      }
 
-    if (filteredJobs.length > 0) {
-      getClientData(filteredJobs[0].clientId);
-    }
+      // 4. Logic for 'in-progress' jobs
+      const inProgressJob = allJobs.find(job => job.status === 'in-progress');
 
-    if (inProgressJob && !hasNavigatedRef.current) {
-      hasNavigatedRef.current = true;
-      navigation.navigate('hstartjob', { job: inProgressJob });
-    }
+      if (inProgressJob && !hasNavigatedRef.current) {
+        hasNavigatedRef.current = true;
+        navigation.navigate('hstartjob', { job: inProgressJob });
+      }
 
-    setLoading(false);
-  });
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore Subscription Error: ", error);
+      setLoading(false);
+    });
 
+  // 5. Cleanup subscription on unmount
   return () => unsubscribe();
 }, [househelpId, jobdata?.jobid]);
+const getClientData = async (clientId) => {
+  try {
+    // In v8/Compat style, we chain off the db object directly
+    const docSnap = await db.collection('clients').doc(clientId).get();
 
-  const getClientData = async (clientId) => {
-    try {
-      const clientRef = doc(db, 'clients', clientId);
-      const docSnap = await getDoc(clientRef);
-      if (docSnap.exists()) {
-        setClientData(docSnap.data());
-      }
-    } catch (error) {
-      console.error("Error fetching client data:", error);
+    if (docSnap.exists) {
+      // Note: in v8, 'exists' is a property, not a function call
+      setClientData(docSnap.data());
+    } else {
+      console.log("No such client found!");
     }
-  };
-
+  } catch (error) {
+    console.error("Error fetching client data:", error);
+  }
+};
   const openImage = (uri) => {
     setModalImage(uri);
     setModalVisible(true);
@@ -106,8 +119,10 @@ useEffect(() => {
       // const jobRef = doc(db, 'partimeRequest', jobdata.jobid);
       // await updateDoc(jobRef, { status: 'in-progress' });
       // alert('Job has started!');
+      const jobRef = db.collection('partimeRequest').doc(jobdata.jobid);
+      await jobRef.update({ status: 'in-progress' });
       console.log('Job started:', jobdata);
-       navigation.navigate('hstartjob', (JSON.stringify(jobdata)));
+       navigation.navigate('hstartjob', { job: jobdata });
     } catch (error) {
       console.error("Error starting job:", error);
     }
@@ -146,7 +161,7 @@ useEffect(() => {
           <Text style={styles.noJob}>No confirmed jobs yet.</Text>
         ) : (
           confirmedJobs.map((job) => (
-            <View key={job.id2} style={styles.card}>
+            <View key={job.id} style={styles.card}>
               {clientData?.facepicture && (
                 <TouchableOpacity onPress={() => openImage(clientData.facepicture)}>
                   <Image source={{ uri: clientData.facepicture }} style={styles.avatar} />
@@ -159,12 +174,12 @@ useEffect(() => {
               <Text style={styles.detail}>📞 {job.phone}</Text>
               <Text style={styles.detail}>🏠 {job.address}</Text>
               <Text style={styles.detail}>🏢 {job.apartmentType}</Text>
-              <Text style={styles.detail}>🆔 {job.id2}</Text>
+              <Text style={styles.detail}>🆔 {job.id}</Text>
               <Text style={styles.detail}>💵 ₦{Number(job.totalCost).toLocaleString()}</Text>
               <Text style={styles.detail}>📅 {job.startDate}</Text>
 
               <Text style={styles.sectionTitle}>Chores</Text>
-              {job.chores.map((chore, index) => (
+              {job.chores?.map((chore, index) => (
                 <Text key={index} style={styles.chore}>
                   • {chore.chore} — ₦{Number(chore.price).toLocaleString()} {chore.completed ? '✅' : ''}
                 </Text>

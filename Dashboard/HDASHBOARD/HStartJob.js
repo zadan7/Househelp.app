@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert, TextInput, TouchableOpacity } from 'react-native';
-import { doc, onSnapshot } from 'firebase/firestore';
+// import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 
 import { Hmenu } from '../../component/Menu';
@@ -39,23 +39,34 @@ const HStartJob = ({ navigation, route }) => {
     fetchDocumentId();
   }, []);
   
-  useEffect(() => {
-    if (!documentId) return;
-  
-    const unsubscribe = onSnapshot(doc(db, 'partimeRequest', documentId), (docSnap) => {
-      if (docSnap.exists()) {
+ useEffect(() => {
+  if (!documentId) return;
+
+  // Use the chained dot notation style
+  const unsubscribe = db.collection('partimeRequest').doc(documentId)
+    .onSnapshot((docSnap) => {
+      if (docSnap.exists) {
+        // In dot notation, 'exists' is a property, not a function
         const data = docSnap.data();
         setJobData(data);
         setLoading(false);
-  
-        const allCompleted = data.chores.every((chore) => chore.completed);
-        setIsCompleted(allCompleted);
-      }
-    });
-  
-    return () => unsubscribe();
-  }, [documentId]);
 
+        // Check if all chores are completed
+        if (data.chores && Array.isArray(data.chores)) {
+          const allCompleted = data.chores.every((chore) => chore.completed);
+          setIsCompleted(allCompleted);
+        }
+      } else {
+        console.log("No such document found!");
+        setLoading(false);
+      }
+    }, (error) => {
+      console.error("Error listening to document:", error);
+      setLoading(false);
+    });
+
+  return () => unsubscribe();
+}, [documentId]);
   // Handle the rating stars
   const handleRating = (stars) => {
     setRating(stars);
