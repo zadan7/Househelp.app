@@ -16,8 +16,8 @@ const Arriving = ({ navigation }) => {
       try {
         const storedJobId = await AsyncStorage.getItem('jobId');
         console.log("storedJobId", storedJobId);
-        const querySnapshot = await db.collection('partimeRequest').get();
-        const confirmedJobs = querySnapshot.docs
+        const querySnapshot = await db.collection('partimeRequest').doc(storedJobId).get();
+        const confirmedJobs = [ { id: querySnapshot.id, ...querySnapshot.data() } ]
           .map(doc => ({ id: doc.id, ...doc.data() }))
           .filter(job => job.status === 'confirmed' && job.id === storedJobId);
         setJobs(confirmedJobs);
