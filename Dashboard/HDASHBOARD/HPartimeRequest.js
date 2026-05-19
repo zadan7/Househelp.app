@@ -45,7 +45,7 @@ const HPartimeRequest = ({ navigation }) => {
     }));
 
     const pendingJobs = jobs.filter(job =>
-      job.status !== 'confirmed' &&
+      job.isjobcompleted == false &&
       !(job.acceptedHelpers || []).some(
         helper => helper.househelpId === househelpId
       )
@@ -106,7 +106,7 @@ const HPartimeRequest = ({ navigation }) => {
 
     console.log('Fetched jobs on refresh:', jobs);
     const pendingJobs = jobs.filter(job =>
-      job.status !== 'confirmed' &&
+      job.isjobcompleted == false &&
       !(job.acceptedHelpers || []).some(
         helper => helper.househelpId === househelpId
       )

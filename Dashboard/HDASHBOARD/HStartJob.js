@@ -28,6 +28,7 @@ const HStartJob = ({ navigation, route }) => {
     const fetchDocumentId = async () => {
       try {
         const storedJobId = await AsyncStorage.getItem('jobId');
+        console.log("Stored Job ID fetched:", storedJobId);
         if (storedJobId) {
           setDocumentId(storedJobId);
         }

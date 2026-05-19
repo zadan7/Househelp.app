@@ -134,13 +134,12 @@ const CMappage = ({ navigation }) => {
         // status: 'confirmed',
       });
 
-      await AsyncStorage.setItem('jobId', requestData.id);
+      await AsyncStorage.setItem('jobId', requestData.id); 
       navigation.navigate('arriving', { clientId: requestData.clientId });
     } catch (error) {
       Alert.alert('Error', 'Failed to confirm selection.');
     }
   };
-
   // CRITICAL: Safety Check for Undefined Location
   if (loading || !location || !location.latitude) {
     return (

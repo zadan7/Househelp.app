@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Image } from 'react-native';
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
-
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,18 +8,28 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const Arriving = ({ navigation }) => {
   const [jobs, setJobs] = useState([]);
 
-  // Fetch jobs with status "confirmed"
   useEffect(() => {
     const fetchConfirmedJobs = async () => {
       try {
         const storedJobId = await AsyncStorage.getItem('jobId');
-        console.log("storedJobId", storedJobId);
-        const querySnapshot = await db.collection('partimeRequest').doc(storedJobId).get();
-        const confirmedJobs = [ { id: querySnapshot.id, ...querySnapshot.data() } ]
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(job => job.status === 'confirmed' && job.id === storedJobId);
-        setJobs(confirmedJobs);
-        console.log(confirmedJobs);
+        console.log("Stored Job ID fetched:", storedJobId);
+
+        if (!storedJobId) return;
+
+        const docSnapshot = await db.collection('partimeRequest').doc(storedJobId).get();
+        
+        if (docSnapshot.exists) {
+          const data = docSnapshot.data();
+          
+          if (data && (data.status === 'confirmed' || data.status === 'in-progress')) {
+            const cleanJob = { id: docSnapshot.id, ...data };
+            setJobs([cleanJob]);
+          } else {
+            setJobs([]);
+          }
+        } else {
+          setJobs([]);
+        }
       } catch (err) {
         console.error('Error fetching jobs:', err);
       }
@@ -30,54 +38,40 @@ const Arriving = ({ navigation }) => {
     fetchConfirmedJobs();
   }, []);
 
-  // Show alert before starting job
   const confirmStartJob = (jobId, job) => {
     Alert.alert(
       'Confirm Arrival',
       'Has the househelp arrived at the location?',
       [
-        {
-          text: 'No, not yet',
-          style: 'cancel',
-        },
-        {
-          text: 'Yes, the househelp has arrived',
-          onPress: () => handleStartJob(jobId, job),
-        },
+        { text: 'No, not yet', style: 'cancel' },
+        { text: 'Yes, the househelp has arrived', onPress: () => handleStartJob(jobId, job) },
       ],
       { cancelable: true }
     );
   };
 
-const handleStartJob = async (jobId, job) => {
-  try {
-    await db
-      .collection('partimeRequest')
-      .doc(jobId)
-      .update({
+  const handleStartJob = async (jobId, job) => {
+    try {
+      const updatedData = {
         status: 'in-progress',
         startedAt: new Date(),
-      });
+      };
 
-    Alert.alert("Success", "Job started successfully!");
+      await db.collection('partimeRequest').doc(jobId).update(updatedData);
+      Alert.alert("Success", "Job started successfully!");
 
-    setJobs(prev =>
-      prev.map(j =>
-        j.id === jobId ? { ...j, status: 'in-progress' } : j
-      )
-    );
+      setJobs(prev =>
+        prev.map(j => (j.id === jobId ? { ...j, ...updatedData } : j))
+      );
 
-    console.log("Job started successfully:", job);
+      const passedJobPayload = { id: jobId, ...job, ...updatedData };
+      navigation.navigate('cstartjob', { job: passedJobPayload });
 
-    await AsyncStorage.setItem('jobId', jobId);
-
-    navigation.navigate('cstartjob', { job });
-
-  } catch (err) {
-    console.error('Failed to start job:', err);
-    Alert.alert("Error", "Could not start the job. Try again.");
-  }
-};
+    } catch (err) {
+      console.error('Failed to start job:', err);
+      Alert.alert("Error", "Could not start the job. Try again.");
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -93,7 +87,7 @@ const handleStartJob = async (jobId, job) => {
           jobs.map(job => (
             <View key={job.id} style={styles.jobCard}>
               <Text style={styles.jobTitle}>Househelp: {job.househelpName}</Text>
-              <Text style={styles.jobInfo}>Job ID: {job.jobid}</Text>
+              <Text style={styles.jobInfo}>Job ID: {job.id}</Text>
               <Text style={styles.jobInfo}>Client: {job.clientName}</Text>
               <Text style={styles.jobInfo}>Client Email: {job.clientEmail}</Text>
               <Text style={styles.jobInfo}>Phone: {job.phone}</Text>
@@ -105,17 +99,14 @@ const handleStartJob = async (jobId, job) => {
 
               <Text style={styles.sectionTitle}>Chores:</Text>
               {job.chores && job.chores.map((chore, index) => (
-                <Text key={index} style={styles.choreItem}>• {chore.chore} {chore.price}</Text>
+                <Text key={index} style={styles.choreItem}>• {chore.chore} — ₦{Number(chore.price).toLocaleString()}</Text>
               ))}
 
               {job.househelpdata && (
                 <>
                   <Text style={styles.sectionTitle}>Househelp Profile:</Text>
                   {job.househelpdata.url && (
-                    <Image
-                      source={{ uri: job.househelpdata.url }}
-                      style={styles.profileImage}
-                    />
+                    <Image source={{ uri: job.househelpdata.url }} style={styles.profileImage} />
                   )}
                   <Text style={styles.jobInfo}>Email: {job.househelpdata.email}</Text>
                   <Text style={styles.jobInfo}>Phone: {job.househelpdata.phonenumber}</Text>
@@ -126,10 +117,7 @@ const handleStartJob = async (jobId, job) => {
               )}
 
               {job.status === 'confirmed' && (
-                <TouchableOpacity
-                  onPress={() => confirmStartJob(job.id, job)}
-                  style={styles.startButton}
-                >
+                <TouchableOpacity onPress={() => confirmStartJob(job.id, job)} style={styles.startButton}>
                   <Text style={styles.startButtonText}>Start Job</Text>
                 </TouchableOpacity>
               )}
@@ -145,84 +133,19 @@ const handleStartJob = async (jobId, job) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  scrollView: {
-    paddingBottom: 20,
-  },
-  header: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#343a40',
-  },
-  noJobText: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#666',
-    marginTop: 30,
-  },
-  jobCard: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
-    marginHorizontal: 15,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  jobTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#28a745',
-    marginBottom: 8,
-  },
-  jobInfo: {
-    fontSize: 16,
-    color: '#555',
-    marginBottom: 5,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 10,
-    color: '#333',
-  },
-  choreItem: {
-    fontSize: 15,
-    color: '#555',
-    marginLeft: 10,
-  },
-  startButton: {
-    backgroundColor: '#007bff',
-    padding: 12,
-    borderRadius: 6,
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  startButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  inProgress: {
-    marginTop: 10,
-    color: '#ffc107',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 10,
-    marginVertical: 10,
-  },
+  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  scrollView: { paddingBottom: 20 },
+  header: { fontSize: 26, fontWeight: 'bold', textAlign: 'center', marginVertical: 20, color: '#343a40' },
+  noJobText: { textAlign: 'center', fontSize: 16, color: '#666', marginTop: 30 },
+  jobCard: { backgroundColor: '#fff', padding: 20, borderRadius: 12, marginHorizontal: 15, marginBottom: 15, elevation: 3 },
+  jobTitle: { fontSize: 20, fontWeight: 'bold', color: '#28a745', marginBottom: 8 },
+  jobInfo: { fontSize: 16, color: '#555', marginBottom: 5 },
+  sectionTitle: { fontSize: 18, fontWeight: '600', marginTop: 10, color: '#333' },
+  choreItem: { fontSize: 15, color: '#555', marginLeft: 10 },
+  startButton: { backgroundColor: '#007bff', padding: 12, borderRadius: 6, marginTop: 10, alignItems: 'center' },
+  startButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  inProgress: { marginTop: 10, color: '#ffc107', fontWeight: '600', fontSize: 16 },
+  profileImage: { width: 100, height: 100, borderRadius: 10, marginVertical: 10 }
 });
 
 export { Arriving };

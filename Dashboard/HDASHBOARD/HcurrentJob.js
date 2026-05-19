@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,8 @@ import {
   Pressable,
   Linking,
 } from 'react-native';
-// import { collection, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../pages/firebase';
-
-import { useRef } from 'react';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 
@@ -24,13 +21,15 @@ const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
 
 const HcurrentJob = ({ route, navigation }) => {
-  const jobdata = route.params?.job; // Use the passed jobdata prop or set it to null
+  const jobdata = route.params?.job; 
   const [confirmedJobs, setConfirmedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [househelpId, setHousehelpId] = useState('');
   const [clientData, setClientData] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalImage, setModalImage] = useState(null);
+  const [JOBID, setJOBID] = useState("");
+  const hasNavigatedRef = useRef(false);
 
   useEffect(() => {
     const fetchHousehelp = async () => {
@@ -43,108 +42,106 @@ const HcurrentJob = ({ route, navigation }) => {
     fetchHousehelp();
   }, []);
 
+  useEffect(() => {
+    const targetJobId = jobdata?.id || jobdata?.jobid;
+    if (!househelpId || !targetJobId) return;
 
+    // Direct document target configuration prevents blank structural query drops
+    const unsubscribe = db.collection('partimeRequest')
+      .doc(targetJobId)
+      .onSnapshot((docSnap) => {
+        if (!docSnap.exists) {
+          setLoading(false);
+          return;
+        }
 
+        const jobDetails = { id: docSnap.id, ...docSnap.data() };
+        setJOBID(docSnap.id); // Store the job ID for later use
 
-const hasNavigatedRef = useRef(false); // <- Prevent repeated navigation
+        // Verify that this specific househelp is linked to the transaction
+        const isAssigned = jobDetails.acceptedHelpers?.some(
+          helper => helper.househelpId === househelpId
+        );
 
-useEffect(() => {
-  // 1. Guard clause
-  if (!househelpId || !jobdata?.jobid) return;
+        if (!isAssigned) {
+          setConfirmedJobs([]);
+          setLoading(false);
+          return;
+        }
 
-  // 2. Use dot notation with server-side queries
-  // This replaces your manual .filter() and .find() logic
-  const unsubscribe = db.collection('partimeRequest')
-    .where('jobid', '==', jobdata.jobid)
-    .onSnapshot((snapshot) => {
-      // If no documents found, just stop loading and exit
-      if (snapshot.empty) {
+        // Handle Active Confirmation Tracking
+        if (jobDetails.status === 'confirmed') {
+          setConfirmedJobs([jobDetails]);
+          if (jobDetails.clientId) {
+            getClientData(jobDetails.clientId);
+          }
+        } else if (jobDetails.status === 'in-progress') {
+          setConfirmedJobs([jobDetails]);
+          if (jobDetails.clientId) {
+            getClientData(jobDetails.clientId);
+          }
+
+          if (!hasNavigatedRef.current) {
+            hasNavigatedRef.current = true;
+            navigation.navigate('hstartjob', { job: jobDetails });
+          }
+        } else {
+          setConfirmedJobs([]);
+        }
+
         setLoading(false);
-        return;
+      }, (error) => {
+        console.error("Firestore Document Sync Error: ", error);
+        setLoading(false);
+      });
+
+    return () => unsubscribe();
+  }, [househelpId, jobdata]);
+
+  const getClientData = async (clientId) => {
+    try {
+      const docSnap = await db.collection('clients').doc(clientId).get();
+      if (docSnap.exists) {
+        setClientData(docSnap.data());
       }
-
-      // Map the docs and filter for this househelp
-      const allJobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(job =>
-        job.acceptedHelpers?.some(helper => helper.househelpId === househelpId)
-      );
-
-      // 3. Logic for 'confirmed' jobs
-      const filteredJobs = allJobs.filter(job => job.status === 'confirmed');
-      setConfirmedJobs(filteredJobs);
-
-      if (filteredJobs.length > 0) {
-        getClientData(filteredJobs[0].clientId);
-      }
-
-      // 4. Logic for 'in-progress' jobs
-      const inProgressJob = allJobs.find(job => job.status === 'in-progress');
-
-      if (inProgressJob && !hasNavigatedRef.current) {
-        hasNavigatedRef.current = true;
-        navigation.navigate('hstartjob', { job: inProgressJob });
-      }
-
-      setLoading(false);
-    }, (error) => {
-      console.error("Firestore Subscription Error: ", error);
-      setLoading(false);
-    });
-
-  // 5. Cleanup subscription on unmount
-  return () => unsubscribe();
-}, [househelpId, jobdata?.jobid]);
-const getClientData = async (clientId) => {
-  try {
-    // In v8/Compat style, we chain off the db object directly
-    const docSnap = await db.collection('clients').doc(clientId).get();
-
-    if (docSnap.exists) {
-      // Note: in v8, 'exists' is a property, not a function call
-      setClientData(docSnap.data());
-    } else {
-      console.log("No such client found!");
+    } catch (error) {
+      console.error("Error fetching client data:", error);
     }
-  } catch (error) {
-    console.error("Error fetching client data:", error);
-  }
-};
+  };
+
   const openImage = (uri) => {
     setModalImage(uri);
     setModalVisible(true);
   };
 
   const startJob = async () => {
+    const targetJobId = jobdata?.id || jobdata?.jobid;
+
+    console.log("Attempting to start job with ID:", targetJobId);
+    if (!targetJobId) return;
+
     try {
-      // Update job status to 'in-progress' or any other relevant action
-      // const jobRef = doc(db, 'partimeRequest', jobdata.jobid);
-      // await updateDoc(jobRef, { status: 'in-progress' });
-      // alert('Job has started!');
-      const jobRef = db.collection('partimeRequest').doc(jobdata.jobid);
+      const jobRef = db.collection('partimeRequest').doc(targetJobId);
       await jobRef.update({ status: 'in-progress' });
-      console.log('Job started:', jobdata);
-       navigation.navigate('hstartjob', { job: jobdata });
+      navigation.navigate('hstartjob', { job: jobdata });
     } catch (error) {
       console.error("Error starting job:", error);
     }
   };
 
   const callClient = () => {
-    if (clientData?.phone) {
-      Linking.openURL(`tel:${clientData.phone}`);
-    }
+    if (clientData?.phone) Linking.openURL(`tel:${clientData.phone}`);
   };
 
   const messageClient = () => {
-    if (clientData?.phone) {
-      Linking.openURL(`sms:${clientData.phone}`);
-    }
+    if (clientData?.phone) Linking.openURL(`sms:${clientData.phone}`);
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#4CAF50" />
-        <Text>Loading confirmed jobs...</Text>
+        <Text style={{ marginTop: 10, color: '#666' }}>Loading confirmed jobs...</Text>
       </View>
     );
   }
@@ -168,7 +165,9 @@ const getClientData = async (clientId) => {
                 </TouchableOpacity>
               )}
 
-              <View style={styles.badge}><Text style={styles.badgeText}>CONFIRMED</Text></View>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{job.status.toUpperCase()}</Text>
+              </View>
 
               <Text style={styles.clientName}>{job.clientName}</Text>
               <Text style={styles.detail}>📞 {job.phone}</Text>
@@ -191,7 +190,8 @@ const getClientData = async (clientId) => {
                   <Text style={styles.detail}>✉️ {clientData.email}</Text>
                 </>
               )}
-               <View style={styles.buttonContainer}>
+
+              <View style={styles.buttonContainer}>
                 <TouchableOpacity style={styles.clientButton} onPress={callClient}>
                   <Text style={styles.clientButtonText}>Call Client</Text>
                 </TouchableOpacity>
@@ -215,19 +215,16 @@ const getClientData = async (clientId) => {
                 )}
               </View>
 
-              {/* Start Job Button */}
-              <TouchableOpacity style={styles.startJobButton} onPress={startJob}>
-                <Text style={styles.startJobButtonText}>Start Job</Text>
-              </TouchableOpacity>
-
-              {/* Call and Message Buttons */}
-             
+              {job.status === 'confirmed' && (
+                <TouchableOpacity style={styles.startJobButton} onPress={startJob}>
+                  <Text style={styles.startJobButtonText}>Start Job</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))
         )}
       </ScrollView>
 
-      {/* Modal for full image view */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalImageWrapper} onPress={() => setModalVisible(false)}>
@@ -241,151 +238,28 @@ const getClientData = async (clientId) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f2f4f7' },
-  title: {
-    fontSize: 22,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#333',
-  },
-  noJob: {
-    textAlign: 'center',
-    fontSize: 16,
-    marginTop: 30,
-    color: '#777',
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 60,
-    alignSelf: 'center',
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: '#4CAF50',
-  },
-  badge: {
-    // alignSelf: 'flex-end',
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-    marginBottom: 8,
-    alignSelf: 'center',
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  clientName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
-    color: '#333',
-  },
-  detail: {
-    fontSize: 16,
-    color: '#555',
-    marginBottom: 4,
-  },
-  sectionTitle: {
-    marginTop: 16,
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#4CAF50',
-  },
-  chore: {
-    fontSize: 15,
-    color: '#444',
-    marginLeft: 10,
-    marginBottom: 2,
-  },
-  imageGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    marginTop: 15,
-  },
-  extraImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    borderColor: '#ddd',
-    borderWidth: 1,
-  },
-  imageName: {
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 5,
-    color: '#333',
-  },
-  startJobButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-    marginTop: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  startJobButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
-  clientButton: {
-    backgroundColor: '#007BFF',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-    width: '48%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clientButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalImageWrapper: {
-    width: screenWidth * 0.8,
-    height: screenHeight * 0.8,
-  },
-  modalImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 10,
-    resizeMode: 'contain',
-  },
+  title: { fontSize: 22, fontWeight: '600', textAlign: 'center', marginVertical: 20, color: '#333' },
+  noJob: { textAlign: 'center', fontSize: 16, marginTop: 30, color: '#777' },
+  card: { backgroundColor: '#fff', borderRadius: 16, marginHorizontal: 20, marginBottom: 20, padding: 20, elevation: 4 },
+  avatar: { width: 100, height: 100, borderRadius: 60, alignSelf: 'center', marginBottom: 12, borderWidth: 2, borderColor: '#4CAF50' },
+  badge: { backgroundColor: '#4CAF50', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, marginBottom: 8, alignSelf: 'center' },
+  badgeText: { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  clientName: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 10, color: '#333' },
+  detail: { fontSize: 16, color: '#555', marginBottom: 4 },
+  sectionTitle: { marginTop: 16, fontSize: 17, fontWeight: '600', color: '#4CAF50' },
+  chore: { fontSize: 15, color: '#444', marginLeft: 10, marginBottom: 2 },
+  imageGrid: { flexDirection: 'row', justifyContent: 'space-evenly', marginTop: 15 },
+  extraImage: { width: 100, height: 100, borderRadius: 12, borderColor: '#ddd', borderWidth: 1 },
+  imageName: { fontSize: 12, textAlign: 'center', marginTop: 5, color: '#333' },
+  startJobButton: { backgroundColor: '#4CAF50', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 30, marginTop: 20, alignItems: 'center', justifyContent: 'center' },
+  startJobButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  buttonContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
+  clientButton: { backgroundColor: '#007BFF', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 30, width: '48%', alignItems: 'center', justifyContent: 'center' },
+  clientButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' },
+  modalImageWrapper: { width: screenWidth * 0.8, height: screenHeight * 0.8 },
+  modalImage: { width: '100%', height: '100%', borderRadius: 10, resizeMode: 'contain' },
 });
 
 export { HcurrentJob };

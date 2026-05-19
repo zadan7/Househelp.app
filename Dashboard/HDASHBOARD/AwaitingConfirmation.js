@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'; // Added useRef
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, Vibration } from 'react-native';
 import { db } from '../../pages/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -6,9 +6,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const AwaitingConfirmationScreen = ({ route, navigation }) => {
   const { jobId } = route.params;
   const [status, setStatus] = useState('');
-  
-  // Use a Ref instead of State to track navigation
-  // This prevents the useEffect from restarting when the value changes
   const hasNavigatedRef = useRef(false);
 
   useEffect(() => {
@@ -22,22 +19,19 @@ const AwaitingConfirmationScreen = ({ route, navigation }) => {
 
         if (docSnap.exists) {
           const jobData = docSnap.data();
-          setStatus(jobData.status);
+          const currentStatus = jobData?.status || '';
+          setStatus(currentStatus);
 
-          // Check the ref value
-          if (jobData.status === 'confirmed' && !hasNavigatedRef.current) {
-            // Set it to true immediately to block other snapshots
+          if (currentStatus === 'confirmed' && !hasNavigatedRef.current) {
             hasNavigatedRef.current = true;
-            
             Vibration.vibrate(1000);
 
             try {
-              await AsyncStorage.setItem('jobdata', JSON.stringify(jobData));
+              const fullJobPayload = { id: docSnap.id, ...jobData };
+              await AsyncStorage.setItem('jobdata', JSON.stringify(fullJobPayload));
               await AsyncStorage.setItem('jobId', jobId);
 
-              // Use replace instead of navigate if you don't want them 
-              // to be able to go back to the loading screen
-              navigation.replace('hcurrentjob', { job: jobData });
+              navigation.replace('hcurrentjob', { job: fullJobPayload });
             } catch (error) {
               console.error("Storage error:", error);
             }
@@ -48,7 +42,7 @@ const AwaitingConfirmationScreen = ({ route, navigation }) => {
       });
 
     return () => unsubscribe(); 
-  }, [jobId]); // Removed hasNavigated from dependencies
+  }, [jobId]);
 
   return (
     <View style={styles.container}>
@@ -59,11 +53,10 @@ const AwaitingConfirmationScreen = ({ route, navigation }) => {
   );
 };
 
-
-
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
   text: { marginTop: 20, fontSize: 18, color: '#555' },
+  statusSubText: { marginTop: 10, fontSize: 14, color: '#888', fontWeight: '600' }
 });
 
 export { AwaitingConfirmationScreen };

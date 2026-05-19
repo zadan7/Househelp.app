@@ -99,6 +99,7 @@ const CStartJob = ({ navigation, route }) => {
     // code to update the job status in Firestore
     const jobRef = doc(db, 'partimeRequest', documentId);
     updateDoc(jobRef, {
+      isjobcompleted: true,
       status: 'completed',
       rating: rating,
       comment: comment,
