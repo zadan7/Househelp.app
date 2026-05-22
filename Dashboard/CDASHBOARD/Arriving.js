@@ -5,7 +5,8 @@ import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const Arriving = ({ navigation }) => {
+const Arriving = ({ navigation ,route}) => {
+ const {jobId}= route.params
   const [jobs, setJobs] = useState([]);
 
   useEffect(() => {
@@ -17,6 +18,7 @@ const Arriving = ({ navigation }) => {
         if (!storedJobId) return;
 
         const docSnapshot = await db.collection('partimeRequest').doc(storedJobId).get();
+        console.log("Fetched job document:", docSnapshot.id, docSnapshot.data());
         
         if (docSnapshot.exists) {
           const data = docSnapshot.data();
@@ -148,4 +150,4 @@ const styles = StyleSheet.create({
   profileImage: { width: 100, height: 100, borderRadius: 10, marginVertical: 10 }
 });
 
-export { Arriving };
+export { Arriving }; 

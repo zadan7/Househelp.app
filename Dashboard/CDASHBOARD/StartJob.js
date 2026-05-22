@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
+// import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
@@ -42,24 +42,35 @@ const CStartJob = ({ navigation, route }) => {
     fetchDocumentId();
   }, []);
 
-  useEffect(() => {
-    if (!documentId) return;
-    console.log("documentId", documentId)
+useEffect(() => {
+  if (!documentId) return;
+  console.log("documentId", documentId);
 
-    const unsubscribe = onSnapshot(doc(db, 'partimeRequest', documentId), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        // setJobData(data);
-        setLoading(false);
+  // Uses dot-notation: .collection().doc().onSnapshot()
+  const unsubscribe = db
+    .collection('partimeRequest')
+    .doc(documentId)
+    .onSnapshot(
+      (docSnap) => {
+        // Crucial change: .exists is a property here, NOT a function ()
+        if (docSnap.exists) { 
+          const data = docSnap.data();
+          setJobData(data);
+          setLoading(false);
 
-        const allCompleted = data.chores.every((chore) => chore.completed);
-        setIsCompleted(allCompleted);
+          if (data && data.chores) {
+            const allCompleted = data.chores.every((chore) => chore.completed);
+            setIsCompleted(allCompleted);
+          }
+        }
+      },
+      (error) => {
+        console.error("Error listening to document changes:", error);
       }
-    });
+    );
 
-    return () => unsubscribe();
-  }, [documentId]);
-
+  return () => unsubscribe();
+}, [documentId]);
   const toggleChore = async (index) => {
     if (!jobData || !documentId) return;
 
@@ -73,7 +84,8 @@ const CStartJob = ({ navigation, route }) => {
     updatedChores[index].completed = true;
 
     try {
-      await updateDoc(doc(db, 'partimeRequest', documentId), {
+
+      await db.collection('partimeRequest').doc(documentId).update({
         chores: updatedChores,
       });
 

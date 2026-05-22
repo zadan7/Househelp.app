@@ -127,15 +127,25 @@ const CMappage = ({ navigation }) => {
     if (!selectedHelper || !requestData) return;
 
     try {
+
+     await AsyncStorage.setItem(jobId, JSON.stringify(requestData.id));
+
       await db.collection('partimeRequest').doc(requestData.id).update({
         househelpName: selectedHelper.househelpName,
         househelpId: selectedHelper.househelpId,
         househelpdata: selectedHelper.househelpdata,
-        // status: 'confirmed',
+        status: 'confirmed',
+
       });
 
+      console.log("Job confirmed with helper:", selectedHelper.househelpName);
+
       await AsyncStorage.setItem('jobId', requestData.id); 
-      navigation.navigate('arriving', { clientId: requestData.clientId });
+      console.log(requestData.id);
+     navigation.navigate('arriving', { 
+        clientId: requestData.clientId, 
+        jobId: requestData.id 
+      });
     } catch (error) {
       Alert.alert('Error', 'Failed to confirm selection.');
     }
