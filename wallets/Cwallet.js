@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Alert } from 'react-native';
-import { WebView } from 'react-native-webview'; // Lightweight web visualizer
+import { WebView } from 'react-native-webview';
 import { db } from '../pages/firebase';
 import { Cmenu } from '../component/Menu';
 import { Header2 } from '../component/Header';
@@ -12,8 +12,8 @@ const Cwallet = ({ navigation }) => {
   const [transactions, setTransactions] = useState([]);
   const [clientId, setClientId] = useState(null);
 
-  // Modal Control States
-  const [activeModal, setActiveModal] = useState(null); // 'fund' | 'withdraw' | 'send' | null
+  // Modal Controls
+  const [activeModal, setActiveModal] = useState(null);
   const [amount, setAmount] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [bankCode, setBankCode] = useState('');
@@ -25,16 +25,15 @@ const Cwallet = ({ navigation }) => {
   const [showWebView, setShowWebView] = useState(false);
   const [currentTxRef, setCurrentTxRef] = useState('');
 
-  // API Config (Using Sandbox Environment)
-  const MONNIFY_BASE_URL = "https://sandbox.monnify.com";
-  const monnifyApiKey = "MK_TEST_TJDXJAS0YD";
-  const monnifyContractCode = "5732437028";
-  const monnifySecretKey = "JWBN0NAKE8TM537U891LLUX5R45PR33W";
+  // POINT THIS TO YOUR RESTRUCTURING BACKEND ADDRESS
+const BACKEND_API_URL = "https://househelp-app-h28t.vercel.app";
 
   useEffect(() => {
     const initializeWallet = async () => {
       try {
-        const storedClientId = await AsyncStorage.getItem('userId');
+        const storedClient = await AsyncStorage.getItem('clientdata');
+       const storedClientId = JSON.parse(storedClient)?.id;
+        console.log("Stored Client ID fetched:", storedClientId);
         if (!storedClientId) {
           Alert.alert("Error", "User session not found. Please re-login.");
           setLoading(false);
@@ -42,7 +41,7 @@ const Cwallet = ({ navigation }) => {
         }
         setClientId(storedClientId);
 
-        // Real-time wallet balance listener (Dot Notation Syntax)
+        // Real-time wallet balance listener
         db.collection('wallets').doc(storedClientId).onSnapshot((docSnap) => {
           if (docSnap.exists) {
             setBalance(docSnap.data().balance || 0);
@@ -52,7 +51,7 @@ const Cwallet = ({ navigation }) => {
           }
         });
 
-        // Real-time transaction history log listener (Dot Notation Syntax)
+        // Real-time transaction records listener
         db.collection('transactions')
           .where('userId', '==', storedClientId)
           .onSnapshot((querySnapshot) => {
@@ -77,24 +76,7 @@ const Cwallet = ({ navigation }) => {
     initializeWallet();
   }, []);
 
-  // --- HELPER: GENERATE ACCESS TOKEN VIA BASIC AUTH ---
-  const getMonnifyAccessToken = async () => {
-    const base64Credentials = btoa(`${monnifyApiKey}:${monnifySecretKey}`);
-    const response = await fetch(`${MONNIFY_BASE_URL}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${base64Credentials}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    const data = await response.json();
-    if (data.requestSuccessful && data.responseBody) {
-      return data.responseBody.accessToken;
-    }
-    throw new Error(data.responseMessage || "Authentication failed");
-  };
-
-  // --- FEATURE 1: ADD MONEY VIA WEB API ---
+  // --- CONNECTS TO SERVER TO INITIALIZE TRANSACTION ---
   const handleAddMoney = async () => {
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) {
@@ -106,59 +88,43 @@ const Cwallet = ({ navigation }) => {
     setProcessing(true);
 
     try {
-      const token = await getMonnifyAccessToken();
-      const txRef = `FUND-${clientId}-${Date.now()}`;
-      setCurrentTxRef(txRef);
-
-      // Initialize Transaction Web API Request
-      const response = await fetch(`${MONNIFY_BASE_URL}/api/v1/merchant/transactions/init-transaction`, {
+      const response = await fetch(`${BACKEND_API_URL}/api/payments/init`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: parsedAmount,
-          customerName: "Househelp Client",
-          customerEmail: "client@househelp.ng",
-          paymentReference: txRef,
-          paymentDescription: "Funding Househelp Digital Wallet",
-          currencyCode: "NGN",
-          contractCode: monnifyContractCode,
-          redirectUrl: "https://localhost/completed" // Fallback catch redirect handle
+          clientId: clientId,
+          customerEmail: "client@househelp.ng"
         })
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
-      if (data.requestSuccessful && data.responseBody?.redirectUrl) {
-        setCheckoutUrl(data.responseBody.redirectUrl);
+      if (result.success && result.redirectUrl) {
+        setCurrentTxRef(result.txRef);
+        setCheckoutUrl(result.redirectUrl);
         setShowWebView(true);
       } else {
-        Alert.alert("Error", data.responseMessage || "Failed to initialize payment gateway.");
+        Alert.alert("Error", "Could not verify connection config context parameters.");
       }
     } catch (error) {
-      Alert.alert("Gateway Error", error.message || "Failed to reach processing networks.");
+      Alert.alert("Gateway Error", "Failed to reach backend routing service.");
     } finally {
       setProcessing(false);
     }
   };
 
-  // --- HELPER: VERIFY TRANSACTION STATUS ---
+  // --- CONNECTS TO SERVER TO VERIFY STATUS ---
   const verifyWebPayment = async (txRef) => {
     setLoading(true);
     try {
-      const token = await getMonnifyAccessToken();
-      const response = await fetch(`${MONNIFY_BASE_URL}/api/v1/merchant/transactions/query?paymentReference=${txRef}`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch(`${BACKEND_API_URL}/api/payments/verify/${txRef}`);
+      const result = await response.json();
 
-      const data = await response.json();
-      if (data.requestSuccessful && data.responseBody?.paymentStatus === 'PAID') {
-        const exactAmount = data.responseBody.amount;
+      if (result.success && result.data?.paymentStatus === 'PAID') {
+        const exactAmount = result.data.amount;
 
-        // Atomically update ledger states (Dot Notation Syntax)
+        // Atomically update ledger metrics values locally (Dot Notation Syntax)
         await db.collection('wallets').doc(clientId).update({
           balance: balance + exactAmount
         });
@@ -174,19 +140,17 @@ const Cwallet = ({ navigation }) => {
 
         Alert.alert("Success", `₦${exactAmount.toLocaleString()} credited successfully.`);
       } else {
-        Alert.alert("Payment Pending/Failed", "We could not verify this payment. If debited, contact support.");
+        Alert.alert("Payment Verification Pending", "We could not verify this transaction status.");
       }
     } catch (error) {
-      Alert.alert("Verification Error", "Could not reach confirmation nodes.");
+      Alert.alert("Verification Error", "Could not establish server validation handshakes.");
     } finally {
       setAmount('');
       setLoading(false);
     }
   };
 
-  // --- WEBVIEW NAVIGATION MONITOR ---
   const handleWebViewStateChange = (navState) => {
-    // Monitor redirection or terminal states to verify against database ledger securely
     if (navState.url.includes('/completed') || navState.url.includes('monnify.com/respond')) {
       setShowWebView(false);
       setCheckoutUrl(null);

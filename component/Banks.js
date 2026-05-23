@@ -18,7 +18,7 @@ const BankPicker = ({ onBankSelect }) => {
         headers: {
           Authorization: `Bearer FLWSECK_TEST-450e87bd5ed43bc7de04ad17f8c42cd3-X`, // Use your Secret Key here
         },
-      });
+      }); 
       const json = await response.json();
       if (json.status === 'success') {
         // Sort banks alphabetically by name
