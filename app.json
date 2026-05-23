@@ -12,6 +12,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+   
     "ios": {
       "bundleIdentifier": "com.househelpapp",
       "supportsTablet": true,
@@ -62,6 +63,9 @@
     
     ],
     "extra": {
+      "monnifyApiKey": "MK_TEST_TJDXJAS0YD",
+      "monnifyContractCode": "5732437028",
+      "monnifySecretKey": "JWBN0NAKE8TM537U891LLUX5R45PR33W",
       "eas": {
         "projectId": "c70029a4-00df-4498-8268-457bce765bf4"
       }

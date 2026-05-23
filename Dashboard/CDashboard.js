@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Header2 } from '../component/Header';
 import { Cmenu } from '../component/Menu';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { db } from '../pages/firebase';
 
 const menuItems = [
   { title: 'Profile', icon: 'person-circle-outline', screen: 'cprofile' },
@@ -16,7 +17,7 @@ const menuItems = [
   { title: 'Favorites', icon: 'heart-outline', screen: 'FavoriteHelpers' },
   { title: 'Refer & Earn', icon: 'gift-outline', screen: 'referandearn' },
   { title: 'Settings', icon: 'settings-outline', screen: 'csettings' },
-  { title: 'Balances', icon: 'wallet-outline', screen: 'ClientBalances' },
+  { title: 'Balances', icon: 'wallet-outline', screen: 'cwallet' },
   { title: 'Arriving', icon: 'car-outline', screen: 'arriving' },
   { title: 'Help Center', icon: 'help-circle-outline', screen: 'ClientSupport' },
 ];
@@ -31,6 +32,22 @@ const getTimeGreeting = () => {
 const ClientDashboard = ({ navigation }) => {
   const [userData, setUserData] = useState();
   const scaleAnim = new Animated.Value(1);
+
+
+
+  // useEffect(() => {
+  //   const fetchPassedJob = async () => {
+  //     try {
+  //       await AsyncStorage.setItem('jobId', 'DaBzErRCR76yWcr5vTdf');
+  //       const passedJobPayload = await db.collection('partimeRequest').doc("DaBzErRCR76yWcr5vTdf").get();
+  //       navigation.navigate('cstartjob', { job: passedJobPayload });
+  //     } catch (error) {
+  //       console.error('Error fetching passed job:', error);
+  //     }
+  //   };
+
+  //   fetchPassedJob();
+  // }, []);
 
   useEffect(() => {
     const fetchUserData = async () => {

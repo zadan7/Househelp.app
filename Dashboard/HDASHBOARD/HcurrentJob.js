@@ -122,7 +122,7 @@ const HcurrentJob = ({ route, navigation }) => {
 
     try {
       const jobRef = db.collection('partimeRequest').doc(targetJobId);
-      await jobRef.update({ status: 'in-progress' });
+      // await jobRef.update({ status: 'in-progress' });
       navigation.navigate('hstartjob', { job: jobdata });
     } catch (error) {
       console.error("Error starting job:", error);

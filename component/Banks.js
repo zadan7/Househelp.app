@@ -16,7 +16,7 @@ const BankPicker = ({ onBankSelect }) => {
       // Flutterwave API to get Nigerian banks
       const response = await fetch('https://api.flutterwave.com/v3/banks/NG', {
         headers: {
-          Authorization: `Bearer ${process.env.flutterwave_public_key}`, // Use your Secret Key here
+          Authorization: `Bearer FLWSECK_TEST-450e87bd5ed43bc7de04ad17f8c42cd3-X`, // Use your Secret Key here
         },
       });
       const json = await response.json();

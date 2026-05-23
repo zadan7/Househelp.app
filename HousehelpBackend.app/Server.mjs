@@ -1,12 +1,12 @@
 import admin from 'firebase-admin';
 import express from 'express';
-import cors from 'cors'; // <--- 1. Add this (run npm install cors)
+import cors from 'cors';
+import axios from 'axios'; // For server-to-server HTTP calls
 
 const app = express();
 
-// 2. Add CORS middleware - This is why your app gets 404/405 but curl works
 app.use(cors()); 
-app.use(express.json()); // Built-in alternative to bodyParser
+app.use(express.json());
 
 // Initialize the Admin SDK
 if (!admin.apps.length) {
@@ -19,7 +19,79 @@ if (!admin.apps.length) {
   });
 }
 
-// Simple in-memory storage (Note: This resets every time Vercel goes idle)
+// Monnify Configuration Credentials (Move these to your Vercel Environment Variables in production!)
+const MONNIFY_BASE_URL = "https://sandbox.monnify.com";
+const MONNIFY_API_KEY = process.env.MONNIFY_API_KEY || "MK_TEST_TJDXJAS0YD";
+const MONNIFY_SECRET_KEY = process.env.MONNIFY_SECRET_KEY || "JWBN0NAKE8TM537U891LLUX5R45PR33W";
+const MONNIFY_CONTRACT_CODE = process.env.MONNIFY_CONTRACT_CODE || "5732437028";
+
+// --- HELPER: MONNIFY AUTHENTICATION HANDSHAKE ---
+async function getMonnifyAccessToken() {
+  const tokenCredentials = Buffer.from(`${MONNIFY_API_KEY}:${MONNIFY_SECRET_KEY}`).toString('base64');
+  const response = await axios.post(`${MONNIFY_BASE_URL}/api/v1/auth/login`, {}, {
+    headers: { 'Authorization': `Basic ${tokenCredentials}` }
+  });
+  return response.data.responseBody.accessToken;
+}
+
+// --- ENDPOINT: INITIALIZE MONNIFY TRANSACTION ---
+app.post('/api/payments/init', async (req, res) => {
+  try {
+    const { amount, clientId, customerEmail } = req.body;
+    
+    if (!amount || !clientId) {
+      return res.status(400).json({ success: false, message: 'amount and clientId are required.' });
+    }
+
+    const token = await getMonnifyAccessToken();
+    const txRef = `FUND-${clientId}-${Date.now()}`;
+
+    const response = await axios.post(`${MONNIFY_BASE_URL}/api/v1/merchant/transactions/init-transaction`, {
+      amount: parseFloat(amount),
+      customerName: "Househelp Client",
+      customerEmail: customerEmail || "client@househelp.ng",
+      paymentReference: txRef,
+      paymentDescription: "Funding Househelp Digital Wallet",
+      currencyCode: "NGN",
+      contractCode: MONNIFY_CONTRACT_CODE,
+      redirectUrl: "https://localhost/completed"
+    }, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    res.status(200).json({ 
+      success: true, 
+      txRef, 
+      redirectUrl: response.data.responseBody.redirectUrl 
+    });
+  } catch (error) {
+    console.error("Monnify init error:", error.response?.data || error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- ENDPOINT: VERIFY MONNIFY TRANSACTION TRANSACTION ---
+app.get('/api/payments/verify/:txRef', async (req, res) => {
+  try {
+    const { txRef } = req.params;
+    const token = await getMonnifyAccessToken();
+
+    const response = await axios.get(`${MONNIFY_BASE_URL}/api/v1/merchant/transactions/query?paymentReference=${txRef}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    res.status(200).json({ 
+      success: true, 
+      data: response.data.responseBody 
+    });
+  } catch (error) {
+    console.error("Monnify verify error:", error.response?.data || error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+
+// --- NOTIFICATION UTILITIES ---
 const fcmTokens = {}; 
 
 app.post('/registerFCMToken', (req, res) => {
@@ -31,9 +103,7 @@ app.post('/registerFCMToken', (req, res) => {
   res.status(200).json({ message: 'FCM Token registered successfully.' });
 });
 
-// Main Notification Route
 app.post('/sendNotificationToUser', async (req, res) => {
-  // Destructure exactly what your React Native app is sending
   const { userId, title, body, token } = req.body;
   const targetFCMToken = token; 
 
@@ -67,5 +137,4 @@ async function sendTestNotification(targetFCMToken, title, body, userId) {
   }
 }
 
-// VERY IMPORTANT FOR VERCEL
 export default app;
