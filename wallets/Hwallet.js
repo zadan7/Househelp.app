@@ -11,6 +11,7 @@ const Hwallet = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState([]);
   const [providerId, setProviderId] = useState(null);
+  const [help, setHelp] = useState({});
 
   // Operational Control States
   const [withdrawModal, setWithdrawModal] = useState(false);
@@ -22,7 +23,10 @@ const Hwallet = ({ navigation }) => {
   useEffect(() => {
     const initializeProviderWallet = async () => {
       try {
-        const storedProviderId = await AsyncStorage.getItem('userId');
+        const user = await AsyncStorage.getItem('househelpdata');
+        const storedProviderId = JSON.parse(user).id;
+        setHelp(JSON.parse(user));
+        console.log(JSON.parse(user).id, JSON.parse(user));
         if (!storedProviderId) {
           Alert.alert("Error", "Provider session expired. Please log in again.");
           setLoading(false);
@@ -73,6 +77,22 @@ const Hwallet = ({ navigation }) => {
 
     initializeProviderWallet();
   }, []);
+useEffect(() => {
+    const fetchHelpData = async () => {
+      try {
+        const storedHelp = await AsyncStorage.getItem('househelpdata');
+        if (storedHelp) {
+          setHelp(JSON.parse(storedHelp));
+        }
+
+      } catch (error) {
+        console.error("Error fetching househelp data:", error);
+      }
+    }
+  fetchHelpData();
+  }, []
+    );
+
 
   // --- WITHDRAW EARNINGS HANDLER ---
   const handleWithdrawalRequest = async () => {
@@ -145,6 +165,7 @@ const Hwallet = ({ navigation }) => {
         <View style={styles.dashboardContainer}>
           <View style={styles.mainBalanceCard}>
             <Text style={styles.balanceLabel}>AVAILABLE FOR WITHDRAWAL</Text>
+            <Text style={styles.balanceAmount}>{help?.name + " "}</Text>
             <Text style={styles.balanceAmount}>₦{balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
           </View>
           

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, Pressable, ActivityIndicator
 } from 'react-native';
-import { collection, getDocs } from 'firebase/firestore';
+// import { collection, getDocs } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { db } from '../../pages/firebase';
@@ -22,7 +22,7 @@ const CcompletedJobs = ({ navigation }) => {
         const parsedClient = JSON.parse(clientData);
         const clientId = parsedClient?.id;
 
-        const snapshot = await getDocs(collection(db, 'partimeRequest'));
+        const snapshot = await db.collection('partimeRequest').where('isjobcompleted', '==', true).where('clientId', '==', clientId).get();
         const jobs = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
           .filter(job => job.status === 'completed' && job.clientId === clientId);

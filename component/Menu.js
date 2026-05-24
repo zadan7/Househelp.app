@@ -59,7 +59,7 @@ const Cmenu = ({navigation}) => {
           <Text style={styles.menuText}>Completed Jobs</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={()=>{navigation.navigate("profile")}} style={styles.menuItem}>
+        <TouchableOpacity onPress={()=>{navigation.navigate("cwallet")}} style={styles.menuItem}>
           <Ionicons name="wallet-outline" size={20} color="#fff" />
           <Text style={styles.menuText}>Balances</Text>
         </TouchableOpacity>
@@ -151,6 +151,10 @@ const Hmenu = ({navigation}) => {
         <TouchableOpacity onPress={()=>{navigation.navigate("hprofile")}} style={styles.menuItem}>
           <Ionicons name="person-outline" size={20} color="#fff" />
           <Text style={styles.menuText}>Profile</Text>
+        </TouchableOpacity>
+         <TouchableOpacity onPress={()=>{navigation.navigate("hwallet")}} style={styles.menuItem}>
+          <Ionicons name="wallet-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Wallet</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={()=>{navigation.navigate("hsettings")}} style={styles.menuItem}>

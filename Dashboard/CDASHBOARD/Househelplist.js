@@ -1,8 +1,7 @@
 import * as React from 'react';
-import { Pressable, StyleSheet, Text, View, ScrollView, Image, Linking, Button,TouchableOpacity } from 'react-native';
+import { Pressable, StyleSheet, Text, View, ScrollView, Image, Linking, Button, TouchableOpacity } from 'react-native';
 import { Header } from '../../component/Header';
 import { db } from '../../pages/firebase';
-import { collection, getDocs } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
 import NigerianStateAndLGASelector from '../../component/NigerianStateAndLGASelector';
 import { Cmenu } from '../../component/Menu';
@@ -17,7 +16,7 @@ function HousehelpList({ navigation }) {
   useEffect(() => {
     const fetchHousehelps = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, 'househelps'));
+        const querySnapshot = await db.collection('househelps').get();
         const househelpsList = querySnapshot.docs.map(doc => doc.data());
         setHousehelps(househelpsList);
         setFilteredHousehelps(househelpsList);
@@ -29,25 +28,47 @@ function HousehelpList({ navigation }) {
   }, []);
 
   // Filter househelps based on location and address
-  const filterHousehelps = () => {
+  const filterHousehelps = (currentState = locationFilter, currentLGA = addressFilter) => {
     const filtered = househelps.filter(househelp => {
-      const location = JSON.parse(househelp.location); // Parse the location field
-      const isInLocation = househelp.state.toLowerCase() === locationFilter.toLowerCase();
-      const isInAddress = househelp.lga.toLowerCase().includes(addressFilter.toLowerCase());
+      // Safe parsing fallback for location filtering
+      let locationObj = {};
+      try {
+        locationObj = househelp.location ? JSON.parse(househelp.location) : {};
+      } catch (e) {
+        console.warn("Failed to parse location for filter:", househelp.name);
+      }
+
+      const househelpState = househelp.state ? househelp.state.toLowerCase() : '';
+      const househelpLGA = househelp.lga ? househelp.lga.toLowerCase() : '';
+
+      const isInLocation = househelpState === currentState.toLowerCase();
+      const isInAddress = househelpLGA.includes(currentLGA.toLowerCase());
+
       return isInLocation && isInAddress;
     });
     setFilteredHousehelps(filtered);
   };
 
-  // Handler for state and LGA change
+  // Handler for state and LGA change (pass fresh values directly into filter)
   const handleStateChange = (state) => {
     setLocationFilter(state);
-    filterHousehelps(); // Apply filter on state change
+    filterHousehelps(state, addressFilter); 
   };
 
   const handleLGAChange = (lga) => {
     setAddressFilter(lga);
-    filterHousehelps(); // Apply filter on LGA change
+    filterHousehelps(locationFilter, lga); 
+  };
+
+  // Safe UI helper for processing selected jobs array strings safely
+  const renderJobsInline = (jobsData) => {
+    if (!jobsData) return "None specified";
+    try {
+      const parsed = typeof jobsData === 'string' ? JSON.parse(jobsData) : jobsData;
+      return Array.isArray(parsed) ? parsed.join(", ") : String(parsed);
+    } catch (e) {
+      return String(jobsData);
+    }
   };
 
   return (
@@ -55,16 +76,14 @@ function HousehelpList({ navigation }) {
       <Header navigation={navigation} />
       <Cmenu navigation={navigation} />
 
-      {/* <View style={styles.filtersContainer}>
+      <View style={styles.filtersContainer}>
         <NigerianStateAndLGASelector 
           onStateChange={handleStateChange}
           onLGAChange={handleLGAChange}
         />
-        <Button title="Apply Filters" onPress={filterHousehelps} />
-      </View> */}
+      </View>
 
-<View style={styles.househelpContainer}>
-  
+      <View style={styles.househelpContainer}>
         <Text style={styles.subtitle}>Househelps List</Text>
         {filteredHousehelps.length > 0 ? (
           filteredHousehelps.map((househelp, index) => (
@@ -81,7 +100,7 @@ function HousehelpList({ navigation }) {
                   <Text style={styles.info}>📞 {househelp.phonenumber}</Text>
                 </Pressable>
                 <Text style={styles.info}>📍 {househelp.address}, {househelp.state}</Text>
-                <Text style={styles.info}>🛠️ {JSON.parse(househelp.selectedJobs).join(", ")}</Text>
+                <Text style={styles.info}>🛠️ {renderJobsInline(househelp.selectedJobs)}</Text>
               </View>
             </Pressable>
           ))
@@ -159,8 +178,6 @@ const styles = StyleSheet.create({
 
 function HousehelpDetail({ route, navigation }) {
   const { househelp } = route.params;
-
-  // Hardcoded average rating (to be dynamic later)
   const averageRating = 3.2;
 
   const renderStars = (rating) => {
@@ -172,10 +189,37 @@ function HousehelpDetail({ route, navigation }) {
       <Text style={styles2.stars}>
         {'★'.repeat(fullStars)}
         {hasHalfStar ? '⯪' : ''}
-        {'☆'.repeat(emptyStars)}
         <Text style={styles2.starNumber}> ({rating.toFixed(1)})</Text>
       </Text>
     );
+  };
+
+  // Safe structural fallback parsing functions
+  const renderJobsDetail = (jobsData) => {
+    if (!jobsData) return "None";
+    try {
+      const parsed = typeof jobsData === 'string' ? JSON.parse(jobsData) : jobsData;
+      return Array.isArray(parsed) ? parsed.join(', ') : String(parsed);
+    } catch (e) {
+      return String(jobsData);
+    }
+  };
+
+  const renderLocationDetail = (locationData) => {
+    if (!locationData) return <Text style={styles2.info}>No location details stored.</Text>;
+    try {
+      const loc = typeof locationData === 'string' ? JSON.parse(locationData) : locationData;
+      return (
+        <>
+          <Text style={styles2.info}>Accuracy: {loc.accuracy ?? 'N/A'} meters</Text>
+          <Text style={styles2.info}>
+            Coordinates: ({loc.latitude ?? 0}, {loc.longitude ?? 0})
+          </Text>
+        </>
+      );
+    } catch (e) {
+      return <Text style={styles2.info}>Raw Location: {String(locationData)}</Text>;
+    }
   };
 
   return (
@@ -201,17 +245,14 @@ function HousehelpDetail({ route, navigation }) {
 
       <View style={styles2.infoSection}>
         <Text style={styles2.sectionHeader}>💼 Work Details</Text>
-        <Text style={styles2.info}>🛠️ Jobs: {JSON.parse(househelp.selectedJobs).join(', ')}</Text>
+        <Text style={styles2.info}>🛠️ Jobs: {renderJobsDetail(househelp.selectedJobs)}</Text>
         <Text style={styles2.info}>📅 Experience: {househelp.experience} years</Text>
-        <Text style={styles2.info}>📆 Registered: {househelp.createdAt?.toDate().toDateString()}</Text>
+        <Text style={styles2.info}>📆 Registered: {househelp.createdAt?.toDate ? househelp.createdAt.toDate().toDateString() : 'N/A'}</Text>
       </View>
 
       <View style={styles2.infoSection}>
         <Text style={styles2.sectionHeader}>📍 Location</Text>
-        <Text style={styles2.info}>Accuracy: {JSON.parse(househelp.location).accuracy} meters</Text>
-        <Text style={styles2.info}>
-          Coordinates: ({JSON.parse(househelp.location).latitude}, {JSON.parse(househelp.location).longitude})
-        </Text>
+        {renderLocationDetail(househelp.location)}
       </View>
 
       <TouchableOpacity style={styles2.callButton} onPress={() => Linking.openURL(`tel:${househelp.phonenumber}`)}>
@@ -292,8 +333,5 @@ const styles2 = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
-
-
 
 export { HousehelpList, HousehelpDetail };

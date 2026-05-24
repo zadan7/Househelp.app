@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
+import firebase from 'firebase/app'; // Required for FieldValue increment tracking
 import { db } from '../pages/firebase';
 import { Cmenu } from '../component/Menu';
 import { Header2 } from '../component/Header';
@@ -11,6 +12,7 @@ const Cwallet = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState([]);
   const [clientId, setClientId] = useState(null);
+  const [clientData, setClientData] = useState(null);
 
   // Modal Controls
   const [activeModal, setActiveModal] = useState(null);
@@ -23,17 +25,18 @@ const Cwallet = ({ navigation }) => {
   // Web Checkout Flow States
   const [checkoutUrl, setCheckoutUrl] = useState(null);
   const [showWebView, setShowWebView] = useState(false);
-  const [currentTxRef, setCurrentTxRef] = useState('');
+  
 
-  // POINT THIS TO YOUR RESTRUCTURING BACKEND ADDRESS
-const BACKEND_API_URL = "https://househelp-app-h28t.vercel.app";
+  // Sandbox Monnify Public Facing Credentials
+  const MONNIFY_API_KEY = "MK_TEST_TJDXJAS0YD";
+  const MONNIFY_CONTRACT_CODE = "5732437028";
 
   useEffect(() => {
     const initializeWallet = async () => {
       try {
         const storedClient = await AsyncStorage.getItem('clientdata');
-       const storedClientId = JSON.parse(storedClient)?.id;
-        console.log("Stored Client ID fetched:", storedClientId);
+        setClientData(JSON.parse(storedClient));
+        const storedClientId =  JSON.parse(storedClient).id 
         if (!storedClientId) {
           Alert.alert("Error", "User session not found. Please re-login.");
           setLoading(false);
@@ -41,9 +44,9 @@ const BACKEND_API_URL = "https://househelp-app-h28t.vercel.app";
         }
         setClientId(storedClientId);
 
-        // Real-time wallet balance listener
+        // Real-time wallet balance listener with data existence safeguards
         db.collection('wallets').doc(storedClientId).onSnapshot((docSnap) => {
-          if (docSnap.exists) {
+          if (docSnap.exists && docSnap.data()) {
             setBalance(docSnap.data().balance || 0);
           } else {
             db.collection('wallets').doc(storedClientId).set({ balance: 0 });
@@ -76,8 +79,8 @@ const BACKEND_API_URL = "https://househelp-app-h28t.vercel.app";
     initializeWallet();
   }, []);
 
-  // --- CONNECTS TO SERVER TO INITIALIZE TRANSACTION ---
-  const handleAddMoney = async () => {
+  // --- 1. GENERATE LOCAL CLIENT-SIDE MONNIFY SDK PAYLOAD ---
+  const handleAddMoney = () => {
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) {
       Alert.alert("Invalid Input", "Please enter a valid amount.");
@@ -85,76 +88,97 @@ const BACKEND_API_URL = "https://househelp-app-h28t.vercel.app";
     }
 
     setActiveModal(null);
-    setProcessing(true);
+    const paymentRef = `FUND-${clientId}-${Date.now()}`;
+    const customerEmail = "client@househelp.ng"; 
 
-    try {
-      const response = await fetch(`${BACKEND_API_URL}/api/payments/init`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: parsedAmount,
-          clientId: clientId,
-          customerEmail: "client@househelp.ng"
-        })
-      });
+    // Directly building the HTML container string to serve inside the WebView wrapper
+    const checkoutHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <script type="text/javascript" src="https://sdk.monnify.com/plugin/monnify.js"></script>
+          <style>
+            body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f8f9fa; font-family: sans-serif; }
+            .loader { border: 4px solid #f3f3f3; border-top: 4px solid #28a745; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          </style>
+        </head>
+        <body>
+          <div class="loader"></div>
+          <script type="text/javascript">
+            window.onload = function() {
+              try {
+                MonnifySDK.initialize({
+                  amount: ${parsedAmount},
+                  currency: "NGN",
+                  reference: "${paymentRef}",
+                  customerName: "Househelp Client",
+                  customerEmail: "${customerEmail}",
+                  apiKey: "${MONNIFY_API_KEY}",
+                  contractCode: "${MONNIFY_CONTRACT_CODE}",
+                  paymentDescription: "Wallet Deposit",
+                  isTestMode: true,
+                  onComplete: function(response){
+                    window.ReactNativeWebView.postMessage(JSON.stringify({status: 'SUCCESS', data: response, exactAmount: ${parsedAmount}}));
+                  },
+                  onClose: function(data){
+                    window.ReactNativeWebView.postMessage(JSON.stringify({status: 'CANCELLED'}));
+                  }
+                });
+              } catch(e) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({status: 'ERROR', message: e.message}));
+              }
+            }
+          </script>
+        </body>
+      </html>
+    `;
 
-      const result = await response.json();
-
-      if (result.success && result.redirectUrl) {
-        setCurrentTxRef(result.txRef);
-        setCheckoutUrl(result.redirectUrl);
-        setShowWebView(true);
-      } else {
-        Alert.alert("Error", "Could not verify connection config context parameters.");
-      }
-    } catch (error) {
-      Alert.alert("Gateway Error", "Failed to reach backend routing service.");
-    } finally {
-      setProcessing(false);
-    }
+    setCheckoutUrl(checkoutHTML);
+    setShowWebView(true);
   };
 
-  // --- CONNECTS TO SERVER TO VERIFY STATUS ---
-  const verifyWebPayment = async (txRef) => {
-    setLoading(true);
+  // --- CLIENT SIDE PAYMENT VERIFICATION PROCESSOR GATEWAY ---
+  const handleWebViewMessage = async (event) => {
     try {
-      const response = await fetch(`${BACKEND_API_URL}/api/payments/verify/${txRef}`);
-      const result = await response.json();
+      const message = JSON.parse(event.nativeEvent.data);
+      setShowWebView(false);
+      setCheckoutUrl(null);
 
-      if (result.success && result.data?.paymentStatus === 'PAID') {
-        const exactAmount = result.data.amount;
+      if (message.status === 'SUCCESS' && message.data.paymentStatus === 'PAID') {
+        const creditAmount = message.exactAmount;
+        const txRef = message.data.paymentReference;
 
-        // Atomically update ledger metrics values locally (Dot Notation Syntax)
+        setLoading(true);
+
+        // Atomic update of current balance fields using dots notation safely
         await db.collection('wallets').doc(clientId).update({
-          balance: balance + exactAmount
+          balance: firebase.firestore.FieldValue.increment(creditAmount)
         });
 
+        // Build system entry history receipt log trace
         await db.collection('transactions').add({
           userId: clientId,
           type: 'Inflow',
           title: 'Wallet Funded',
-          amount: exactAmount,
+          amount: creditAmount,
           date: new Date().toISOString(),
           reference: txRef
         });
 
-        Alert.alert("Success", `₦${exactAmount.toLocaleString()} credited successfully.`);
+        Alert.alert("Success", `₦${creditAmount.toLocaleString()} credited successfully.`);
+      } else if (message.status === 'CANCELLED') {
+        Alert.alert("Cancelled", "The checkout process was closed by user directive.");
       } else {
-        Alert.alert("Payment Verification Pending", "We could not verify this transaction status.");
+        Alert.alert("Payment Error", "The terminal declined or encountered an error processing transaction.");
       }
-    } catch (error) {
-      Alert.alert("Verification Error", "Could not establish server validation handshakes.");
+    } catch (err) {
+      console.error("SDK callback failure processing:", err);
+      Alert.alert("Process Failure", "An error occurred handling payment collection records.");
     } finally {
       setAmount('');
       setLoading(false);
-    }
-  };
-
-  const handleWebViewStateChange = (navState) => {
-    if (navState.url.includes('/completed') || navState.url.includes('monnify.com/respond')) {
-      setShowWebView(false);
-      setCheckoutUrl(null);
-      verifyWebPayment(currentTxRef);
     }
   };
 
@@ -173,7 +197,7 @@ const BACKEND_API_URL = "https://househelp-app-h28t.vercel.app";
     setProcessing(true);
     try {
       await db.collection('wallets').doc(clientId).update({
-        balance: balance - parsedAmount
+        balance: firebase.firestore.FieldValue.increment(-parsedAmount)
       });
 
       await db.collection('transactions').add({
@@ -182,7 +206,8 @@ const BACKEND_API_URL = "https://househelp-app-h28t.vercel.app";
         title: 'Bank Withdrawal',
         amount: parsedAmount,
         date: new Date().toISOString(),
-        details: `To account: ${accountNumber} (${bankCode})`
+        details: `To account: ${accountNumber} (${bankCode})`,
+        status: 'PENDING'
       });
 
       Alert.alert("Withdrawal Initialized", "Your withdrawal request has been logged successfully.");
@@ -197,69 +222,69 @@ const BACKEND_API_URL = "https://househelp-app-h28t.vercel.app";
     }
   };
 
-  // --- FEATURE 3: SEND MONEY ---
-  const handleSendMoney = async () => {
-    const parsedAmount = parseFloat(amount);
-    if (!parsedAmount || parsedAmount > balance || parsedAmount <= 0) {
-      Alert.alert("Error", "Invalid amount or insufficient wallet balance.");
-      return;
-    }
+  // // --- FEATURE 3: SEND MONEY ---
+  // const handleSendMoney = async () => {
+  //   const parsedAmount = parseFloat(amount);
+  //   if (!parsedAmount || parsedAmount > balance || parsedAmount <= 0) {
+  //     Alert.alert("Error", "Invalid amount or insufficient wallet balance.");
+  //     return;
+  //   }
 
-    setProcessing(true);
-    try {
-      const userSnapshot = await db.collection('users').where('email', '==', recipientEmail.trim().toLowerCase()).get();
+  //   setProcessing(true);
+  //   try {
+  //     const userSnapshot = await db.collection('users').where('email', '==', recipientEmail.trim().toLowerCase()).get();
       
-      if (userSnapshot.empty) {
-        Alert.alert("Not Found", "No Househelp account registered with this email.");
-        setProcessing(false);
-        return;
-      }
+  //     if (userSnapshot.empty) {
+  //       Alert.alert("Not Found", "No Househelp account registered with this email.");
+  //       setProcessing(false);
+  //       return;
+  //     }
 
-      const recipientDoc = userSnapshot.docs[0];
-      const recipientId = recipientDoc.id;
+  //     const recipientDoc = userSnapshot.docs[0];
+  //     const recipientId = recipientDoc.id;
 
-      if (recipientId === clientId) {
-        Alert.alert("Error", "You cannot send money to your own account.");
-        setProcessing(false);
-        return;
-      }
+  //     if (recipientId === clientId) {
+  //       Alert.alert("Error", "You cannot send money to your own account.");
+  //       setProcessing(false);
+  //       return;
+  //     }
 
-      await db.collection('wallets').doc(clientId).update({ balance: balance - parsedAmount });
+  //     await db.collection('wallets').doc(clientId).update({ balance: firebase.firestore.FieldValue.increment(-parsedAmount) });
       
-      const recipientWalletRef = db.collection('wallets').doc(recipientId);
-      const recipientWalletDoc = await recipientWalletRef.get();
-      const currentRecipientBalance = recipientWalletDoc.exists ? (recipientWalletDoc.data().balance || 0) : 0;
-      await recipientWalletRef.set({ balance: currentRecipientBalance + parsedAmount }, { merge: true });
+  //     const recipientWalletRef = db.collection('wallets').doc(recipientId);
+  //     const recipientWalletDoc = await recipientWalletRef.get();
+  //     const currentRecipientBalance = (recipientWalletDoc.exists && recipientWalletDoc.data()) ? (recipientWalletDoc.data().balance || 0) : 0;
+  //     await recipientWalletRef.set({ balance: currentRecipientBalance + parsedAmount }, { merge: true });
 
-      await db.collection('transactions').add({
-        userId: clientId,
-        type: 'Outflow',
-        title: 'Sent Money',
-        amount: parsedAmount,
-        date: new Date().toISOString(),
-        details: `To: ${recipientEmail}`
-      });
+  //     await db.collection('transactions').add({
+  //       userId: clientId,
+  //       type: 'Outflow',
+  //       title: 'Sent Money',
+  //       amount: parsedAmount,
+  //       date: new Date().toISOString(),
+  //       details: `To: ${recipientEmail}`
+  //     });
 
-      await db.collection('transactions').add({
-        userId: recipientId,
-        type: 'Inflow',
-        title: 'Received Money',
-        amount: parsedAmount,
-        date: new Date().toISOString(),
-        details: `From account holder`
-      });
+  //     await db.collection('transactions').add({
+  //       userId: recipientId,
+  //       type: 'Inflow',
+  //       title: 'Received Money',
+  //       amount: parsedAmount,
+  //       date: new Date().toISOString(),
+  //       details: `From account holder`
+  //     });
 
-      Alert.alert("Transfer Successful", `₦${parsedAmount.toLocaleString()} sent to ${recipientEmail}`);
-      setActiveModal(null);
-      setAmount('');
-      setRecipientEmail('');
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Failed to execute payment transfer.");
-    } finally {
-      setProcessing(false);
-    }
-  };
+  //     Alert.alert("Transfer Successful", `₦${parsedAmount.toLocaleString()} sent to ${recipientEmail}`);
+  //     setActiveModal(null);
+  //     setAmount('');
+  //     setRecipientEmail('');
+  //   } catch (err) {
+  //     console.error(err);
+  //     Alert.alert("Error", "Failed to execute payment transfer.");
+  //   } finally {
+  //     setProcessing(false);
+  //   }
+  // };
 
   if (loading) {
     return (
@@ -279,6 +304,9 @@ const BACKEND_API_URL = "https://househelp-app-h28t.vercel.app";
         <Text style={styles.header}>Client Wallet</Text>
 
         <View style={styles.balanceCard}>
+           <Text style={styles.balanceLabel}>{(clientData?.firstname + ' ' + clientData?.lastname).toUpperCase()}</Text>
+           <Text style={styles.balanceLabel}></Text>
+
           <Text style={styles.balanceLabel}>AVAILABLE BALANCE</Text>
           <Text style={styles.balanceAmount}>₦{balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
         </View>
@@ -292,9 +320,9 @@ const BACKEND_API_URL = "https://househelp-app-h28t.vercel.app";
             <Text style={styles.actionBtnText}>⤻ Withdraw</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#007bff' }]} onPress={() => setActiveModal('send')}>
+          {/* <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#007bff' }]} onPress={() => setActiveModal('send')}>
             <Text style={styles.actionBtnText}>✈ Send Money</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         <Text style={styles.historyHeading}>Recent Statements</Text>
@@ -303,13 +331,15 @@ const BACKEND_API_URL = "https://househelp-app-h28t.vercel.app";
         ) : (
           transactions.map(item => (
             <View key={item.id} style={styles.txCard}>
-              <View>
+              <View style={{ flex: 1, paddingRight: 10 }}>
                 <Text style={styles.txTitle}>{item.title}</Text>
-                <Text style={styles.txDate}>{new Date(item.date).toLocaleDateString()} {new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                <Text style={styles.txDate}>
+                  {item.date ? `${new Date(item.date).toLocaleDateString()} ${new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 'N/A'}
+                </Text>
                 {item.details && <Text style={styles.txDetails}>{item.details}</Text>}
               </View>
               <Text style={[styles.txAmount, { color: item.type === 'Inflow' ? '#28a745' : '#dc3545' }]}>
-                {item.type === 'Inflow' ? '+' : '-'} ₦{item.amount.toLocaleString()}
+                {item.type === 'Inflow' ? '+' : '-'} ₦{item.amount ? item.amount.toLocaleString() : 0}
               </Text>
             </View>
           ))
@@ -391,16 +421,19 @@ const BACKEND_API_URL = "https://househelp-app-h28t.vercel.app";
       {/* --- WEB CHECKOUT WEBVIEW WINDOW CONTAINER --- */}
       <Modal visible={showWebView} animationType="fade" onRequestClose={() => { setShowWebView(false); setCheckoutUrl(null); }}>
         <View style={{ flex: 1, backgroundColor: '#fff' }}>
-          <View style={{ height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 16 }}>Secure Web Checkout</Text>
-            <TouchableOpacity onPress={() => { setShowWebView(false); setCheckoutUrl(null); verifyWebPayment(currentTxRef); }}>
+          <View style={{ height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: '#eee', paddingTop: 10 }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 16 }}>Secure Monnify Checkout</Text>
+            <TouchableOpacity onPress={() => { setShowWebView(false); setCheckoutUrl(null); }}>
               <Text style={{ color: '#dc3545', fontWeight: 'bold' }}>Close</Text>
             </TouchableOpacity>
           </View>
           {checkoutUrl && (
             <WebView 
-              source={{ uri: checkoutUrl }} 
-              onNavigationStateChange={handleWebViewStateChange}
+              originWhitelist={['*']}
+              source={{ html: checkoutUrl }} 
+              onMessage={handleWebViewMessage}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
               startInLoadingState={true}
               renderLoading={() => <ActivityIndicator size="large" color="#28a745" style={{ position: 'absolute', top: '50%', left: '50%', marginLeft: -20, marginTop: -20 }} />}
             />

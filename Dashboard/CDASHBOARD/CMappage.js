@@ -102,6 +102,7 @@ const CMappage = ({ navigation }) => {
     if (!requestData?.clientData) return Alert.alert("Error", "Missing request details");
 
     try {
+      let i = 0;
       for (let help of househelps) {
         // Only notify those in the same LGA with a token
         if (help.lga === requestData.clientData.lga && help.fcmtoken) {
@@ -115,13 +116,18 @@ const CMappage = ({ navigation }) => {
              \n Client: ${requestData.clientData.name} Apartment Size:${requestData.clientData.apartmentsize}`,
             }),
           });
+          i++;
         }
       }
-      Alert.alert('Sent', 'Nearby househelps have been notified.');
+      Alert.alert('Sent',  `${i} nearby househelps have been notified.`);
     } catch (e) {
       console.error("Notification failed", e);
     }
   };
+
+  useEffect(() => {
+    handleSendPushNotification();
+  }, [househelps]);
 
   const handleConfirm = async () => {
     if (!selectedHelper || !requestData) return;

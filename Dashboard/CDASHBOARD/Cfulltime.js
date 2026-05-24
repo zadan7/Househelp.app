@@ -1,17 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Platform, Pressable,Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Platform, Pressable, Modal } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../pages/firebase';
-import { addDoc, collection, Timestamp, updateDoc,doc } from 'firebase/firestore';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import { Picker } from '@react-native-picker/picker';
-import { arrayUnion } from 'firebase/firestore';
-
-
-// import {Modal} from 'react-native-modal';
-
-
+import { Timestamp } from 'firebase/firestore';
+import { CommonActions } from '@react-navigation/native';
 
 const CFulltimelivein = ({ navigation }) => {
   const [client, setClient] = useState(null);
@@ -39,49 +34,29 @@ const CFulltimelivein = ({ navigation }) => {
     }
 
     try {
-      // Replace console logs with actual Firestore submission if needed
-      console.log("client", client);
-      console.log("description", description);
-      console.log("chores", chores);
-      console.log("salaryRange", salaryRange);
-      console.log("numberOfKids", numberOfKids);
-
-      // Uncomment this block to submit to Firestore:
-      
-    var fulltimeRequestdata=  await addDoc(collection(db, 'fulltimeRequest'),
-       {
-        // clientId: client.id,
+      // 1. Add document using db dot notation
+      const fulltimeRequestdata = await db.collection('fulltimeRequest').add({
         clientData: client,
-        // clientName: client.firstname + ' ' + client.lastname,
-        // clientPhone: client.phonenumber,
-        // clientState: client.state,
-        // clientLGA: client.lga,
-        // clientAddress: client.address,
-
         requestType: 'fulltime-livein',
-       description: description,
+        description: description,
         secondaryProvision: secondaryProvision,
-       salary: salaryRange,
-       kidsnum: numberOfKids,
-       chores:  chores.split(',').map(c => c.trim()),
+        salary: salaryRange,
+        kidsnum: numberOfKids,
+        chores: chores.split(',').map(c => c.trim()),
         status: 'pending',
-        createdAt: Timestamp.now(),
+        createdAt: Timestamp.now(), // Uses Timestamp directly off your db setup
       });
 
       if (fulltimeRequestdata) {
-        console.log('Document written with ID: ', fulltimeRequestdata.id);
-        var  fulltimeRequestdataid = fulltimeRequestdata.id;
-        console.log("fulltimeRequestdata", fulltimeRequestdataid);
-        updateDoc(doc(db, 'fulltimeRequest', fulltimeRequestdata.id), {
+        const fulltimeRequestdataid = fulltimeRequestdata.id;
+        
+        // 2. Save document ID to the exact same collection
+        await db.collection('fulltimeRequest').doc(fulltimeRequestdataid).update({
           id: fulltimeRequestdataid,
         });
 
         setModalVisible(true);
-
       }
-      
-
-      // Alert.alert('Success', 'Your request has been submitted!');
       
     } catch (error) {
       console.error('Submission Error:', error);
@@ -95,18 +70,15 @@ const CFulltimelivein = ({ navigation }) => {
       <Cmenu navigation={navigation} />
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.header}>Full-Time Live-In Request
-         
-          </Text>
+        <Text style={styles.header}>Full-Time Live-In Request</Text>
 
-        <Text style={styles.label}>Job Description : <Text style={{color:"red", fontSize:"15"}}>take your time to Describe exactly what you want from the househelp </Text></Text>
+        <Text style={styles.label}>Job Description : <Text style={{color:"red", fontSize:15}}>take your time to Describe exactly what you want from the househelp </Text></Text>
         <TextInput
           placeholder="Describe what the househelp will do"
           value={description}
           onChangeText={setDescription}
           style={[styles.input, { height: 100 }]}
           multiline={true}
-         
         />
 
         <Text style={styles.label}>Chores (comma-separated)</Text>
@@ -126,14 +98,13 @@ const CFulltimelivein = ({ navigation }) => {
           style={styles.input}
         />
 
-<Text style={styles.label}>Secondary provision : <Text style={{color:"red", fontSize:"15"}}>Describe what you can provide for the househelp outside her salary e.g meals basic health care  </Text></Text>
+        <Text style={styles.label}>Secondary provision : <Text style={{color:"red", fontSize:15}}>Describe what you can provide for the househelp outside her salary e.g meals basic health care  </Text></Text>
         <TextInput
           placeholder="note that this is not complusory but it will help you get a better househelp"
           multiline={true}
           value={secondaryProvision}
           onChangeText={setSecondaryProvision}
           style={[styles.input, { height: 100 }]}
-         
         />
 
         <Text style={styles.label}>Salary Range</Text>
@@ -147,7 +118,6 @@ const CFulltimelivein = ({ navigation }) => {
             <Picker.Item label="N50,000" value="N50,000" />
             <Picker.Item label="N60,000" value="N60,000" />
             <Picker.Item label="N70,000" value="N70,000" />
-            {/* <Picker.Item label="N70,000" value="N70,000" /> */}
             <Picker.Item label="N80,000" value="N80,000" />
             <Picker.Item label="N90,000" value="N90,000" />
             <Picker.Item label="N100,000" value="N100,000" />
@@ -162,8 +132,6 @@ const CFulltimelivein = ({ navigation }) => {
         <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
           <Text style={styles.submitText}>Submit Request</Text>
         </TouchableOpacity>
-
-        
       </ScrollView>
 
       <Modal
@@ -180,7 +148,12 @@ const CFulltimelivein = ({ navigation }) => {
               style={styles.closeButton}
               onPress={() => {
                 setModalVisible(false);
-                navigation.navigate('Home'); // Navigate to home or other page
+                  navigation.dispatch(
+                                  CommonActions.reset({
+                                    index: 0,
+                                    routes: [{ name: 'cdashboard' }], 
+                                  })
+                                );
               }}
             >
               <Text style={styles.closeText}>Close</Text>
@@ -191,7 +164,6 @@ const CFulltimelivein = ({ navigation }) => {
     </View>
   );
 };
-
 
 const CFulltimeliveout = ({ navigation }) => {
   const [client, setClient] = useState(null);
@@ -226,32 +198,28 @@ const CFulltimeliveout = ({ navigation }) => {
     }
 
     try {
-    var fulltimeRequestdata=  await addDoc(collection(db, 'fulltimeRequest'), {
+      // 1. Add document using db dot notation
+      const fulltimeRequestdata = await db.collection('fulltimeRequest').add({
         clientData: client,
         requestType: 'fulltime-liveout',
         description: description,
         salary: salaryRange,
         kidsnum: numberOfKids,
         chores: chores.split(',').map(c => c.trim()),
-        resumptionTime:resumptionTime,
-        closingTime:closingTime,
+        resumptionTime: resumptionTime,
+        closingTime: closingTime,
         status: 'pending',
-        createdAt: Timestamp.now(),
+        createdAt: db.constructor.Timestamp.now(), // Uses Timestamp directly off your db setup
       });
 
       if (fulltimeRequestdata) {
-        console.log('Document written with ID: ', fulltimeRequestdata.id);
-       var  fulltimeRequestdataid = fulltimeRequestdata.id;
-        console.log("fulltimeRequestdata", fulltimeRequestdataid);
+        const fulltimeRequestdataid = fulltimeRequestdata.id;
 
-
-
-              updateDoc(doc(db, 'fulltimeRequest-liveout', fulltimeRequestdata.id), {
-                id: fulltimeRequestdataid,
-              });
+        // 2. Save document ID to the exact same collection
+        await db.collection('fulltimeRequest').doc(fulltimeRequestdataid).update({
+          id: fulltimeRequestdataid,
+        });
       }
-
-    
 
       Alert.alert('Success', 'Your request has been submitted!');
     } catch (error) {
@@ -300,13 +268,7 @@ const CFulltimeliveout = ({ navigation }) => {
         />
 
         <Text style={styles.label}>Salary Range</Text>
-        <View
-          style={
-            Platform.OS === 'android'
-              ? styles.androidPickerWrapper
-              : styles.pickerWrapper
-          }
-        >
+        <View style={Platform.OS === 'android' ? styles.androidPickerWrapper : styles.pickerWrapper}>
           <Picker
             selectedValue={salaryRange}
             onValueChange={itemValue => setSalaryRange(itemValue)}
@@ -351,89 +313,62 @@ const CFulltimeliveout = ({ navigation }) => {
   );
 };
 
-
-
 const CFulltimeSelection = ({ navigation }) => {
-  const [client, setClient] = useState(null);
-  
-
-  useEffect(() => {
-    const fetchClientData = async () => {
-      const storedData = await AsyncStorage.getItem('clientdata');
-      if (storedData) {
-        const parsed = JSON.parse(storedData);
-        setClient(parsed);
-      }
-    };
-    fetchClientData();
-  }, []);
-
-
-
   return (
     <View style={styles.container}>
       <Header2 />
       <Cmenu navigation={navigation} />
 
       <ScrollView
-  contentContainerStyle={{
-    paddingHorizontal: 20,
-    paddingVertical: 30,
-    backgroundColor: '#f4f6f8',
-  }}
->
-  <Text
-    style={{
-      fontSize: 26,
-      fontWeight: 'bold',
-      textAlign: 'center',
-      marginBottom: 30,
-      color: '#1c1c1e',
-    }}
-  >
-    Full-Time Selection
-  </Text>
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingVertical: 30,
+          backgroundColor: '#f4f6f8',
+        }}
+      >
+        <Text style={{ fontSize: 26, fontWeight: 'bold', textAlign: 'center', marginBottom: 30, color: '#1c1c1e' }}>
+          Full-Time Selection
+        </Text>
 
-  <Pressable
-    onPress={() => navigation.navigate('cfulltimelivein')}
-    style={{
-      backgroundColor: 'green',
-      paddingVertical: 20,
-      paddingHorizontal: 15,
-      borderRadius: 12,
-      marginBottom: 20,
-      elevation: 2,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-    }}
-  >
-    <Text style={{ fontSize: 18, fontWeight: '600', color: 'white' }}>
-    Request Full-Time Live-In Househlp
-    </Text>
-  </Pressable>
+        <Pressable
+          onPress={() => navigation.navigate('cfulltimelivein')}
+          style={{
+            backgroundColor: 'green',
+            paddingVertical: 20,
+            paddingHorizontal: 15,
+            borderRadius: 12,
+            marginBottom: 20,
+            elevation: 2,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+          }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: '600', color: 'white' }}>
+            Request Full-Time Live-In Househlp
+          </Text>
+        </Pressable>
 
-  <Pressable
-    onPress={() => navigation.navigate('cfulltimeliveout')}
-    style={{
-      backgroundColor: 'green',
-      paddingVertical: 20,
-      paddingHorizontal: 15,
-      borderRadius: 12,
-      elevation: 2,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-    }}
-  >
-    <Text style={{ fontSize: 18, fontWeight: '600', color: 'white' }}>
-     Request  Full-Time Live-Out Househelp
-    </Text>
-  </Pressable>
-</ScrollView>
-
+        <Pressable
+          onPress={() => navigation.navigate('cfulltimeliveout')}
+          style={{
+            backgroundColor: 'green',
+            paddingVertical: 20,
+            paddingHorizontal: 15,
+            borderRadius: 12,
+            elevation: 2,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+          }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: '600', color: 'white' }}>
+            Request Full-Time Live-Out Househelp
+          </Text>
+        </Pressable>
+      </ScrollView>
     </View>
   );
 };
@@ -477,7 +412,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     overflow: 'hidden',
-    height: 60, // helps Picker show on Android
+    height: 60,
     justifyContent: 'center',
   },
   picker: {
@@ -527,10 +462,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export { CFulltimelivein,CFulltimeliveout ,CFulltimeSelection };
-
-
-
-
-
-
+export { CFulltimelivein, CFulltimeliveout, CFulltimeSelection };

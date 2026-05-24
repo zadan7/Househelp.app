@@ -21,9 +21,9 @@ if (!admin.apps.length) {
 
 // Monnify Configuration Credentials (Move these to your Vercel Environment Variables in production!)
 const MONNIFY_BASE_URL = "https://sandbox.monnify.com";
-const MONNIFY_API_KEY = process.env.MONNIFY_API_KEY || "MK_TEST_TJDXJAS0YD";
-const MONNIFY_SECRET_KEY = process.env.MONNIFY_SECRET_KEY || "JWBN0NAKE8TM537U891LLUX5R45PR33W";
-const MONNIFY_CONTRACT_CODE = process.env.MONNIFY_CONTRACT_CODE || "5732437028";
+const MONNIFY_API_KEY = "MK_TEST_TJDXJAS0YD";
+const MONNIFY_SECRET_KEY =  "JWBN0NAKE8TM537U891LLUX5R45PR33W";
+const MONNIFY_CONTRACT_CODE =  "5732437028";
 
 // --- HELPER: MONNIFY AUTHENTICATION HANDSHAKE ---
 async function getMonnifyAccessToken() {
@@ -54,7 +54,7 @@ app.post('/api/payments/init', async (req, res) => {
       paymentDescription: "Funding Househelp Digital Wallet",
       currencyCode: "NGN",
       contractCode: MONNIFY_CONTRACT_CODE,
-      redirectUrl: "https://localhost/completed"
+      // redirectUrl: "https://localhost/completed"
     }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });

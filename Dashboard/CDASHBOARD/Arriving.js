@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, RefreshControl } from 'react-native';
 import { db } from '../../pages/firebase';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
@@ -8,37 +8,48 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const Arriving = ({ navigation ,route}) => {
  const {jobId}= route.params
   const [jobs, setJobs] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const fetchConfirmedJobs = async () => {
-      try {
-        const storedJobId = await AsyncStorage.getItem('jobId');
-        console.log("Stored Job ID fetched:", storedJobId);
+  const fetchConfirmedJobs = async () => {
+    try {
+      const storedJobId = await AsyncStorage.getItem('jobId');
+      const targetJobId = jobId || storedJobId;
+      console.log('Using jobId:', targetJobId);
 
-        if (!storedJobId) return;
+      if (!targetJobId) {
+        console.warn('No jobId available in route params or AsyncStorage');
+        setJobs([]);
+        return;
+      }
 
-        const docSnapshot = await db.collection('partimeRequest').doc(storedJobId).get();
-        console.log("Fetched job document:", docSnapshot.id, docSnapshot.data());
-        
-        if (docSnapshot.exists) {
-          const data = docSnapshot.data();
-          
-          if (data && (data.status === 'confirmed' || data.status === 'in-progress')) {
-            const cleanJob = { id: docSnapshot.id, ...data };
-            setJobs([cleanJob]);
-          } else {
-            setJobs([]);
-          }
+      const docSnapshot = await db.collection('partimeRequest').doc(targetJobId).get();
+      console.log('Fetched job document:', docSnapshot.id, docSnapshot.data());
+
+      if (docSnapshot.exists) {
+        const data = docSnapshot.data();
+        if (data && (data.status === 'confirmed' || data.status === 'in-progress')) {
+          const cleanJob = { id: docSnapshot.id, ...data };
+          setJobs([cleanJob]);
         } else {
           setJobs([]);
         }
-      } catch (err) {
-        console.error('Error fetching jobs:', err);
+      } else {
+        setJobs([]);
       }
-    };
+    } catch (err) {
+      console.error('Error fetching jobs:', err);
+    }
+  };
 
+  useEffect(() => {
     fetchConfirmedJobs();
-  }, []);
+  }, [jobId]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchConfirmedJobs();
+    setRefreshing(false);
+  };
 
   const confirmStartJob = (jobId, job) => {
     Alert.alert(
@@ -67,7 +78,7 @@ const Arriving = ({ navigation ,route}) => {
       );
 
       const passedJobPayload = { id: jobId, ...job, ...updatedData };
-      navigation.navigate('cstartjob', { job: passedJobPayload });
+      
 
     } catch (err) {
       console.error('Failed to start job:', err);
@@ -80,7 +91,10 @@ const Arriving = ({ navigation ,route}) => {
       <Header2 />
       <Cmenu navigation={navigation} />
 
-      <ScrollView contentContainerStyle={styles.scrollView}>
+      <ScrollView
+        contentContainerStyle={styles.scrollView}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <Text style={styles.header}>Awaiting Househelps Arrival</Text>
 
         {jobs.length === 0 ? (
