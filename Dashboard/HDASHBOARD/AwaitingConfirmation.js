@@ -2,8 +2,11 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, Vibration } from 'react-native';
 import { db } from '../../pages/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useKeepAwake } from 'expo-keep-awake';
+import { use } from 'react';
 
 const AwaitingConfirmationScreen = ({ route, navigation }) => {
+  useKeepAwake(); // Keep the screen on while this component is active
   const { jobId } = route.params;
   const [status, setStatus] = useState('');
   const hasNavigatedRef = useRef(false);

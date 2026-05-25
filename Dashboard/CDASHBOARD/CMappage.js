@@ -102,7 +102,7 @@ const CMappage = ({ navigation }) => {
 
   // 4. Notification Logic
   const handleSendPushNotification = async () => {
-    if (!requestData?.clientData) return Alert.alert("Error", "Missing request details");
+    if (!requestData?.clientData) return 
 
     try {
       let i = 0;
@@ -117,7 +117,7 @@ const CMappage = ({ navigation }) => {
               title: `New Job in ${requestData.clientData.lga}`,
               jobId: requestData.id,
               body: `Job: ${requestData.chores?.map(c => c.chore).join(', ')} \nPay: ₦${requestData.totalCost}
-             \n Client: ${requestData.clientData.name} Apartment Size:${requestData.clientData.apartmentsize}`,
+             \n Client: Mr ${requestData.clientData.firstname} Apartment Size:${requestData.clientData.apartmentsize}`,
             }),
           });
           i++;
@@ -151,6 +151,7 @@ const CMappage = ({ navigation }) => {
       console.log("Job confirmed with helper:", selectedHelper.househelpName);
 
       await AsyncStorage.setItem('jobId', requestData.id); 
+      await AsyncStorage.setItem('requestdata', JSON.stringify(requestData));
       console.log(requestData.id);
      navigation.navigate('arriving', { 
         clientId: requestData.clientId, 

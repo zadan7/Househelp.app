@@ -11,58 +11,21 @@ const Arriving = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+
+
   useEffect(() => {
-    let unsubscribe = null;
+    const getrequestdata= async()=>{
+   const requestdata= AsyncStorage.getItem('requestdata');
+   const parsedRequestData = requestdata ? JSON.parse(requestdata) : null;
+   console.log("Parsed request data in arriving screen", parsedRequestData);
 
-    const setupJobListener = async () => {
-      try {
-        // Resolve jobId from route params first, fall back to storage quickly
-        const storedJobId = await AsyncStorage.getItem('jobId');
-        const targetJobId = storedJobId || jobId ;
+   setJobs([parsedRequestData]);
+   console.log("Request data in arriving screen",requestdata)
+   setLoading(false);
+  }
 
-        if (!targetJobId) {
-          console.warn('No jobId available');
-          setJobs([]);
-          setLoading(false);
-          return;
-        }
-
-        // Use real-time sync for immediate cache resolution and live updates
-        unsubscribe = db.collection('partimeRequest')
-          .doc(targetJobId)
-          .onSnapshot((docSnapshot) => {
-            if (docSnapshot.exists) {
-              const data = docSnapshot.data();
-              if (data && (data.status === 'confirmed' || data.status === 'in-progress')) {
-                setJobs([{ id: docSnapshot.id, ...data }]);
-              } else {
-                setJobs([]);
-              }
-            } else {
-              setJobs([]);
-            }
-            setLoading(false);
-            setRefreshing(false);
-          }, (error) => {
-            console.error('Realtime listener error:', error);
-            setLoading(false);
-            setRefreshing(false);
-          });
-
-      } catch (err) {
-        console.error('Error establishing job tracking channel:', err);
-        setLoading(false);
-        setRefreshing(false);
-      }
-    };
-
-    setupJobListener();
-
-    // Clean up active snapshot listener automatically on unmount
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [jobId]);
+  getrequestdata();
+},[]);
 
   const onRefresh = () => {
     setRefreshing(true);

@@ -62,7 +62,13 @@ async function sendTestNotification(targetFCMToken, title, body, userId, jobid) 
     notification: { title, body },
     data: { screen: 'hpartime', userId: userId || '' ,jobid: jobid || ''},
     token: targetFCMToken,
-    android: { priority: 'high' },
+    android: { 
+      priority: 'HIGH', // FIXED: Must be uppercase 'HIGH' for the Admin SDK
+      notification: {
+        sound: 'default',
+        clickAction: 'FLUTTER_NOTIFICATION_CLICK', // Helps wake up specific background listener intents
+      }
+    },
     apns: { payload: { aps: { contentAvailable: true } } },
   };
 
