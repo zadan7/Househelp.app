@@ -5,12 +5,69 @@ import { Header } from '../component/Header';
 import { Footer } from '../component/Footer';
 import { useState } from 'react';
 import { useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loginAsClient,loginAsHousehelp } from './Login';
 
 function Home({ navigation }) {
-  useEffect(()=>{
-    // navigation.navigate("happliedjobs")
-    
-  },[])
+useEffect(() => {
+  const evaluateUserSession = async () => {
+    try {
+      // 1. Fetch all keys currently active in the app's storage
+      const allKeys = await AsyncStorage.getAllKeys();
+      
+      const hasHousehelp = allKeys.includes("househelpdata");
+      const hasClient = allKeys.includes("clientdata");
+
+      // 2. CONFLICT CHECK: If both exist, flush everything and force login
+      if (hasHousehelp && hasClient) {
+        console.warn("Conflict detected: Both user profiles exist. Clearing storage...");
+        
+        await AsyncStorage.clear(); // Wipes out all keys completely
+        
+        // Reset the navigation stack so they can't swipe back into an unauthenticated state
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'login' }], // Replace 'Login' with your exact login screen component name
+        });
+        return; 
+      }
+
+      // 3. SINGLE SESSION CHECKS: Handle isolated states
+      if (hasHousehelp) {
+        console.log("Only Househelp data exists.");
+       navigation.reset({
+          index: 0,
+          routes: [{ name: 'hdashboard' }], // Replace 'Login' with your exact login screen component name
+        }); // Call the househelp login flow to restore session
+        // Write your specialized househelp routing logic here
+      } 
+      
+      else if (hasClient) {
+        console.log("Only Client data exists.");
+        // Write your specialized client routing logic here
+         navigation.reset({
+          index: 0,
+          routes: [{ name: 'cdashboard' }], // Replace 'Login' with your exact login screen component name
+        }); 
+      } 
+      
+      else {
+        console.log("No active sessions found. Fresh device state.");
+        // Optional: You can choose to navigate to a welcome screen or stay on the home screen with options to login or register
+         navigation.reset({
+          index: 0,
+          routes: [{ name: 'home' }], // Replace 'Login' with your exact login screen component name
+        });
+        // Optional: Send to welcome/login screen if nobody is logged in at all
+      }
+
+    } catch (error) {
+      console.error("Session verification tracking failed:", error);
+    }
+  };
+
+  evaluateUserSession();
+}, [navigation]);
   return (
     <ScrollView >
         <View style={styles.container}>

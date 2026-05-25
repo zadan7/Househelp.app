@@ -7,11 +7,7 @@ const BankPicker = ({ onBankSelect }) => {
   const [selectedBank, setSelectedBank] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchBanks();
-  }, []);
-
-  const fetchBanks = async () => {
+   const fetchBanks = async () => {
     try {
       // Flutterwave API to get Nigerian banks
       const response = await fetch('https://api.flutterwave.com/v3/banks/NG', {
@@ -31,6 +27,12 @@ const BankPicker = ({ onBankSelect }) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchBanks();
+  }, []);
+
+ 
 
   return (
     <View style={styles.container}>

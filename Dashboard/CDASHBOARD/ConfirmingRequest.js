@@ -6,8 +6,10 @@ import { db } from '../../pages/firebase';
 import { Header2 } from '../../component/Header';
 import { Cmenu } from '../../component/Menu';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useKeepAwake } from 'expo-keep-awake';
 
 const RequestConfirmation = ({ navigation, route }) => {
+  useKeepAwake(); // Keep the screen on while this component is active
   const [clientId, setClientId] = useState(route.params);
   const [pendingJobs, setPendingJobs] = useState([]);
   const [selectedHelpers, setSelectedHelpers] = useState({});  

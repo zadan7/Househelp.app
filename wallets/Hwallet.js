@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Alert } from 'react-native';
 import { db } from '../pages/firebase';
-import { Cmenu } from '../component/Menu'; // Reusing your layout menu component
+import { Hmenu } from '../component/Menu'; // Reusing your layout menu component
 import { Header2 } from '../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -156,7 +156,7 @@ useEffect(() => {
   return (
     <View style={styles.container}>
       <Header2 />
-      <Cmenu navigation={navigation} />
+      <Hmenu navigation={navigation} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.header}>Provider Earnings</Text>

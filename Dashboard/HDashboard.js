@@ -19,6 +19,10 @@ const gridItems = [
   { title: 'Weekly Jobs', icon: 'calendar-outline', screen: 'hweekly' },
   { title: 'Profile', icon: 'person-outline', screen: 'hprofile' },
   { title: 'Settings', icon: 'settings-outline', screen: 'hsettings' },
+  { title: 'wallet', icon: 'wallet', screen: 'hwallet' },
+  //  { title: 'Pending Jobs', icon: 'pending', screen: 'hpendingjobs' },
+
+
 ];
 
 const HousehelpDashboard = ({ navigation }) => {
@@ -26,6 +30,7 @@ const HousehelpDashboard = ({ navigation }) => {
   const [clients, setClients] = useState([]);
   const [jobandclientsdata, setJobandClientdata] = useState([]);
   const menuAnimation = useState(new Animated.Value(-250))[0];
+  const[househelp,setHousehelp]=useState({}) ;
 
   useEffect(() => {
  const fetchJobRequests = async () => {
@@ -66,7 +71,12 @@ const HousehelpDashboard = ({ navigation }) => {
     fetchJobRequests();
   }, []);
   useEffect(() => {
-    console.log ("househelpdata :",AsyncStorage.getItem("househelpdata"));
+    const fetchHousehelpdata = async () =>{
+    const Househelp = await JSON.parse(AsyncStorage.getItem("househelpdata"))
+    setHousehelp(Househelp) 
+    }
+    fetchHousehelpdata();
+    
   }, []);
 
   const acceptJob = async (jobId) => {
@@ -84,13 +94,13 @@ const HousehelpDashboard = ({ navigation }) => {
       <Hmenu navigation={navigation} />
 
       <ScrollView>
-        <Text style={styles.header}>Welcome Back 👋</Text>
+        <Text style={styles.header}>Welcome Back 👋{ househelp.name}</Text>
 
         {/* Grid Buttons Section */}
         <FlatList
           data={gridItems}
           keyExtractor={(item) => item.title}
-          numColumns={3}
+          numColumns={2}
           columnWrapperStyle={{ justifyContent: 'space-around' }}
           scrollEnabled={false}
           contentContainerStyle={styles.grid}
@@ -102,41 +112,10 @@ const HousehelpDashboard = ({ navigation }) => {
           )}
         />
 
-        <Button title="Get Expo Push Token" onPress={async () => {
-         helpdata= await AsyncStorage.getItem("househelpdata");
-         console.log("Househelpdata in HDashboard:", helpdata);
-        
-        }} />
+       
+        {/* <Text style={styles.subHeader}>Example Jobs</Text> */}
 
-        <Text style={styles.subHeader}>Example Jobs</Text>
-
-        <FlatList
-          data={jobandclientsdata}
-          keyExtractor={item => item.id2}
-          renderItem={({ item }) => (
-            <View style={styles.jobCard}>
-              <Image source={{ uri: item.client?.facepicture }} style={styles.avatar} />
-              <Text style={styles.jobTitle}>{item.clientName}</Text>
-              <Text style={styles.jobAmount}>Amount: ₦{item.totalCost}</Text>
-              <Text style={styles.jobInfo}>Apartment: {item.apartmentType}</Text>
-              <Text style={styles.jobInfo}>LGA: {item.client?.lga}</Text>
-              <Text style={styles.jobInfo}>Phone: {item.phone}</Text>
-              <Text style={styles.jobInfo}>State: {item.state}</Text>
-              <Text style={styles.jobInfo}>Address: {item.client?.address}</Text>
-              <Text style={styles.jobInfo}>Chores:</Text>
-              {item.chores?.map((chore, index) => (
-                <Text key={index} style={styles.choreItem}>
-                  - {chore.chore}: ₦{chore.price}
-                </Text>
-              ))}
-              {/* {item.status !== 'Accepted' && (
-                <TouchableOpacity style={styles.acceptButton} onPress={() => acceptJob(item.id)}>
-                  <Text style={styles.acceptButtonText}>Accept Job</Text>
-                </TouchableOpacity>
-              )} */}
-            </View>
-          )}
-        />
+      
       </ScrollView>
     </View>
   );
@@ -163,7 +142,7 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   grid: {
-    paddingVertical: 15,
+    paddingVertical: 20,
     paddingHorizontal: 10,
   },
   gridItem: {
@@ -173,7 +152,7 @@ const styles = StyleSheet.create({
     padding: 15,
     margin: 5,
     borderRadius: 12,
-    width: 100,
+    width: '45%',
     height: 100,
     elevation: 2,
   },

@@ -10,6 +10,7 @@ import emailjs from "emailjs-com";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
 import BankPicker from '../component/Banks';
+import Loader from '../component/Loader';
 
 
 // import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -19,6 +20,7 @@ import { storage } from './firebase';
 
 // import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import * as Notifications from "expo-notifications";
+import { Timestamp } from '@react-native-firebase/firestore';
 
 
 // import { db } from "./firebaseConfig"; // Import Firestore instance
@@ -129,7 +131,7 @@ function HSignup({ navigation }) {
     console.log("HSignup: handleDone started");
     if (validateInputs()) {
       console.log("HSignup: Validation passed");
-      var verificationCode=   generateVerificationCode()
+      const verificationCode=   generateVerificationCode()
       console.log("HSignup: Generated verification code", verificationCode);
       Alert.alert('Success', 'Form submitted successfully!');
 
@@ -159,7 +161,7 @@ function HSignup({ navigation }) {
       try{
         console.log("HSignup: Saving to AsyncStorage");
         await Promise.all([ 
-          AsyncStorage.add("househelpdata",JSON.stringify(househelpData)),
+          AsyncStorage.setItem("househelpdata",JSON.stringify(househelpData)),
           AsyncStorage.setItem("hname", firstname+"  "+ lastname ),
           AsyncStorage.setItem("hemail", email),
           AsyncStorage.setItem("haddress", address),
@@ -385,6 +387,7 @@ const uploadImageToFirebase = async (imageUri, verificationCode, userName) => {
 
 // Function to upload data to Firestore
 
+
 const uploadDataToFirestore = async (collectionName, data) => {
   try {
     console.log("Attempting Native Firestore Upload...");
@@ -444,6 +447,7 @@ async function registerForPushNotificationsAsync() {
       console.log("CodeValidation: Fetching data from AsyncStorage");
       try {
         const storedCode = await AsyncStorage.getItem("code");
+        setCode(storedCode);
         console.log("CodeValidation: Stored code:", storedCode);
         const hname = await AsyncStorage.getItem("hname");
         const hemail = await AsyncStorage.getItem("hemail");
@@ -513,17 +517,24 @@ async function registerForPushNotificationsAsync() {
       }
     };
   
-    console.log("CodeValidation: data before fetch:", data);
   
     fetchCode();
+    console.log("CodeValidation: data before fetch:", data);
+
     
   }, []); // Empty dependency array to run only once on mount
   
  const handleDone = async () => {
+  console.log("CodeValidation: handleDone started, comparing codes", { code, code2 });
+
+  await AsyncStorage.getItem 
   if (code2 == code) {
-    Alert.alert("Success", "Code verified! Completing registration...");
+    console.log("CodeValidation: Code verified, proceeding with registration");
+    // Alert.alert("Success", "Code verified! Completing registration...");
+    setIsLoading(true); // Show loading indicator during final steps
     
     try {
+      console.log("data before image upload:", data );
       // let finalImageUrl = null;
 
       // 1. Try Image Upload
@@ -538,10 +549,12 @@ async function registerForPushNotificationsAsync() {
       // };
 
       // 3. Upload to Firestore
+   
       const docId = await uploadDataToFirestore("househelps", data);
+      
 
       if (docId) {
-        
+        setIsLoading(false); // Hide loading indicator
         navigation.navigate("Guarantor", { data2: data });
       }
     } catch (error) {
@@ -551,6 +564,16 @@ async function registerForPushNotificationsAsync() {
     Alert.alert("Error", "Invalid verification code.");
   }
 };
+
+if (isLoading) {
+  return (
+    <View>
+      <Loader />
+    </View>
+   
+  );
+}
+
   return (
     <ScrollView>
       <Header />

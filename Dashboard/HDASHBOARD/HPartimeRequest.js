@@ -45,7 +45,7 @@ const HPartimeRequest = ({ navigation }) => {
     }));
 
     const pendingJobs = jobs.filter(job =>
-      job.isjobcompleted == false &&
+      job.isjobcompleted == false && job.status !== 'accepted' &&
       !(job.acceptedHelpers || []).some(
         helper => helper.househelpId === househelpId
       )
@@ -143,6 +143,7 @@ const HPartimeRequest = ({ navigation }) => {
               <Text style={styles.jobInfo}>Apartment: {job.apartmentType}</Text>
               <Text style={styles.jobInfo}>Address: {job.address}</Text>
               <Text style={styles.jobInfo}>Phone: {job.phone}</Text>
+              <Text style={styles.jobInfo}>Jobid: {job.id}</Text>
 
               <Text style={{ fontWeight: 'bold', marginTop: 10 }}>Chores:</Text>
               {job.chores.map((chore, index) => (

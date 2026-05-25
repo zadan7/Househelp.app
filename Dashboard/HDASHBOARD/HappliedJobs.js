@@ -8,7 +8,7 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { collection, getDocs } from 'firebase/firestore';
+// import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 import { Hmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
@@ -36,8 +36,8 @@ const HappliedJobs = ({ navigation }) => {
     const fetchJobs = async () => {
       setLoading(true);
       try {
-        const fulltimeSnapshot = await getDocs(collection(db, 'fulltimeRequest'));
-        const partimeSnapshot = await getDocs(collection(db, 'partimeRequest'));
+        const fulltimeSnapshot = await db.collection('fulltimeRequest').get();
+        const partimeSnapshot = await db.collection('partimeRequest').get();
 
         const fulltimeList = fulltimeSnapshot.docs.map(doc => ({
           id: doc.id,
@@ -119,9 +119,11 @@ const HappliedJobs = ({ navigation }) => {
               <Text style={styles.jobTitle}>{job.requestType || 'Househelp Job'}</Text>
               <Text style={styles.jobAmount}>₦{job.salary || job.totalCost || 'N/A'}</Text>
               <Text style={styles.jobInfo}>📍 {job.clientData.state +" "+   job.clientData.lga +" "+ job.clientData.address || 'N/A'}</Text>
-              <Text style={styles.jobInfo}>🗓️ {job.date || job.createdAt?.toDate().toDateString() || 'N/A'}</Text>
+              <Text style={styles.jobInfo}>🗓️ {job.date  || 'N/A'}</Text>
               <Text style={styles.jobInfo}>⏰ {job.time || 'N/A'}</Text>
-              <Text style={styles.jobInfo}>👤 {job.clientData.name || 'N/A'}</Text>
+              <Text style={styles.jobInfo}>👤 {job.clientData.firstname + ' ' + job.clientData.lastname || 'N/A'}</Text>
+              <Text style={styles.jobInfo}>📞 {job.clientData.phone || 'N/A'}</Text>
+              <Text style={styles.jobInfo}>✉️ {job.clientData.email || 'N/A'}</Text>
               <TouchableOpacity
                 style={styles.acceptButton}
              

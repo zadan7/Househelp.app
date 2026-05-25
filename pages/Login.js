@@ -19,6 +19,53 @@ import * as Notifications from 'expo-notifications';
 import messaging from '@react-native-firebase/messaging';
 import { useCallback } from 'react';
 
+
+ const loginAsHousehelp = async (user) => {
+    setLoading(true);
+    console.log('Logging in as Househelp:', user);
+    try {
+      const userData = { ...user, id: user.id };
+      
+      // Update DB and LocalStorage in parallel (FAST)
+      await Promise.all([
+        storeData('househelpdata', userData),
+        db.collection('househelps').doc(user.id).update({
+          expotoken: expotoken || '',
+          fcmtoken: fcmtoken || ''
+        })
+      ]);
+
+      navigation.navigate('hdashboard', { househelpdata: userData });
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Login Error', 'Failed to update session.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginAsClient = async (user) => {
+    setLoading(true);
+    try {
+      const userData = { ...user, id: user.id };
+
+      await Promise.all([
+        storeData('clientdata', userData),
+        db.collection('clients').doc(user.id).update({
+          expotoken: expotoken || '',
+          fcmtoken: fcmtoken || ''
+        })
+      ]);
+
+      navigation.navigate('cdashboard', { clientdata: userData });
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Login Error', 'Failed to update session.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
 function Login({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -272,4 +319,4 @@ const styles = StyleSheet.create({
   spinnerIcon: { width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: 'white' },
 });
 
-export { Login };
+export { Login ,loginAsClient,loginAsHousehelp };

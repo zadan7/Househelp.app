@@ -8,16 +8,18 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { collection, getDocs, updateDoc, doc, arrayUnion } from 'firebase/firestore';
+// import { collection, getDocs, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 import { Hmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import firestore from '@react-native-firebase/firestore';
+import Loader from '../../component/Loader';
 
 const Hfulltime = ({ navigation }) => {
   const [jobs, setJobs] = useState([]);
   const [househelp, setHousehelp] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [isloading, setisLoading] = useState(true);
   const [appliedJobs, setAppliedJobs] = useState([]);
 
   useEffect(() => {
@@ -30,9 +32,9 @@ const Hfulltime = ({ navigation }) => {
     fetchHousehelpData();
   }, []);
   const fetchFulltimeJobs = async () => {
-    setLoading(true);
+    setisLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, 'fulltimeRequest'));
+      const querySnapshot = await db.collection('fulltimeRequest').get();
       const jobList = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -46,34 +48,47 @@ const Hfulltime = ({ navigation }) => {
       });
 
       setJobs(filteredJobs);
+      setisLoading(false);
     } catch (error) {
       console.error('Error fetching full-time jobs: ', error);
     } finally {
-      setLoading(false);
+      setisLoading(false);
     }
   };
   useEffect(() => {
     const fetchFulltimeJobs = async () => {
-      setLoading(true);
+      setisLoading(true);
       try {
-        const querySnapshot = await getDocs(collection(db, 'fulltimeRequest'));
+        const querySnapshot = await db.collection('fulltimeRequest').get();
         const jobList = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
 
-        const filteredJobs = jobList.filter((job) => {
-          const alreadyApplied = job.acceptedHelpers?.some(
-            (helper) => helper.id === househelp.id
-          );
-          return !alreadyApplied;
-        });
+    const filteredJobs = jobList.filter((job) => {
+  // 1. Defend against missing local data: If househelp or its ID isn't ready, don't crash
+  if (!househelp || !househelp.id) {
+    return true; // Keep the jobs listed until data resolves, or false to hide them
+  }
+
+  // 2. Defend against missing database array fields
+  const acceptedHelpersArray = Array.isArray(job.acceptedHelpers) ? job.acceptedHelpers : [];
+
+  const alreadyApplied = acceptedHelpersArray.some((helper) => {
+    // 3. Defend against corrupt, incomplete, or broken helper objects in the array
+    return helper && helper.id === househelp.id;
+  });
+
+  // Return the jobs they haven't applied to yet
+  return !alreadyApplied;
+});
+       
 
         setJobs(filteredJobs);
       } catch (error) {
         console.error('Error fetching full-time jobs: ', error);
       } finally {
-        setLoading(false);
+        setisLoading(false);
       }
     };
 
@@ -86,9 +101,9 @@ const Hfulltime = ({ navigation }) => {
     setAppliedJobs((prevState) => [...prevState, jobId]);
 
     try {
-      await updateDoc(doc(db, 'fulltimeRequest', jobId), {
+      await db.collection('fulltimeRequest').doc(jobId).update({
         status: 'applied',
-        acceptedHelpers: arrayUnion(househelp), // Direct object, not nested
+        acceptedHelpers: firestore.FieldValue.arrayUnion(househelp) // Direct object, not nested
       });
       console.log('Job application submitted successfully!');
       fetchFulltimeJobs(); // Refresh the job list after applying
@@ -164,10 +179,10 @@ const Hfulltime = ({ navigation }) => {
     </View>
   );
 
-  if (loading) {
+  if (isloading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#28a745" />
+        <Loader />
       </View>
     );
   }

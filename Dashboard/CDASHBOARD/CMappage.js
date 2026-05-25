@@ -15,8 +15,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Header2 } from '../../component/Header';
 import { Cmenu } from '../../component/Menu';
 import { FontAwesome } from '@expo/vector-icons';
+import { useKeepAwake } from 'expo-keep-awake';
+import { use } from 'react';
 
 const CMappage = ({ navigation }) => {
+  useKeepAwake(); // Keep the screen on while this component is active
   const [location, setLocation] = useState(null);
   const [househelps, setHousehelps] = useState([]);
   const [requestData, setRequestData] = useState(null);
@@ -112,12 +115,13 @@ const CMappage = ({ navigation }) => {
             body: JSON.stringify({
               token: help.fcmtoken,
               title: `New Job in ${requestData.clientData.lga}`,
+              jobId: requestData.id,
               body: `Job: ${requestData.chores?.map(c => c.chore).join(', ')} \nPay: ₦${requestData.totalCost}
              \n Client: ${requestData.clientData.name} Apartment Size:${requestData.clientData.apartmentsize}`,
             }),
           });
           i++;
-        }
+        } 
       }
       Alert.alert('Sent',  `${i} nearby househelps have been notified.`);
     } catch (e) {

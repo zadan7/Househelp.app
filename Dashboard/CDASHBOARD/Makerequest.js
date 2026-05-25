@@ -103,6 +103,8 @@ const MakeRequest = ({ navigation }) => {
       const docRef = await db.collection('partimeRequest').add(requestData);
 const newDocId = docRef.id;
 
+db.collection('partimeRequest').doc(newDocId).update({ id: newDocId });
+
 console.log('New document created with ID:', newDocId);
       await AsyncStorage.setItem('chores', JSON.stringify(selectedChores));
       await AsyncStorage.setItem('total', `${totalCost}`);

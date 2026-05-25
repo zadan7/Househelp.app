@@ -5,6 +5,7 @@ import { db } from '../../pages/firebase';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useKeepAwake } from 'expo-keep-awake';
 
 // Star component for the rating system
 const Star = ({ filled, onPress }) => (
@@ -14,6 +15,7 @@ const Star = ({ filled, onPress }) => (
 );
 
 const CStartJob = ({ navigation, route }) => {
+  useKeepAwake(); // Keep the screen on while this component is active
   const { job } = route.params;
   const [jobData, setJobData] = useState(job);
   const [loading, setLoading] = useState(true);
