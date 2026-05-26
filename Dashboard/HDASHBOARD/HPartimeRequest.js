@@ -16,50 +16,87 @@ const HPartimeRequest = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const fetchHousehelpName = async () => {
-      try {
-        const user = await AsyncStorage.getItem('househelpdata');
-        if (user) {
-          const parsedUser = JSON.parse(user);
-          setHousehelpId(parsedUser.id);
-          setHousehelpdata(parsedUser);
-          setHousehelpName(parsedUser.name);
-        } else {
-          Alert.alert('Error', 'Househelp data not found.');
-        }
-      } catch (error) {
-        console.error("Error fetching househelp data:", error);
-        Alert.alert('Error', 'Failed to fetch househelp data.');
+// --- 1. HOOK: LIFECYCLE RUNS AUTOMATICALLY ON SCREEN MOUNT ---
+useEffect(() => {
+  let unsubscribe = null;
+
+  const initializeJobListener = async () => {
+    try {
+      // Await disk memory resolution completely first to avoid race conditions
+      const user = await AsyncStorage.getItem('househelpdata');
+      if (!user) {
+        Alert.alert('Error', 'Househelp data not found.');
+        return;
       }
-    };
 
-    fetchHousehelpName();
+      const parsedUser = JSON.parse(user);
+      const currentHelperId = parsedUser.id;
 
-   const unsubscribe = db
-  .collection('partimeRequest')
-  .onSnapshot(snapshot => {
-    const jobs = snapshot.docs.map(doc => ({
-      id2: doc.id,
-      ...doc.data(),
-    }));
+      // Set global component states safely
+      setHousehelpId(currentHelperId);
+      setHousehelpdata(parsedUser);
+      setHousehelpName(parsedUser.name);
 
-    const pendingJobs = jobs.filter(job =>
-      job.isjobcompleted == false && job.status !== 'accepted' &&
-      !(job.acceptedHelpers || []).some(
-        helper => helper.househelpId === househelpId
-      )
-    );
+      if (!currentHelperId) {
+        console.warn("Resolved user object is missing an ID parameter.");
+        return;
+      }
 
-    Vibration.vibrate(1000);
+      // Attach the snapshot listener only after the ID is guaranteed to exist
+      unsubscribe = db.collection('partimeRequest').onSnapshot(
+        (snapshot) => {
+          const jobs = snapshot.docs.map((doc) => ({
+            id2: doc.id,
+            ...doc.data(),
+          }));
 
-    setJobRequests(pendingJobs);
-  });
+          // Robust filtering against missing or empty database properties
+          const pendingJobs = jobs.filter((job) => {
+            const isCompleted = job.isjobcompleted === true;
+            const isAccepted = job.status === 'accepted';
 
-    return () => unsubscribe();
-  }, [househelpId]);
+            const alreadyApplied = (job.acceptedHelpers || []).some(
+              (helper) => helper && helper.househelpId === currentHelperId
+            );
 
-  const handleAcceptJob = async (jobId) => {
+            return !isCompleted && !isAccepted && !alreadyApplied;
+          });
+
+          // Safe Sorting supporting both raw timestamp numbers or Firestore timestamp objects
+          pendingJobs.sort((a, b) => {
+            const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : Number(a.createdAt || 0);
+            const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : Number(b.createdAt || 0);
+            return timeB - timeA;
+          });
+
+          setJobRequests(pendingJobs);
+          
+          if (pendingJobs.length > 0) {
+            Vibration.vibrate(500);
+          }
+        },
+        (error) => {
+          console.error("Live feed subscription crash: ", error);
+        }
+      );
+
+    } catch (error) {
+      console.error("Error setting up feed parameters:", error);
+      Alert.alert('Error', 'Failed to fetch layout updates.');
+    }
+  };
+
+  initializeJobListener();
+
+  // Cleanup active background listener stream automatically when leaving the screen
+  return () => {
+    if (unsubscribe) unsubscribe();
+  };
+}, []); // Empty dependency array prevents infinite re-render loops
+
+
+// --- 2. FUNCTION: TRIGGERED ONLY WHEN PROVIDER CLICKS "ACCEPT JOB" ---
+const handleAcceptJob = async (jobId) => {
   if (!househelpName) {
     Alert.alert('Error', 'Househelp name is not set.');
     return;
@@ -68,15 +105,16 @@ const HPartimeRequest = ({ navigation }) => {
   setIsLoading(true);
 
   try {
+    // Corrected to use your standard app database package tracking syntax
     await db
       .collection('partimeRequest')
       .doc(jobId)
       .update({
         status: 'accepted',
         acceptedHelpers: firestore.FieldValue.arrayUnion({
-          househelpId,
-          househelpName,
-          househelpdata,
+          househelpId: househelpId,
+          househelpName: househelpName,
+          househelpdata: househelpdata,
         }),
       });
 
@@ -84,7 +122,7 @@ const HPartimeRequest = ({ navigation }) => {
     navigation.navigate('awaitingconfirmation', { jobId });
 
   } catch (error) {
-    console.log('Failed to accept job:', error);
+    console.error('Failed to accept job:', error);
     Alert.alert('Error', 'Failed to accept the job.');
   } finally {
     setIsLoading(false);
@@ -144,6 +182,11 @@ const HPartimeRequest = ({ navigation }) => {
               <Text style={styles.jobInfo}>Address: {job.address}</Text>
               <Text style={styles.jobInfo}>Phone: {job.phone}</Text>
               <Text style={styles.jobInfo}>Jobid: {job.id}</Text>
+              <Text style={styles.jobInfo}> Date:{new Date(job.createdAt).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  })}</Text>
 
               <Text style={{ fontWeight: 'bold', marginTop: 10 }}>Chores:</Text>
               {job.chores.map((chore, index) => (

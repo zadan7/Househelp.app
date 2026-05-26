@@ -59,23 +59,46 @@ app.post('/sendNotificationToUser', async (req, res) => {
 
 async function sendTestNotification(targetFCMToken, title, body, userId, jobid) {
   const message = {
-    notification: { title, body },
-    data: { screen: 'hpartime', userId: userId || '' ,jobid: jobid || ''},
+    // 1. Visible system tray configuration
+    notification: { 
+      title, 
+      body 
+    },
+    
+    // 2. Custom app data parameters for client-side navigation routing
+    data: { 
+      screen: 'hpartime', 
+      userId: String(userId || ''), 
+      jobid: String(jobid || '')
+    },
+    
     token: targetFCMToken,
+    
+    // 3. Android Platform Specific Settings (Correctly Nested)
     android: { 
-      priority: 'HIGH', // FIXED: Must be uppercase 'HIGH' for the Admin SDK
+      priority: 'HIGH', 
       notification: {
         sound: 'default',
-        clickAction: 'FLUTTER_NOTIFICATION_CLICK', // Helps wake up specific background listener intents
+        clickAction: 'FLUTTER_NOTIFICATION_CLICK', 
       }
     },
-    apns: { payload: { aps: { contentAvailable: true } } },
+    
+    // 4. Apple iOS Push Settings
+    apns: { 
+      payload: { 
+        aps: { 
+          contentAvailable: true, 
+          sound: 'default'
+        } 
+      } 
+    },
   };
 
   try {
     const response = await admin.messaging().send(message);
     return { success: true, messageId: response };
   } catch (error) {
+    console.error("FCM Delivery Engine Failure:", error);
     return { success: false, error: error.message };
   }
 }

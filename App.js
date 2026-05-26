@@ -55,7 +55,7 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
 const MyStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Home" component={Home} />
+      <Stack.Screen name="home" component={Home} />
       <Stack.Screen name="Request" component={Request} />
       <Stack.Screen name="HSignup" component={HSignup} />
       <Stack.Screen name="login" component={Login} />
