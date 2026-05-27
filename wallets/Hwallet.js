@@ -35,14 +35,15 @@ const Hwallet = ({ navigation }) => {
         setProviderId(storedProviderId);
 
         // Real-time synchronization of provider ledger balances
-        db.collection('provider_wallets').doc(storedProviderId).onSnapshot((docSnap) => {
-          if (docSnap.exists) {
+       db.collection('provider_wallets').doc(storedProviderId).onSnapshot((docSnap) => {
+          if (docSnap.exist) {
+            console.log(docSnap.data())
             const data = docSnap.data();
-            setBalance(data.balance || 0);
+            setBalance(data.balancee || 0);
             setPendingBalance(data.pendingBalance || 0); // Funds locked until chore verification settles
           } else {
             // Document creation fallback loop
-            db.collection('provider_wallets').doc(storedProviderId).set({
+          db.collection('provider_wallets').doc(storedProviderId).set({
               balance: 0,
               pendingBalance: 0,
               totalEarned: 0

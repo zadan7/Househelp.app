@@ -54,10 +54,7 @@ useEffect(() => {
       else {
         console.log("No active sessions found. Fresh device state.");
         // Optional: You can choose to navigate to a welcome screen or stay on the home screen with options to login or register
-         navigation.reset({
-          index: 0,
-          routes: [{ name: 'home' }], // Replace 'Login' with your exact login screen component name
-        });
+        
         // Optional: Send to welcome/login screen if nobody is logged in at all
       }
 
