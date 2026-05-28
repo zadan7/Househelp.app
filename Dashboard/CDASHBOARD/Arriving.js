@@ -4,6 +4,7 @@ import { db } from '../../pages/firebase';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Loader from '../../component/Loader';
 
 const Arriving = ({ navigation, route }) => {
   const { jobId } = route.params || {};
@@ -11,25 +12,77 @@ const Arriving = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-
-
   useEffect(() => {
-    const getrequestdata= async()=>{
-   const requestdata= AsyncStorage.getItem('requestdata');
-   const parsedRequestData = requestdata ? JSON.parse(requestdata) : null;
-   console.log("Parsed request data in arriving screen", parsedRequestData);
+    let unsubscribe = null;
 
-   setJobs([parsedRequestData]);
-   console.log("Request data in arriving screen",requestdata)
-   setLoading(false);
-  }
+    const getRequestData = async () => {
+      try {
+        const rawRequestData = await AsyncStorage.getItem('requestdata');
+        console.log("Raw AsyncStorage string retrieved:", rawRequestData);
 
-  getrequestdata();
-},[]);
+        if (rawRequestData) {
+          const parsedRequestData = JSON.parse(rawRequestData);
+          
+          // Fallback tracking to find the right ID from routing context or parsed keys
+          const activeId = parsedRequestData.id ;
+
+          if (!activeId) {
+            console.warn("Could not isolate a valid document reference hash ID.");
+            setJobs([parsedRequestData]);
+            setLoading(false);
+            return;
+          }
+
+          // Real-time synchronization loop to listen for 'confirmed' updates automatically
+          unsubscribe = db.collection('partimeRequest').doc(activeId).onSnapshot(
+            (docSnap) => {
+              if (docSnap.exists) {
+                const updatedJob = { id: docSnap.id, ...docSnap.data() };
+                setJobs([updatedJob]);
+              } else {
+                // If it doesn't exist on the server yet, fall back onto disk state records safely
+                setJobs([{ id: activeId, ...parsedRequestData }]);
+              }
+              setLoading(false);
+              setRefreshing(false);
+            },
+            (error) => {
+              console.error("Live track link stream failure:", error);
+              setLoading(false);
+              setRefreshing(false);
+            }
+          );
+        } else {
+          console.log("No previous requestdata payload layout found in storage.");
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Failed to read arriving payload layout metrics:", error);
+        setLoading(false);
+      }
+    };
+
+    getRequestData();
+
+    // Kill active stream queries safely when backing out of the view layout
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [jobId]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    // The snapshot listener updates automatically, but we can trigger it to verify connectivity
+    // Triggering structural reload safely clears stale render elements
+    if (jobs[0]?.id) {
+      db.collection('partimeRequest').doc(jobs[0].id).get().then((docSnap) => {
+        if (docSnap.exists) {
+          setJobs([{ id: docSnap.id, ...docSnap.data() }]);
+        }
+        setRefreshing(false);
+      }).catch(() => setRefreshing(false));
+    } else {
+      setRefreshing(false);
+    }
   };
 
   const confirmStartJob = (targetId, job) => {
@@ -51,14 +104,14 @@ const Arriving = ({ navigation, route }) => {
         startedAt: new Date(),
       };
 
-      // Optimistic locally managed UI state update before server response fires back
+      // Optimistic locally managed UI state update
       setJobs(prev =>
         prev.map(j => (j.id === targetId ? { ...j, ...updatedData } : j))
       );
 
       await db.collection('partimeRequest').doc(targetId).update(updatedData);
       Alert.alert("Success", "Job started successfully!");
-      navigation.navigate("cstartjob")
+      navigation.navigate("cstartjob",{job: job}); 
     } catch (err) {
       console.error('Failed to start job:', err);
       Alert.alert("Error", "Could not update server tracker. Try again.");
@@ -72,7 +125,7 @@ const Arriving = ({ navigation, route }) => {
 
       {loading ? (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#28a745" />
+          <Loader />
           <Text style={styles.loaderText}>Loading current appointment info...</Text>
         </View>
       ) : (
@@ -82,11 +135,11 @@ const Arriving = ({ navigation, route }) => {
         >
           <Text style={styles.header}>Awaiting Househelp's Arrival</Text>
 
-          {jobs.length === 0 ? (
+          {jobs.length === 0 || !jobs[0] ? (
             <Text style={styles.noJobText}>No active or confirmed bookings listed right now.</Text>
           ) : (
             jobs.map(job => (
-              <View key={job.id} style={styles.jobCard}>
+              <View key={job.id || 'fallback-key'} style={styles.jobCard}>
                 <Text style={styles.jobTitle}>Househelp: {job.househelpName || 'Assigned Help'}</Text>
                 <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Job ID:</Text> {job.id}</Text>
                 <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Client:</Text> {job.clientName}</Text>
@@ -94,12 +147,12 @@ const Arriving = ({ navigation, route }) => {
                 <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Type:</Text> {job.requestType} ({job.apartmentType})</Text>
                 <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Address:</Text> {job.address}</Text>
                 <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Status:</Text> {job.status}</Text>
-                <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Total Cost:</Text> ₦{Number(job.totalCost).toLocaleString()}</Text>
+                <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Total Cost:</Text> ₦{Number(job.totalCost || 0).toLocaleString()}</Text>
 
                 <Text style={styles.sectionTitle}>Chores Breakdown:</Text>
                 {job.chores && job.chores.map((chore, index) => (
                   <Text key={index} style={styles.choreItem}>
-                    • {chore.chore} — ₦{Number(chore.price).toLocaleString()}
+                    • {chore.chore} — ₦{Number(chore.price || 0).toLocaleString()}
                   </Text>
                 ))}
 
@@ -119,6 +172,7 @@ const Arriving = ({ navigation, route }) => {
                   </>
                 )}
 
+                {/* The Conditional Elements Will Evaluate Smoothly Now */}
                 {job.status === 'confirmed' && (
                   <TouchableOpacity onPress={() => confirmStartJob(job.id, job)} style={styles.startButton}>
                     <Text style={styles.startButtonText}>Confirm Arrival & Start</Text>

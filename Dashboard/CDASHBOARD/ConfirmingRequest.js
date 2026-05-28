@@ -38,10 +38,19 @@ const RequestConfirmation = ({ navigation, route }) => {
             job.clientId === clientId &&
             (job.status === 'pending' || job.status === 'accepted' || job.isjobcompleted === false)
         );
-
+ jobs.sort((a, b) => {
+            const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : Number(a.createdAt || 0);
+            const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : Number(b.createdAt || 0);
+            return timeB - timeA;
+          });
       setPendingJobs(jobs);
       setLoading(false);
     });
+
+
+   
+
+          // setJobRequests(pendingJobs);
 
   return () => unsubscribe();
 }, [clientId]);
