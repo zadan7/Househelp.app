@@ -87,6 +87,7 @@ const CStartJob = ({ navigation, route }) => {
 
     updatedChores[index].completed = true;
 
+    // Instantly reflect state changes locally
     try {
       await db.collection('partimeRequest').doc(documentId).update({
         chores: updatedChores,
@@ -106,7 +107,7 @@ const CStartJob = ({ navigation, route }) => {
     setRating(stars);
   };
 
-  // --- DATABASE UPDATE UTILITY ---
+  // --- DATABASE UPDATE UTILITY & REDIRECT ---
   const finalizeJobAndPayment = async (reference, totalAmount) => {
     try {
       const jobRef = db.collection('partimeRequest').doc(documentId);
@@ -130,9 +131,23 @@ const CStartJob = ({ navigation, route }) => {
         details: `Paid to ${jobData.househelpName}`
       });
 
-      Alert.alert('Success', 'Payment processed and job finalized successfully.');
-      navigation.goBack();
+      setProcessingPayment(false);
+
+      // Display dynamic confirmation notice and push the client back to their control center dashboard context
+      Alert.alert(
+        'Payment Successful', 
+        `Your payment of ₦${Number(totalAmount).toLocaleString()} was processed securely. Thank you for your review!`,
+        [
+          { 
+            text: 'OK', 
+            onPress: () => navigation.navigate('cdashboard') 
+          }
+        ],
+        { cancelable: false }
+      );
+
     } catch (dbError) {
+      setProcessingPayment(false);
       console.error("Error updating firestore tracking documents:", dbError);
       Alert.alert("Data Error", "Payment hit Monnify successfully but failed to update status locally.");
     }
@@ -149,12 +164,13 @@ const CStartJob = ({ navigation, route }) => {
       return;
     }
 
+    setProcessingPayment(true); // Lock the button to prevent double execution triggers
+
     const txRef = `JOB-${documentId}-${Date.now()}`;
     const customerName = jobData.clientName || "Househelp Client";
     const customerEmail = jobData.clientEmail || "client@househelp.ng";
     const paymentDesc = `Payment for job by ${jobData.househelpName || 'Provider'}`;
 
-    // Inline structural injection script handling the payment logic seamlessly
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -209,10 +225,12 @@ const CStartJob = ({ navigation, route }) => {
         const finalRef = response.data.paymentReference;
         finalizeJobAndPayment(finalRef, paidAmount);
       } else {
+        setProcessingPayment(false);
         Alert.alert('Payment Declined', 'The transaction was not authorized or cleared successfully.');
       }
     } catch (err) {
       console.error("Parsing message failed:", err);
+      setProcessingPayment(false);
       setShowWebView(false);
     }
   };
@@ -309,7 +327,10 @@ const CStartJob = ({ navigation, route }) => {
           <Modal visible={showWebView} animationType="slide" transparent={false}>
             <View style={{ flex: 1, paddingTop: Platform.OS === 'ios' ? 50 : 0 }}>
               <View style={styles.webviewHeader}>
-                <TouchableOpacity onPress={() => setShowWebView(false)}>
+                <TouchableOpacity onPress={() => {
+                  setShowWebView(false);
+                  setProcessingPayment(false);
+                }}>
                   <Text style={styles.closeText}>✕ Close Checkout</Text>
                 </TouchableOpacity>
                 <Text style={styles.webviewTitle}>Secure Monnify Payment</Text>

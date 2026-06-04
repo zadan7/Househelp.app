@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, Alert, AppRegistry } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native'; // FIXED: Added import
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import messaging from '@react-native-firebase/messaging';
 
@@ -45,8 +45,10 @@ import { name as appName } from './app.json';
 
 const Stack = createNativeStackNavigator();
 
-// 1. BACKGROUND HANDLER
-// This must stay outside the component to work when the app is killed
+// FIXED: Created the global remote-control reference for navigation tree handles
+const navigationRef = createNavigationContainerRef();
+
+// 1. BACKGROUND HANDLER (Must stay outside the component)
 messaging().setBackgroundMessageHandler(async remoteMessage => {
   console.log('Message handled in the background!', remoteMessage);
   return Promise.resolve();
@@ -56,14 +58,12 @@ const navigateFromNotification = (remoteMessage, contextMessage) => {
   console.log(`Notification handled via: ${contextMessage}`, remoteMessage.data);
   
   if (remoteMessage?.data?.screen) {
-    const targetScreen = remoteMessage.data.screen; // e.g., "hpartime" or "arriving"
+    const targetScreen = remoteMessage.data.screen; 
     const targetJobId = remoteMessage.data.jobId;
 
-    // Check if the navigation context tree is fully built before executing redirection
     if (navigationRef.isReady()) {
       navigationRef.navigate(targetScreen, { jobId: targetJobId });
     } else {
-      // Retry in case the Celeron processor or Android thread needs a moment to initialize the views
       setTimeout(() => {
         if (navigationRef.isReady()) {
           navigationRef.navigate(targetScreen, { jobId: targetJobId });
@@ -120,27 +120,47 @@ const MyStack = () => {
 
 export default function App() {
   useEffect(() => {
-    // Handling foreground messages (while app is open)
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
+    // SCENARIO A: Foreground message handler
+    const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
       Alert.alert(
         remoteMessage.notification?.title || 'Notification', 
-        remoteMessage.notification?.body || 'New message received'
+        remoteMessage.notification?.body || 'New message received',
+        [
+          { text: 'Ignore', style: 'cancel' },
+          { text: 'Open Details', onPress: () => navigateFromNotification(remoteMessage, "Foreground Click") }
+        ]
       );
     });
 
-    return unsubscribe;
+    // FIXED: SCENARIO B: Background Click Handler (App minimized in notification tray)
+    const unsubscribeBackgroundClick = messaging().onNotificationOpenedApp(remoteMessage => {
+      navigateFromNotification(remoteMessage, "Background Notification Click");
+    });
+
+    // FIXED: SCENARIO C: Killed State Handler (App was completely closed out of RAM memory)
+    messaging()
+      .getInitialNotification()
+      .then(remoteMessage => {
+        if (remoteMessage) {
+          navigateFromNotification(remoteMessage, "Killed App Launch Click");
+        }
+      });
+
+    return () => {
+      unsubscribeForeground();
+      unsubscribeBackgroundClick();
+    };
   }, []);
 
   return (
-    <NavigationContainer>
+    // FIXED: Attached the navigation reference link pointer onto the main layout shell boundary container
+    <NavigationContainer ref={navigationRef}>
       <StatusBar style="auto" />
       <MyStack />
     </NavigationContainer>
   );
 }
 
-// 2. REGISTER THE COMPONENT
-// Since you aren't using index.js, you must call this at the bottom of App.js
 AppRegistry.registerComponent(appName, () => App);
 
 const styles = StyleSheet.create({
