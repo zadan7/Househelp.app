@@ -52,6 +52,27 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
   return Promise.resolve();
 });
 
+const navigateFromNotification = (remoteMessage, contextMessage) => {
+  console.log(`Notification handled via: ${contextMessage}`, remoteMessage.data);
+  
+  if (remoteMessage?.data?.screen) {
+    const targetScreen = remoteMessage.data.screen; // e.g., "hpartime" or "arriving"
+    const targetJobId = remoteMessage.data.jobId;
+
+    // Check if the navigation context tree is fully built before executing redirection
+    if (navigationRef.isReady()) {
+      navigationRef.navigate(targetScreen, { jobId: targetJobId });
+    } else {
+      // Retry in case the Celeron processor or Android thread needs a moment to initialize the views
+      setTimeout(() => {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate(targetScreen, { jobId: targetJobId });
+        }
+      }, 800);
+    }
+  }
+};
+
 const MyStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}> 
