@@ -1,71 +1,83 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { collection, getDocs, doc, updateDoc, onSnapshot,    } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../pages/firebase';
 
 import { Header2 } from '../../component/Header';
 import { Cmenu } from '../../component/Menu';
+import { Card, InfoRow, Button } from '../../component/ui';
+import { colors, space, radius, type } from '../../component/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useKeepAwake } from 'expo-keep-awake';
 
+const toMillis = (v) => (v?.toDate ? v.toDate().getTime() : Number(v || 0));
+const formatDate = (v) => {
+  const ms = toMillis(v);
+  return ms ? new Date(ms).toLocaleString() : '—';
+};
+
 const RequestConfirmation = ({ navigation, route }) => {
   useKeepAwake(); // Keep the screen on while this component is active
-  const [clientId, setClientId] = useState(route.params);
+  // route.params is an object (or undefined), never an id, so start empty until the stored client is read.
+  const [clientId, setClientId] = useState(null);
   const [pendingJobs, setPendingJobs] = useState([]);
-  const [selectedHelpers, setSelectedHelpers] = useState({});  
+  const [selectedHelpers, setSelectedHelpers] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchClientId = async () => {
-      const user = await AsyncStorage.getItem('clientdata');
-      const parsedUser = JSON.parse(user);
-      setClientId(parsedUser.id);
+      try {
+        const user = await AsyncStorage.getItem('clientdata');
+        const parsedUser = user ? JSON.parse(user) : null;
+        if (parsedUser?.id) setClientId(parsedUser.id);
+        else setLoading(false);
+      } catch (e) {
+        setLoading(false);
+      }
     };
 
     fetchClientId();
   }, []);
 
- useEffect(() => {
-  if (!clientId) return;
+  useEffect(() => {
+    if (!clientId) return;
 
-  const unsubscribe = db
-    .collection('partimeRequest')
-    .onSnapshot(snapshot => {
-      const jobs = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(
-          job =>
-            job.clientId === clientId &&
-            (job.status === 'pending' || job.status === 'accepted' || job.isjobcompleted === false)
-        );
- jobs.sort((a, b) => {
-            const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : Number(a.createdAt || 0);
-            const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : Number(b.createdAt || 0);
-            return timeB - timeA;
-          });
-      setPendingJobs(jobs);
-      setLoading(false);
-    });
+    // Query only this client's requests instead of downloading the whole collection.
+    const unsubscribe = db
+      .collection('partimeRequest')
+      .where('clientId', '==', clientId)
+      .onSnapshot(
+        (snapshot) => {
+          const jobs = snapshot.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter(
+              (job) =>
+                job.clientId === clientId &&
+                (job.status === 'pending' || job.status === 'accepted' || job.isjobcompleted === false)
+            );
+          jobs.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+          setPendingJobs(jobs);
+          setLoading(false);
+        },
+        (error) => {
+          console.error('Error loading requests:', error);
+          setLoading(false);
+        }
+      );
 
+    return () => unsubscribe();
+  }, [clientId]);
 
-   
-
-          // setJobRequests(pendingJobs);
-
-  return () => unsubscribe();
-}, [clientId]);
-  const handleConfirm = async (jobId,job) => {
-    console.log("Job ID:", jobId);
-    console.log("Job details ",job)
+  const handleConfirm = async (jobId, job) => {
     const selectedHelper = selectedHelpers[jobId];
     if (!selectedHelper) {
-      Alert.alert("Please select a househelp before confirming.");
+      Alert.alert('Please select a househelp before confirming.');
       return;
     }
 
     try {
-      const jobRef = doc(db, 'partimeRequest', jobId);
-      await updateDoc(jobRef, {
+      // db is the compat Firestore instance; the old code mixed in modular doc()/updateDoc().
+      await db.collection('partimeRequest').doc(jobId).update({
         househelpName: selectedHelper.househelpName,
         househelpId: selectedHelper.househelpId,
         househelpdata: selectedHelper.househelpdata,
@@ -73,173 +85,110 @@ const RequestConfirmation = ({ navigation, route }) => {
         isjobcompleted: false,
       });
 
-      Alert.alert("Job Confirmed", `You selected ${selectedHelper.name}.`);
-      AsyncStorage.setItem('jobId', jobId);
-      AsyncStorage.setItem('requestdata',JSON.stringify(job));
-      navigation.navigate('cmappage', { jobId }); 
+      Alert.alert('Job Confirmed', `You selected ${selectedHelper.name}.`);
+      await AsyncStorage.setItem('jobId', jobId);
+      await AsyncStorage.setItem('requestdata', JSON.stringify(job));
+      navigation.navigate('cmappage', { jobId });
     } catch (error) {
-      console.error("Error confirming job:", error);
-      Alert.alert("Error", "Failed to confirm job.");
+      console.error('Error confirming job:', error);
+      Alert.alert('Error', 'Failed to confirm job.');
     }
   };
-  const handleConfirm2 = async (jobId,job) => {
-    console.log("Job ID:", jobId);
-    console.log("Job details ",job)
-  
 
+  const handleConfirm2 = async (jobId, job) => {
     try {
-     
-
-      // Alert.alert("Job Confirmed", `You selected ${selectedHelper.name}.`);
-      AsyncStorage.setItem('jobId', jobId);
-      AsyncStorage.setItem('requestdata',JSON.stringify(job));
-      navigation.navigate('cmappage', { jobId }); 
+      await AsyncStorage.setItem('jobId', jobId);
+      await AsyncStorage.setItem('requestdata', JSON.stringify(job));
+      navigation.navigate('cmappage', { jobId });
     } catch (error) {
-      console.error("Error confirming job:", error);
-      Alert.alert("Error", "Failed to confirm job.");
+      console.error('Error confirming job:', error);
+      Alert.alert('Error', 'Failed to confirm job.');
     }
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#28a745" />
+      <View style={styles.root}>
+        <Header2 />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: space.xxl }} />
+        <Cmenu navigation={navigation} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <Header2 />
-      <Cmenu navigation={navigation} />
-      <ScrollView contentContainerStyle={styles.scrollView}>
-        <Text style={styles.header}>Confirm Your Job Requests</Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={type.h1}>Confirm Your Job Requests</Text>
+        <Text style={styles.sub}>Requests waiting for you to continue.</Text>
 
         {pendingJobs.length === 0 ? (
-          <Text style={styles.noJobText}>No pending jobs found.</Text>
+          <View style={styles.emptyBox}>
+            <Ionicons name="clipboard-outline" size={48} color={colors.border} />
+            <Text style={styles.empty}>No pending jobs found.</Text>
+          </View>
         ) : (
-          pendingJobs.map((job) => (
-            <View key={job.id} style={styles.jobCard}>
-              <Text style={styles.jobTitle}>{job.clientName}'s Job Request Partime</Text>
-              <Text style={styles.jobInfo}>Location: {job.address}</Text>
-              <Text style={styles.jobInfo}>Apartment Type: {job.apartmentType}</Text>
-              <Text style={styles.jobInfo}>Price: ₦{job.totalCost}</Text>
-              <Text style={styles.jobInfo}>Requested On: {new Date(job.createdAt?.seconds * 1000).toLocaleString()}</Text>
+          pendingJobs.map((job) => {
+            const accepted = job.status === 'accepted';
+            const chores = Array.isArray(job.chores) ? job.chores : [];
+            return (
+              <Card key={job.id}>
+                <View style={styles.titleRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={type.h2}>{job.clientName}'s Job Request</Text>
+                    <Text style={type.small}>Part-time</Text>
+                  </View>
+                  <View style={[styles.pill, { backgroundColor: accepted ? colors.primarySoft : colors.accent }]}>
+                    <Text style={[styles.pillText, { color: accepted ? colors.primaryDark : colors.text }]}>
+                      {accepted ? 'Accepted' : 'Pending'}
+                    </Text>
+                  </View>
+                </View>
 
-              <Text style={styles.subHeader}>Chores:</Text>
-              {job.chores.map((chore, index) => (
-                <Text key={index} style={styles.choreItem}>- {chore.chore} (₦{chore.price})</Text>
-              ))}
+                <View>
+                  <InfoRow label="Location" value={job.address} />
+                  <InfoRow label="Apartment type" value={job.apartmentType} />
+                  <InfoRow label="Price" value={`₦${Number(job.totalCost || 0).toLocaleString()}`} />
+                  <InfoRow label="Requested on" value={formatDate(job.createdAt)} last />
+                </View>
 
+                <Text style={type.label}>Chores</Text>
+                {chores.map((chore, index) => (
+                  <View key={index} style={styles.choreRow}>
+                    <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                    <Text style={styles.choreText}>{chore.chore}</Text>
+                    <Text style={styles.chorePrice}>₦{chore.price}</Text>
+                  </View>
+                ))}
 
-              <TouchableOpacity
-                onPress={() => handleConfirm2(job.id, job)}
-                style={[
-                  styles.confirmButton,
-                  selectedHelpers[job.id] && { backgroundColor: '#ccc' },
-                ]}
-                disabled={selectedHelpers[job.id]}
-              >
-                <Text style={styles.confirmButtonText}>Proceed With this pending Job</Text>
-              </TouchableOpacity>
-            </View>
-          ))
+                <Button
+                  title="Proceed With this pending Job"
+                  onPress={() => handleConfirm2(job.id, job)}
+                  disabled={!!selectedHelpers[job.id]}
+                />
+              </Card>
+            );
+          })
         )}
       </ScrollView>
+      <Cmenu navigation={navigation} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  scrollView: { paddingBottom: 30 },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#343a40',
-  },
-  noJobText: {
-    textAlign: 'center',
-    marginTop: 50,
-    color: '#777',
-    fontSize: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-  },
-  jobCard: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
-    marginHorizontal: 15,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  jobTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#28a745',
-    marginBottom: 10,
-  },
-  jobInfo: {
-    fontSize: 16,
-    color: '#444',
-    marginBottom: 5,
-  },
-  subHeader: {
-    marginTop: 15,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  choreItem: {
-    fontSize: 15,
-    marginLeft: 10,
-    color: '#555',
-  },
-  helperButton: {
-    backgroundColor: '#e9ecef',
-    padding: 10,
-    borderRadius: 6,
-    marginTop: 8,
-  },
-  selectedHelper: {
-    backgroundColor: '#007bff',
-  },
-  helperText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  selectedHelperText: {
-    color: '#fff',
-  },
-  waitingText: {
-    marginTop: 10,
-    color: '#888',
-    fontStyle: 'italic',
-  },
-  confirmButton: {
-    backgroundColor: '#28a745',
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  confirmButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110 },
+  sub: { color: colors.muted, marginTop: space.xs, marginBottom: space.lg },
+  emptyBox: { alignItems: 'center', marginTop: space.xxl, gap: space.sm },
+  empty: { color: colors.muted, fontSize: 15 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  pill: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
+  pillText: { fontSize: 12, fontWeight: '700' },
+  choreRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  choreText: { flex: 1, fontSize: 14, color: colors.text },
+  chorePrice: { fontSize: 13, fontWeight: '600', color: colors.muted },
 });
 
 export { RequestConfirmation };

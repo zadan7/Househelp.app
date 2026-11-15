@@ -1,98 +1,48 @@
-import * as React from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { Pressable, StyleSheet, Text, View,ScrollView } from 'react-native';
-import { Header } from '../component/Header';
-import { Footer } from '../component/Footer';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Screen, ScreenHeader } from '../component/ui';
+import { colors, space, radius, type, shadow } from '../component/theme';
+
+const ROLES = [
+  { route: 'CSignup', icon: 'home-outline', title: 'I need a househelp', text: 'Sign up as a client to request and manage househelps.' },
+  { route: 'HSignup', icon: 'briefcase-outline', title: 'I want to work', text: 'Sign up as a househelp to find jobs near you and get paid.' },
+];
 
 function Signup({ navigation }) {
   return (
-    <ScrollView >
-        <View style={styles.container}>
-      <Header navigation={navigation}/>
-      {/* <Text style={{color:"green",fontSize:30,fontWeight:"bold"}}>Login</Text> */}
-
-
-      {/* <Text style={styles.titleText}>Start Earning With us ($)</Text> */}
-
-      <View style={styles.buttonContainer}>
-      {/* <Text style={{color:"green",fontSize:30,fontWeight:"bold"}}>Welcome</Text> */}
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('HSignup')}>
-          <Text style={styles.buttonText}>Sign up as a Househelp</Text>
-        </Pressable>
-        <Text>or</Text>
-
-        
-        {/* <Text>Click to order househelp</Text> */}
-        <Pressable style={styles.Pressable} onPress={() => navigation.navigate('CSignup')}>
-          <Text style={styles.buttonText}>Sign up as a Client </Text>
-        </Pressable>
-        
-      </View>
-     
-        <Footer></Footer>
-     
-      </View>
-      {/* <Footer></Footer> */}
-    </ScrollView>
+    <Screen>
+      <ScreenHeader title="Join Househelp" subtitle="How would you like to use the app?" onBack={() => navigation.goBack()} />
+      {ROLES.map((r) => (
+        <TouchableOpacity key={r.route} style={styles.option} activeOpacity={0.85} onPress={() => navigation.navigate(r.route)}>
+          <View style={styles.icon}>
+            <Ionicons name={r.icon} size={26} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={type.h2}>{r.title}</Text>
+            <Text style={styles.text}>{r.text}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={22} color={colors.muted} />
+        </TouchableOpacity>
+      ))}
+      <TouchableOpacity onPress={() => navigation.navigate('login')} style={styles.linkRow}>
+        <Text style={{ color: colors.muted }}>
+          Already have an account? <Text style={styles.link}>Log in</Text>
+        </Text>
+      </TouchableOpacity>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    // paddingTop: 10, // Added padding for better layout on screens
-    fontFamily:"Roboto"
+  option: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.white,
+    borderRadius: radius.lg, padding: space.lg, marginBottom: space.md, ...shadow,
   },
-  titleText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginVertical: 5, // Added some margin around the title
-  },
-  buttonContainer: {
-    width: '80%',
-    alignItems: 'center',
-    marginTop: 20,
-    borderWidth: 2,             // Border width for the container
-    borderColor: 'green',       // Border color
-    borderRadius: 10,           // Rounded corners for the container
-    padding: 20,                // Padding inside the container
-  },
-  buttonText: {
-    backgroundColor: 'green',
-    color: 'white',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    fontSize: 15,
-    textAlign: 'center',
-    borderRadius: 5, // Added border radius for better button appearance
-  },
-  buttonText2: {
-    backgroundColor: 'white',
-    color: 'green',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    fontSize: 15,
-    textAlign: 'center',
-    borderRadius: 5, // Added border radius for better button appearance
-    borderWidth: 1,             // Border width for the container
-    borderColor: 'green',       // Border color
-    borderRadius: 10,  
-  },
-  Pressable: {
-    backgroundColor: 'green',
-    color: 'white',
-    // paddingVertical: 10,
-    // paddingHorizontal: 20,
-    marginBottom:20,
-    marginTop:20,
-    width:"100%",
-
-    fontSize: 15,
-    textAlign: 'center',
-    borderRadius: 20, // Added border radius for better button appearance
-  }, 
+  icon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  text: { color: colors.muted, fontSize: 13, marginTop: 2, lineHeight: 18 },
+  linkRow: { alignSelf: 'center', padding: space.lg },
+  link: { color: colors.primary, fontWeight: '700' },
 });
 
 export { Signup };

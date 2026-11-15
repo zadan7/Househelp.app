@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, Pressable, ActivityIndicator
-} from 'react-native';
-// import { collection, getDocs } from 'firebase/firestore';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { db } from '../../pages/firebase';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
+import { Card, InfoRow, Button } from '../../component/ui';
+import { colors, space, radius, type, shadow } from '../../component/theme';
+
+const naira = (n) => `₦${Number(n || 0).toLocaleString()}`;
 
 const CcompletedJobs = ({ navigation }) => {
   const [completedJobs, setCompletedJobs] = useState([]);
@@ -19,13 +21,18 @@ const CcompletedJobs = ({ navigation }) => {
     const fetchCompletedJobs = async () => {
       try {
         const clientData = await AsyncStorage.getItem('clientdata');
-        const parsedClient = JSON.parse(clientData);
+        const parsedClient = clientData ? JSON.parse(clientData) : null;
         const clientId = parsedClient?.id;
+        if (!clientId) return; // where('clientId', '==', undefined) would throw
 
-        const snapshot = await db.collection('partimeRequest').where('isjobcompleted', '==', true).where('clientId', '==', clientId).get();
+        const snapshot = await db
+          .collection('partimeRequest')
+          .where('isjobcompleted', '==', true)
+          .where('clientId', '==', clientId)
+          .get();
         const jobs = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(job => job.status === 'completed' && job.clientId === clientId);
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((job) => job.status === 'completed' && job.clientId === clientId);
 
         setCompletedJobs(jobs);
       } catch (error) {
@@ -48,179 +55,128 @@ const CcompletedJobs = ({ navigation }) => {
     setSelectedJob(null);
   };
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <Header2 />
-        <Cmenu navigation={navigation} />
-        <ActivityIndicator size="large" color="#28a745" style={{ marginTop: 40 }} />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <Header2 />
-      <Cmenu navigation={navigation} />
 
-      <ScrollView>
-        <Text style={styles.header}>Completed Jobs</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: space.xxl }} />
+      ) : (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <Text style={type.h1}>Completed Jobs</Text>
+          <Text style={styles.sub}>Your finished househelp bookings.</Text>
 
-        {completedJobs.length === 0 ? (
-          <Text style={styles.noJobs}>No completed jobs yet.</Text>
-        ) : (
-          completedJobs.map(job => (
-            <View key={job.id} style={styles.jobCard}>
-              <Text style={styles.jobTitle}>{job.househelpName || 'Househelp'}</Text>
-              <Text style={styles.jobAmount}>₦{job.totalCost}</Text>
-              <Text style={styles.jobInfo}>Location: {job.location?.lga}</Text>
-
-              <TouchableOpacity onPress={() => openModal(job)} style={styles.viewButton}>
-                <Text style={styles.viewButtonText}>View Details</Text>
-              </TouchableOpacity>
+          {completedJobs.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Ionicons name="checkmark-done-circle-outline" size={52} color={colors.border} />
+              <Text style={styles.empty}>No completed jobs yet.</Text>
             </View>
-          ))
-        )}
-      </ScrollView>
+          ) : (
+            completedJobs.map((job) => (
+              <TouchableOpacity key={job.id} style={styles.jobCard} activeOpacity={0.85} onPress={() => openModal(job)}>
+                <View style={styles.avatar}>
+                  <Ionicons name="person" size={24} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.jobTitle} numberOfLines={1}>{job.househelpName || 'Househelp'}</Text>
+                  <Text style={styles.meta}>
+                    <Ionicons name="location-outline" size={12} color={colors.muted} /> {job.location?.lga || '—'}
+                  </Text>
+                  <View style={styles.pill}>
+                    <Text style={styles.pillText}>Completed</Text>
+                  </View>
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: space.xs }}>
+                  <Text style={styles.amount}>{naira(job.totalCost)}</Text>
+                  <Text style={styles.link}>View Details</Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+      )}
 
-      {/* Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={closeModal}
-      >
+      <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={closeModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <ScrollView>
-              <Text style={styles.modalTitle}>Job Details</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[type.h2, { marginBottom: space.md }]}>Job Details</Text>
 
               {selectedJob && (
                 <>
-                  <Text style={styles.modalInfo}><Text style={styles.label}>Househelp:</Text> {selectedJob.househelpName}</Text>
-                  <Text style={styles.modalInfo}><Text style={styles.label}>Phone:</Text> {selectedJob.phone}</Text>
-                  <Text style={styles.modalInfo}><Text style={styles.label}>Apartment:</Text> {selectedJob.apartmentType}</Text>
-                  <Text style={styles.modalInfo}><Text style={styles.label}>Location:</Text> {selectedJob.location?.lga}</Text>
-                  <Text style={styles.modalInfo}><Text style={styles.label}>Cost:</Text> ₦{selectedJob.totalCost}</Text>
-                  <Text style={styles.modalInfo}><Text style={styles.label}>Chores:</Text></Text>
+                  <InfoRow label="Househelp" value={selectedJob.househelpName} />
+                  <InfoRow label="Phone" value={selectedJob.phone} />
+                  <InfoRow label="Apartment" value={selectedJob.apartmentType} />
+                  <InfoRow label="Location" value={selectedJob.location?.lga} />
+                  <InfoRow label="Cost" value={naira(selectedJob.totalCost)} last />
+                  <Text style={[type.label, { marginTop: space.md, marginBottom: space.sm }]}>Chores</Text>
                   {selectedJob.chores?.map((chore, index) => (
-                    <Text key={index} style={styles.choreItem}>• {chore.chore} – ₦{chore.price}</Text>
+                    <View key={index} style={styles.choreRow}>
+                      <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                      <Text style={styles.choreText}>{chore.chore}</Text>
+                      <Text style={styles.chorePrice}>{naira(chore.price)}</Text>
+                    </View>
                   ))}
                 </>
               )}
 
-              <Pressable onPress={closeModal} style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>Close</Text>
-              </Pressable>
+              <Button title="Close" variant="secondary" onPress={closeModal} style={{ marginTop: space.lg }} />
             </ScrollView>
           </View>
         </View>
       </Modal>
+      <Cmenu navigation={navigation} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  header: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#343a40',
-  },
-  noJobs: {
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 16,
-    color: '#6c757d',
-  },
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110 },
+  sub: { color: colors.muted, marginTop: space.xs, marginBottom: space.lg },
+  emptyBox: { alignItems: 'center', marginTop: space.xxl, gap: space.sm },
+  empty: { color: colors.muted, fontSize: 15 },
   jobCard: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
-    marginHorizontal: 15,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  jobTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#2f855a',
-    marginBottom: 4,
-  },
-  jobAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1d4ed8',
-    marginBottom: 6,
-  },
-  jobInfo: {
-    fontSize: 16,
-    color: '#4b5563',
-    marginBottom: 5,
-  },
-  viewButton: {
-    marginTop: 10,
-    backgroundColor: '#55aa55',
-    paddingVertical: 10,
-    borderRadius: 6,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: space.md,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: space.lg,
+    marginBottom: space.md,
+    ...shadow,
   },
-  viewButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
   },
+  jobTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  meta: { fontSize: 13, color: colors.muted, marginTop: 2 },
+  pill: {
+    alignSelf: 'flex-start',
+    marginTop: space.xs,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+  },
+  pillText: { fontSize: 11, fontWeight: '700', color: colors.primaryDark },
+  amount: { fontSize: 16, fontWeight: '800', color: colors.primary },
+  link: { fontSize: 12, fontWeight: '600', color: colors.muted },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: space.lg },
   modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    padding: space.xl,
     maxHeight: '80%',
   },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#2d3748',
-    marginBottom: 15,
-  },
-  modalInfo: {
-    fontSize: 16,
-    color: '#444',
-    marginBottom: 6,
-  },
-  label: {
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  choreItem: {
-    fontSize: 15,
-    color: '#2f2f2f',
-    marginLeft: 10,
-    marginBottom: 4,
-  },
-  closeButton: {
-    marginTop: 20,
-    backgroundColor: '#e53e3e',
-    paddingVertical: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  choreRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.sm },
+  choreText: { flex: 1, fontSize: 14, color: colors.text },
+  chorePrice: { fontSize: 13, fontWeight: '600', color: colors.muted },
 });
 
 export { CcompletedJobs };

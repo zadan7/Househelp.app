@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../pages/firebase';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors, space, radius, type, shadow } from '../../component/theme';
+
+const OPTIONS = [
+  { type: 'Part-time', title: 'Request Part-time Househelp', sub: 'Short, flexible help for a few hours or days.', icon: 'time-outline' },
+  { type: 'Full-time', title: 'Request Full-time Househelp', sub: 'Dedicated help for your home every day.', icon: 'home-outline' },
+];
 
 const MakeRequest = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
@@ -17,7 +24,7 @@ const MakeRequest = ({ navigation }) => {
         Alert.alert('Error', 'User data not found. Please log in again.');
         return;
       }
-      
+
       const user = JSON.parse(userData);
       const requestId = `req_${Date.now()}`;
       const requestData = {
@@ -32,76 +39,63 @@ const MakeRequest = ({ navigation }) => {
         createdAt: Timestamp.now(),
         status: 'pending'
       };
-      
+
       await setDoc(doc(db, 'requests', requestId), requestData);
       Alert.alert('Success', `Your ${type} request has been posted.`);
-      navigation.navigate('ClientDashboard');
+      navigation.navigate('cdashboard');
     } catch (error) {
       console.error('Error creating request:', error);
       Alert.alert('Error', 'Failed to send request. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <Header2 />
-      <Cmenu navigation={navigation} />
-      <ScrollView contentContainerStyle={styles.contentContainer}>
-        <Text style={styles.header}>Request a Househelp</Text>
-        <TouchableOpacity
-          style={[styles.button, styles.partTime]}
-          onPress={() => handleRequest('Part-time')}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>Request Part-time Househelp</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, styles.fullTime]}
-          onPress={() => handleRequest('Full-time')}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>Request Full-time Househelp</Text>
-        </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={type.h1}>Request a Househelp</Text>
+        <Text style={styles.sub}>Choose the kind of help you need.</Text>
+
+        {OPTIONS.map((o) => (
+          <TouchableOpacity
+            key={o.type}
+            style={[styles.option, loading && { opacity: 0.6 }]}
+            onPress={() => handleRequest(o.type)}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            <View style={styles.optionIcon}>
+              <Ionicons name={o.icon} size={26} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.optionTitle}>{o.title}</Text>
+              <Text style={styles.optionSub}>{o.sub}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+          </TouchableOpacity>
+        ))}
+
+        {loading ? <ActivityIndicator color={colors.primary} style={{ marginTop: space.lg }} /> : null}
       </ScrollView>
+
+      <Cmenu navigation={navigation} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110, gap: space.md },
+  sub: { ...type.body, color: colors.muted, marginBottom: space.sm },
+  option: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 84,
+    backgroundColor: colors.white, borderRadius: radius.lg, padding: space.lg, ...shadow,
   },
-  contentContainer: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  header: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#343a40',
-  },
-  button: {
-    width: '80%',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  partTime: {
-    backgroundColor: '#28a745',
-  },
-  fullTime: {
-    backgroundColor: '#007bff',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+  optionIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  optionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  optionSub: { fontSize: 13, color: colors.muted, marginTop: 2 },
 });
 
 export { MakeRequest };

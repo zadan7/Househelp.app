@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Picker } from '@react-native-picker/picker';
+import { colors, space, radius, type } from "./theme";
 
 const NigerianStateAndLGASelector = ({ state, lga, onStateChange, onLGAChange }) => {
   const statesWithLGAs = {
@@ -62,37 +63,43 @@ const NigerianStateAndLGASelector = ({ state, lga, onStateChange, onLGAChange })
   return (
     <View style={styles.container}>
       {/* State Selector */}
-      <Text style={styles.label}>Select a State:</Text>
-      <Picker
-        selectedValue={selectedState}
-        onValueChange={(value) => {
-          setSelectedState(value);
-          onStateChange(value);
-          setSelectedLGA(""); // Reset LGA when state changes
-          onLGAChange(""); // Reset LGA in parent component
-        }}
-        style={pickerSelectStyles}
-      >
-        <Picker.Item label="Choose a State" value="" />
-        {stateOptions}
-      </Picker>
+      <View style={styles.fieldWrap}>
+        <Text style={type.label}>State</Text>
+        <View style={styles.box}>
+          <Picker
+            selectedValue={selectedState}
+            onValueChange={(value) => {
+              setSelectedState(value);
+              onStateChange(value);
+              setSelectedLGA(""); // Reset LGA when state changes
+              onLGAChange(""); // Reset LGA in parent component
+            }}
+            style={styles.picker}
+          >
+            <Picker.Item label="Choose a State" value="" color="#9AABA2" />
+            {stateOptions}
+          </Picker>
+        </View>
+      </View>
 
       {/* LGA Selector */}
       {selectedState ? (
-        <>
-          <Text style={styles.label}>Select an LGA:</Text>
-          <Picker
-            selectedValue={selectedLGA}
-            onValueChange={(value) => {
-              setSelectedLGA(value);
-              onLGAChange(value);
-            }}
-            style={pickerSelectStyles}
-          >
-            <Picker.Item label="Choose an LGA" value="" />
-            {lgaOptions}
-          </Picker>
-        </>
+        <View style={styles.fieldWrap}>
+          <Text style={type.label}>Local Government Area</Text>
+          <View style={styles.box}>
+            <Picker
+              selectedValue={selectedLGA}
+              onValueChange={(value) => {
+                setSelectedLGA(value);
+                onLGAChange(value);
+              }}
+              style={styles.picker}
+            >
+              <Picker.Item label="Choose an LGA" value="" color="#9AABA2" />
+              {lgaOptions}
+            </Picker>
+          </View>
+        </View>
       ) : null}
 
       {/* Display Selected State and LGA */}
@@ -111,56 +118,27 @@ const NigerianStateAndLGASelector = ({ state, lga, onStateChange, onLGAChange })
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#f8f9fa",
-    width:"100%"
+  container: { width: "100%", gap: space.md },
+  fieldWrap: { gap: 6 },
+  box: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 50,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.bg,
+    overflow: "hidden",
   },
-  label: {
-    fontSize: 16,
-    marginVertical: 10,
-    color: "#333",
-  },
+  picker: { flex: 1, color: colors.text },
   result: {
-    marginTop: 20,
-    backgroundColor: "#e9ecef",
-    borderRadius: 5,
-    padding: 10,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    padding: space.md,
+    gap: 2,
   },
-  resultText: {
-    fontSize: 16,
-    color: "#555",
-  },
-  bold: {
-    fontWeight: "bold",
-  },
+  resultText: { fontSize: 14, color: colors.text },
+  bold: { fontWeight: "700", color: colors.primaryDark },
 });
-
-const pickerSelectStyles = {
-  inputIOS: {
-    fontSize: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    color: "black",
-    backgroundColor: "#fff",
-    marginBottom: 10,
-    width:"100%"
-  },
-  inputAndroid: {
-    fontSize: 16,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    color: "black",
-    backgroundColor: "#fff",
-    marginBottom: 10,
-    width:"100%"
-  },
-};
 
 export default NigerianStateAndLGASelector;

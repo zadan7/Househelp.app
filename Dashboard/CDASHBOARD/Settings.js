@@ -1,18 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, TextInput, Alert, Button } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
+import { Card, Field, Button, InfoRow } from '../../component/ui';
+import { colors, space, radius, type, shadow } from '../../component/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { launchImageLibrary } from 'react-native-image-picker';
-import { storage, db } from '../../pages/firebase'; // Import Firebase storage and db
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc } from 'firebase/firestore';
+import { storage, db } from '../../pages/firebase'; // native Firebase storage and db
+
+const IMAGE_ACTIONS = [
+  { key: 'profilePic', label: 'Change Profile Picture', icon: 'person-circle-outline' },
+  { key: 'apartmentInside', label: 'Change Apartment Inside Image', icon: 'bed-outline' },
+  { key: 'houseFront', label: 'Change House Front Image', icon: 'home-outline' },
+];
 
 const Csettings = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [updatedUser, setUpdatedUser] = useState({});
-  
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -37,7 +45,7 @@ const Csettings = ({ navigation }) => {
     };
 
     launchImageLibrary(options, (response) => {
-      if (response.didCancel) {
+      if (response.didCancel || response.errorCode || !response.assets || !response.assets.length) {
         return;
       }
 
@@ -46,25 +54,26 @@ const Csettings = ({ navigation }) => {
     });
   };
 
-  // Function to upload image to Firebase Storage
+  // Function to upload image to Firebase Storage.
+  // Fixed: this used the web modular API (ref/uploadBytes/doc/updateDoc) on the native
+  // @react-native-firebase instances exported by pages/firebase, which throws at runtime.
   const uploadImageToFirebase = async (uri, imageType) => {
     setLoading(true);
     try {
-      const imageRef = ref(storage, `clients/${user.id}/${imageType}`);
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      await uploadBytes(imageRef, blob);
-      const downloadURL = await getDownloadURL(imageRef);
+      const imageRef = storage.ref(`clients/${user.id}/${imageType}`);
+      await imageRef.putFile(uri.replace('file://', ''));
+      const downloadURL = await imageRef.getDownloadURL();
 
       // Update the Firestore document with the new image URL
-      const clientRef = doc(db, 'clients', user.id);
-      await updateDoc(clientRef, {
+      await db.collection('clients').doc(user.id).update({
         [imageType]: downloadURL,
       });
 
       // Update user data locally and in AsyncStorage
+      const newUser = { ...user, [imageType]: downloadURL };
+      setUser(newUser);
       setUpdatedUser(prevUser => ({ ...prevUser, [imageType]: downloadURL }));
-      await AsyncStorage.setItem('clientdata', JSON.stringify({ ...user, [imageType]: downloadURL }));
+      await AsyncStorage.setItem('clientdata', JSON.stringify(newUser));
 
       Alert.alert('Success', 'Image updated successfully!');
     } catch (error) {
@@ -85,9 +94,9 @@ const Csettings = ({ navigation }) => {
 
   // Function to save updated user data to Firebase and AsyncStorage
   const saveData = async () => {
+    setSaving(true);
     try {
-      const clientRef = doc(db, 'clients', user.id);
-      await updateDoc(clientRef, updatedUser);
+      await db.collection('clients').doc(user.id).update(updatedUser);
 
       await AsyncStorage.setItem('clientdata', JSON.stringify(updatedUser));
       setUser(updatedUser);
@@ -95,223 +104,91 @@ const Csettings = ({ navigation }) => {
     } catch (error) {
       console.error('Error updating profile: ', error);
       Alert.alert('Error', 'Failed to update profile.');
+    } finally {
+      setSaving(false);
     }
   };
 
   if (!user) {
     return (
-      <View style={styles.container}>
+      <View style={styles.root}>
         <Header2 />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.muted}>Loading...</Text>
+        </View>
         <Cmenu navigation={navigation} />
-        <Text style={styles.header}>Loading...</Text>
       </View>
     );
   }
 
+  const loc = updatedUser.location;
+  const locationText = loc && loc.latitude != null ? `Lat: ${loc.latitude}, Lon: ${loc.longitude}` : '';
+  const created = user.createdAt ? new Date(user.createdAt) : null;
+
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <Header2 />
-      {/* Floating Menu */}
-      <Cmenu navigation={navigation} />
 
-      <ScrollView contentContainerStyle={styles.scrollViewContainer}>
-        <Text style={styles.header}>Settingss</Text>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <Text style={[type.h1, { marginBottom: space.lg }]}>Settings</Text>
 
-        <View style={styles.profileContainer}>
-          <View style={styles.profileHeader}>
-            <Image source={{ uri: user.profilePic }} style={styles.profilePic} />
-            <View style={styles.profileInfo}>
-              <TextInput
-                style={styles.input}
-                value={updatedUser.name}
-                onChangeText={(text) => handleInputChange('name', text)}
-                placeholder="Name"
-              />
-              <TextInput
-                style={styles.input}
-                value={updatedUser.email}
-                onChangeText={(text) => handleInputChange('email', text)}
-                placeholder="Email"
-                keyboardType="email-address"
-              />
-              <TextInput
-                style={styles.input}
-                value={updatedUser.phone}
-                onChangeText={(text) => handleInputChange('phone', text)}
-                placeholder="Phone"
-                keyboardType="phone-pad"
-              />
-            </View>
+        <Card title="Profile" icon="person-outline">
+          <View style={styles.avatarRow}>
+            {user.profilePic ? (
+              <Image source={{ uri: user.profilePic }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarEmpty]}>
+                <Ionicons name="person" size={36} color={colors.primary} />
+              </View>
+            )}
+            {loading ? <ActivityIndicator color={colors.primary} /> : null}
           </View>
+          <Field label="Name" value={updatedUser.name} onChangeText={(text) => handleInputChange('name', text)} placeholder="Name" />
+          <Field label="Email" value={updatedUser.email} onChangeText={(text) => handleInputChange('email', text)} placeholder="Email" keyboardType="email-address" autoCapitalize="none" />
+          <Field label="Phone" value={updatedUser.phone} onChangeText={(text) => handleInputChange('phone', text)} placeholder="Phone" keyboardType="phone-pad" />
+        </Card>
 
-          <View style={styles.imageSection}>
-            <Text style={styles.sectionHeader}>Update Images</Text>
-
-            <TouchableOpacity style={styles.imageButton} onPress={() => pickImage('profilePic')}>
-              <Text style={styles.imageButtonText}>Change Profile Picture</Text>
+        <Card title="Update Images" icon="images-outline">
+          {IMAGE_ACTIONS.map((a) => (
+            <TouchableOpacity key={a.key} style={styles.imageButton} onPress={() => pickImage(a.key)} disabled={loading} activeOpacity={0.85}>
+              <Ionicons name={a.icon} size={22} color={colors.primary} />
+              <Text style={styles.imageButtonText}>{a.label}</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
             </TouchableOpacity>
+          ))}
+        </Card>
 
-            <TouchableOpacity style={styles.imageButton} onPress={() => pickImage('apartmentInside')}>
-              <Text style={styles.imageButtonText}>Change Apartment Inside Image</Text>
-            </TouchableOpacity>
+        <Card title="Personal Details" icon="document-text-outline">
+          <Field label="Address" value={updatedUser.address} onChangeText={(text) => handleInputChange('address', text)} placeholder="Address" />
+          <Field label="Apartment Type" value={updatedUser.apartmentType} onChangeText={(text) => handleInputChange('apartmentType', text)} placeholder="Apartment Type" />
+          <Field label="LGA" value={updatedUser.lga} onChangeText={(text) => handleInputChange('lga', text)} placeholder="LGA" />
+          <Field label="State" value={updatedUser.state} onChangeText={(text) => handleInputChange('state', text)} placeholder="State" />
+          <Field label="Location" value={locationText} editable={false} />
+          <InfoRow label="Account Created" value={created && !isNaN(created) ? created.toLocaleString() : ''} last />
+        </Card>
 
-            <TouchableOpacity style={styles.imageButton} onPress={() => pickImage('houseFront')}>
-              <Text style={styles.imageButtonText}>Change House Front Image</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.detailsContainer}>
-            <Text style={styles.sectionHeader}>Personal Details</Text>
-
-            <View style={styles.detailsRow}>
-              <Text style={styles.label}>Address:</Text>
-              <TextInput
-                style={styles.input}
-                value={updatedUser.address}
-                onChangeText={(text) => handleInputChange('address', text)}
-                placeholder="Address"
-              />
-            </View>
-
-            <View style={styles.detailsRow}>
-              <Text style={styles.label}>Apartment Type:</Text>
-              <TextInput
-                style={styles.input}
-                value={updatedUser.apartmentType}
-                onChangeText={(text) => handleInputChange('apartmentType', text)}
-                placeholder="Apartment Type"
-              />
-            </View>
-
-            <View style={styles.detailsRow}>
-              <Text style={styles.label}>LGA:</Text>
-              <TextInput
-                style={styles.input}
-                value={updatedUser.lga}
-                onChangeText={(text) => handleInputChange('lga', text)}
-                placeholder="LGA"
-              />
-            </View>
-
-            <View style={styles.detailsRow}>
-              <Text style={styles.label}>State:</Text>
-              <TextInput
-                style={styles.input}
-                value={updatedUser.state}
-                onChangeText={(text) => handleInputChange('state', text)}
-                placeholder="State"
-              />
-            </View>
-
-            <View style={styles.detailsRow}>
-              <Text style={styles.label}>Location:</Text>
-              <TextInput
-                style={styles.input}
-                value={`Lat: ${updatedUser.location.latitude}, Lon: ${updatedUser.location.longitude}`}
-                editable={false}
-              />
-            </View>
-
-            <View style={styles.detailsRow}>
-              <Text style={styles.label}>Account Created:</Text>
-              <Text style={styles.detail}>
-                {new Date(user.createdAt).toLocaleString()}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.saveButtonContainer}>
-          <Button title="Save Changes" onPress={saveData} disabled={loading} />
-        </View>
+        <Button title="Save Changes" onPress={saveData} loading={saving} disabled={loading} />
       </ScrollView>
+
+      <Cmenu navigation={navigation} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f1f3f5',
-  },
-  header: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#495057',
-  },
-  scrollViewContainer: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  profileContainer: {
-    backgroundColor: '#ffffff',
-    padding: 20,
-    borderRadius: 10,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  profilePic: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginRight: 20,
-    borderWidth: 3,
-    borderColor: '#007bff',
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  input: {
-    fontSize: 16,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginBottom: 10,
-    borderRadius: 5,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#343a40',
-    width: 120,
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  sectionHeader: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#495057',
-    marginBottom: 15,
-  },
-  saveButtonContainer: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md },
+  muted: { color: colors.muted },
+  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  avatar: { width: 88, height: 88, borderRadius: 44, borderWidth: 3, borderColor: colors.primarySoft },
+  avatarEmpty: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft },
   imageButton: {
-    backgroundColor: '#007bff',
-    padding: 12,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginBottom: 15,
+    flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 52,
+    paddingHorizontal: space.md, borderRadius: radius.md, backgroundColor: colors.primarySoft,
   },
-  imageButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  imageButtonText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
 });
 
 export { Csettings };

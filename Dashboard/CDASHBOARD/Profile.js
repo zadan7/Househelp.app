@@ -1,211 +1,91 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
+import { View, Text, ScrollView, Image, ActivityIndicator, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Card, InfoRow } from '../../component/ui';
+import { colors, space, radius, type, shadow } from '../../component/theme';
 
+// The old screen read user.name, user.apartmentType and user.createdAt, but signup saves
+// firstname/lastname and apartmentsize (and had no creation date), so those showed blank.
 const Profile = ({ navigation }) => {
   const [user, setUser] = useState(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await AsyncStorage.getItem('clientdata');
-        if (data) {
-          setUser(JSON.parse(data)); // Parse the stored data to an object
-        }
-      } catch (error) {
-        console.error('Error fetching client data: ', error);
-      }
-    };
-    fetchData();
+    AsyncStorage.getItem('clientdata')
+      .then((raw) => raw && setUser(JSON.parse(raw)))
+      .catch(() => {})
+      .finally(() => setLoaded(true));
   }, []);
 
-  if (!user) {
-    return (
-      <View style={styles.container}>
-        <Header2 />
-        <Cmenu navigation={navigation} />
-        <Text style={styles.header}>Loading...</Text>
-      </View>
-    );
-  }
+  const fullName = user ? [user.firstname, user.lastname].filter(Boolean).join(' ') || user.name : '';
+  const since = user?.createdAt && !isNaN(new Date(user.createdAt)) ? new Date(user.createdAt).toLocaleDateString() : null;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <Header2 />
-      {/* Floating Menu */}
+      {!loaded ? (
+        <ActivityIndicator color={colors.primary} style={{ marginTop: space.xxl }} />
+      ) : !user ? (
+        <Text style={styles.empty}>We could not load your profile. Please log in again.</Text>
+      ) : (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.top}>
+            {user.facepicture ? (
+              <Image source={{ uri: user.facepicture }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: colors.primarySoft }]} />
+            )}
+            <Text style={styles.name}>{fullName || 'Client'}</Text>
+            <Text style={styles.sub}>{user.email}</Text>
+            {since ? <Text style={styles.sub}>Member since {since}</Text> : null}
+          </View>
+
+          <Card title="Contact" icon="call-outline">
+            <InfoRow label="Phone" value={user.phone} />
+            <InfoRow label="Email" value={user.email} last />
+          </Card>
+
+          <Card title="Home" icon="home-outline">
+            <InfoRow label="Address" value={user.address} />
+            <InfoRow label="Apartment" value={user.apartmentsize || user.apartmentType} />
+            <InfoRow label="LGA" value={user.lga} />
+            <InfoRow label="State" value={user.state} last />
+          </Card>
+
+          {user.frontview || user.insideview ? (
+            <Card title="Photos" icon="images-outline">
+              {user.frontview ? (
+                <View>
+                  <Text style={type.label}>Front of house</Text>
+                  <Image source={{ uri: user.frontview }} style={styles.photo} />
+                </View>
+              ) : null}
+              {user.insideview ? (
+                <View>
+                  <Text style={type.label}>Inside apartment</Text>
+                  <Image source={{ uri: user.insideview }} style={styles.photo} />
+                </View>
+              ) : null}
+            </Card>
+          ) : null}
+        </ScrollView>
+      )}
       <Cmenu navigation={navigation} />
-
-      <ScrollView contentContainerStyle={styles.scrollViewContainer}>
-        <Text style={styles.header}>Profile</Text>
-
-        <View style={styles.profileContainer}>
-          <View style={styles.profileHeader}>
-            <Image source={{ uri: user.facepicture }} style={styles.profilePic} />
-            <View style={styles.profileInfo}>
-              <Text style={styles.name}>{user.name}</Text>
-              <Text style={styles.email}>{user.email}</Text>
-              <Text style={styles.phone}>{user.phone}</Text>
-            </View>
-          </View>
-
-          <View style={styles.detailsContainer}>
-            <Text style={styles.sectionHeader}>Personal Details</Text>
-
-            <View style={styles.detailsRow}>
-              <Text style={styles.label}>Address:</Text>
-              <Text style={styles.detail}>{user.address}</Text>
-            </View>
-
-            <View style={styles.detailsRow}>
-              <Text style={styles.label}>Apartment Type:</Text>
-              <Text style={styles.detail}>{user.apartmentType}</Text>
-            </View>
-
-            <View style={styles.detailsRow}>
-              <Text style={styles.label}>LGA:</Text>
-              <Text style={styles.detail}>{user.lga}</Text>
-            </View>
-
-            <View style={styles.detailsRow}>
-              <Text style={styles.label}>State:</Text>
-              <Text style={styles.detail}>{user.state}</Text>
-            </View>
-
-            <View style={styles.detailsRow}>
-              <Text style={styles.label}>Location:</Text>
-              {/* <Text style={styles.detail}>
-                Lat: {user.location.latitude}, Lon: {user.location.longitude}
-              </Text> */}
-            </View>
-
-            <View style={styles.detailsRow}>
-              <Text style={styles.label}>Account Created:</Text>
-              <Text style={styles.detail}>{new Date(user.createdAt).toLocaleString()}</Text>
-            </View>
-          </View>
-
-          <View style={styles.imageSection}>
-            <Text style={styles.sectionHeader}>Images</Text>
-
-            <View style={styles.imageRow}>
-              <Text style={styles.imageLabel}>Apartment Inside:</Text>
-              <Image source={{ uri: user.insideview }} style={styles.image} />
-            </View>
-
-            <View style={styles.imageRow}>
-              <Text style={styles.imageLabel}>House Front:</Text>
-              <Image source={{ uri: user.frontview }} style={styles.image} />
-            </View>
-          </View>
-        </View>
-      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f1f3f5',
-  },
-  header: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#495057',
-  },
-  scrollViewContainer: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  profileContainer: {
-    backgroundColor: '#ffffff',
-    padding: 20,
-    borderRadius: 10,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  profilePic: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginRight: 20,
-    borderWidth: 3,
-    borderColor: '#007bff',
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#007bff',
-    marginBottom: 5,
-  },
-  email: {
-    fontSize: 16,
-    color: '#6c757d',
-    marginBottom: 5,
-  },
-  phone: {
-    fontSize: 16,
-    color: '#6c757d',
-  },
-  detailsContainer: {
-    marginTop: 20,
-  },
-  sectionHeader: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#495057',
-    marginBottom: 15,
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#343a40',
-    width: 120,
-  },
-  detail: {
-    fontSize: 16,
-    color: '#495057',
-    flex: 1,
-  },
-  imageSection: {
-    marginTop: 30,
-  },
-  imageRow: {
-    marginBottom: 20,
-  },
-  imageLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#495057',
-    marginBottom: 10,
-  },
-  image: {
-    width: '100%',
-    height: 200,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#dcdfe1',
-  },
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110 },
+  empty: { textAlign: 'center', color: colors.muted, margin: space.xl },
+  top: { alignItems: 'center', paddingVertical: space.lg },
+  avatar: { width: 104, height: 104, borderRadius: 52, borderWidth: 4, borderColor: colors.white, ...shadow },
+  name: { ...type.h1, marginTop: space.md },
+  sub: { color: colors.muted, marginTop: 2 },
+  photo: { width: '100%', height: 170, borderRadius: radius.md, marginTop: space.sm, backgroundColor: colors.border },
 });
 
 export { Profile };

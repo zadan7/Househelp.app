@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View, ScrollView, Alert, TextInput, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Pressable, StyleSheet, Text, View, ScrollView, Alert, TextInput, Image, TouchableOpacity } from 'react-native';
 import { Header } from "../component/Header";
 import { Footer } from "../component/Footer";
 import NigerianStateAndLGASelector from '../component/NigerianStateAndLGASelector';
@@ -11,6 +11,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
 import BankPicker from '../component/Banks';
 import Loader from '../component/Loader';
+import { Ionicons } from '@expo/vector-icons';
+import { Screen, ScreenHeader, Card, Field, Select, Chips, PhotoTile, Button, ErrorText } from '../component/ui';
+import { colors, space, radius } from '../component/theme';
+import { generateVerificationCode, sendVerificationEmail } from '../services/verification';
 
 
 // import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -36,256 +40,287 @@ import { Timestamp } from '@react-native-firebase/firestore';
 
 
 function HSignup({ navigation }) {
-  const [firstname, setFirstName] = useState('');
-  const [lastname, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [email, setEmail] = useState('');
-  const [state, setState] = useState('');
-  const [lga, setLGA] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [gender, setGender] = useState('');
-  const [employmentType, setEmploymentType] = useState('');
-  const [experience, setExperience] = useState('');
+  const [form, setForm] = useState({
+    firstname: '', lastname: '', phone: '', email: '', password: '', Cpassword: '',
+    address: '', dateOfBirth: '', gender: '', employmentType: '', experience: '',
+    state: '', lga: '', accountnumber: '', bankcode: '',
+  });
   const [selectedJobs, setSelectedJobs] = useState([]);
-  const [facePicture, setFacePicture] = useState("");
-  const[face,setFace]=useState("");
-  const[password,setPassword]=useState("");
-  const[Cpassword,setCPassword]=useState("");
-  const[downloadURL, setDownloadURL]=useState("");
-  // const [accountname , setAccountName] = useState("");
-  const [accountnumber , setAccountNumber] = useState("");
-  const [bankname , setBankName] = useState("");
-
-
-  // const [idPicture, setIDPicture] = useState(null);
+  const [facePicture, setFacePicture] = useState('');
   const [location, setLocation] = useState(null);
+  const [locStatus, setLocStatus] = useState('loading'); // loading | ok | denied
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
-  const jobOptions = ["Nanny", "Cook", "Cleaner", "Driver", "Gardener", "Housekeeper","Security","Caregiver","Househelp"];
+  const jobOptions = ["Nanny", "Cook", "Cleaner", "Driver", "Gardener", "Housekeeper", "Security", "Caregiver", "Househelp"];
 
-  useEffect(() => {
-    console.log("HSignup: Component mounted, requesting permissions");
-    (async () => {
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        console.log("HSignup: Getting current location");
-        const currentLocation = await Location.getCurrentPositionAsync({});
-        setLocation(currentLocation.coords);
-        console.log("HSignup: Location obtained", currentLocation.coords);
-      } else {
-        console.log("HSignup: Location permission denied");
-      }
-    })();
-
-    console.log(location)
+  const set = (key) => (value) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    setErrors((e) => (e[key] ? { ...e, [key]: undefined } : e));
+  };
+  const onState = useCallback((v) => {
+    setForm((f) => ({ ...f, state: v }));
+    setErrors((e) => ({ ...e, state: undefined }));
+  }, []);
+  const onLGA = useCallback((v) => {
+    setForm((f) => ({ ...f, lga: v }));
+    setErrors((e) => ({ ...e, lga: undefined }));
+  }, []);
+  const onBank = useCallback((v) => {
+    setForm((f) => ({ ...f, bankcode: v }));
+    setErrors((e) => ({ ...e, bankcode: undefined }));
   }, []);
 
-  const validateInputs = () => {
-    console.log("HSignup: Validating inputs");
-    const newErrors = {};
-    if (!firstname.trim()) newErrors.firstname = 'First name is required.';
-    if (!lastname.trim()) newErrors.lastname = 'Last name is required.';
-    if (!phone.trim()) newErrors.phone = 'Phone number is required.';
-    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Invalid email format.';
-    if (!dateOfBirth.trim()) newErrors.dateOfBirth = 'Date of birth is required.';
-    if (!gender) newErrors.gender = 'Gender is required.';
-    if (!employmentType) newErrors.employmentType = 'Employment type is required.';
-    if (!experience.trim()) newErrors.experience = 'Experience is required.';
-    if (!selectedJobs.length) newErrors.selectedJobs = 'Select at least one job type.';
-    if (!facePicture) newErrors.facePicture = 'Face picture is required.';
-    // if (!idPicture) newErrors.idPicture = 'ID picture is required.';
-    if (!location) newErrors.location = 'Location is required.';
-    if (!password) newErrors.location = 'Password is required.';
-
-
-    setErrors(newErrors);
-    console.log("HSignup: Validation errors", newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const selectPicture = async (setter) => {
-    console.log("HSignup: Selecting picture from library");
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.7,
-    });
-    if (!result.canceled){
-      console.log("HSignup: Picture selected", result.assets[0].uri);
-      setter(result.assets[0].uri);
-      setFace(result.assets[0].uri)
-      setFacePicture(result.assets[0].uri)
-    } else {
-      console.log("HSignup: Picture selection canceled");
+  const fetchLocation = useCallback(async () => {
+    setLocStatus('loading');
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') { setLocStatus('denied'); return; }
+      const pos = await Location.getCurrentPositionAsync({});
+      setLocation(pos.coords);
+      setLocStatus('ok');
+      setErrors((e) => ({ ...e, location: undefined }));
+    } catch (err) {
+      setLocStatus('denied');
     }
-  };
-  const generateVerificationCode = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  };
-  
+  }, []);
 
-  const handleDone =  async() => {
-    console.log("HSignup: handleDone started");
-    if (validateInputs()) {
-      console.log("HSignup: Validation passed");
-      const verificationCode=   generateVerificationCode()
-      console.log("HSignup: Generated verification code", verificationCode);
-      Alert.alert('Success', 'Form submitted successfully!');
+  useEffect(() => { fetchLocation(); }, [fetchLocation]);
 
-   
-      // console.log(firstname,lastname,email,phone,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode,facePicture,password,experience)
-       console.log(location)
-       let househelpData = {
-        "firstname":firstname,
-        "lastname":lastname,
-        "email":email,
-        "phone":phone,
-        "address":address,
-        "state":state,
-        "lga":lga,
-        "gender":gender,
-        "location":location,
-        "dateOfBirth":dateOfBirth,
-        "employmentType":employmentType,
-        "experience":experience,
-        "selectedJobs":selectedJobs,
-        "verificationCode":verificationCode,
-        "facePicture":facePicture,
-        "password":password}
-      //  db.collection("househelps").add({"firstname":firstname,"lastname":lastname,"email":email,"phone":phone})
-   
-
-      try{
-        console.log("HSignup: Saving to AsyncStorage");
-        await Promise.all([ 
-          AsyncStorage.setItem("househelpdata",JSON.stringify(househelpData)),
-          AsyncStorage.setItem("hname", firstname+"  "+ lastname ),
-          AsyncStorage.setItem("hemail", email),
-          AsyncStorage.setItem("haddress", address),
-          AsyncStorage.setItem("hphonenumber", phone),
-          AsyncStorage.setItem("state", state),
-          AsyncStorage.setItem("lga", lga),
-          AsyncStorage.setItem("gender",gender ),
-          AsyncStorage.setItem("DOB", dateOfBirth),
-          AsyncStorage.setItem("emplaymenttype",employmentType),
-          AsyncStorage.setItem("experience",experience ),
-          AsyncStorage.setItem("selectedJobs",JSON.stringify(selectedJobs) ),
-          AsyncStorage.setItem("code",verificationCode ),
-          AsyncStorage.setItem("facepicture",face ),
-          AsyncStorage.setItem("password",password ),
-          AsyncStorage.setItem("hlocation",JSON.stringify(location) ),
-
-
-
-         
-  
-
-        ])
-        console.log("HSignup: Data saved to AsyncStorage");
-        // console.log(facePicture)
-      
-       
-      
-
-      }catch(error){
-        console.log("HSignup: Error saving to AsyncStorage", error)
+  const pickPhoto = () => {
+    const apply = (result) => {
+      if (!result.canceled) {
+        setFacePicture(result.assets[0].uri);
+        setErrors((e) => ({ ...e, facePicture: undefined }));
       }
-      console.log(firstname,lastname,email,phone,address,state,lga,gender,location,dateOfBirth,selectedJobs,verificationCode,facePicture,password,experience)
-      console.log("HSignup: Sending verification email");
-      
+    };
+    Alert.alert('Profile photo', 'Clients choose househelps by photo, so use a clear picture of your face.', [
+      {
+        text: 'Take photo',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('Camera needed', 'Please allow camera access to take a photo.');
+            return;
+          }
+          apply(await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4, 3], quality: 0.7 }));
+        },
+      },
+      {
+        text: 'Choose from gallery',
+        onPress: async () =>
+          apply(await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.7,
+          })),
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
 
-      // navigation.navigate("codevalidation") 
-      
-      navigation.navigate("codevalidation")
-      emailjs.send("service_y6igit7","template_a7bqysj",{
-        name: firstname+ lastname,
-        code: verificationCode,
-        message: "welcome Onboard",
-        from_name: "Househelp.ng",
-        email:email,
-        },"tqnSNSHM6dMmakDbI");
-    } else {
-      console.log("HSignup: Validation failed");
-      Alert.alert('Validation Failed', 'Please correct the highlighted fields.');
+  const toggleJob = (job) => {
+    setSelectedJobs((cur) => (cur.includes(job) ? cur.filter((j) => j !== job) : [...cur, job]));
+    setErrors((e) => ({ ...e, selectedJobs: undefined }));
+  };
+
+  // Returns age in years for DD/MM/YYYY, or null if the date is invalid.
+  const ageFromDob = (dob) => {
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dob.trim());
+    if (!m) return null;
+    const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    if (d.getFullYear() !== Number(m[3]) || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[1])) return null;
+    const now = new Date();
+    let age = now.getFullYear() - d.getFullYear();
+    if (now < new Date(now.getFullYear(), d.getMonth(), d.getDate())) age -= 1;
+    return age;
+  };
+
+  const validate = () => {
+    const e = {};
+    const f = form;
+    if (!f.firstname.trim()) e.firstname = 'Enter your first name.';
+    if (!f.lastname.trim()) e.lastname = 'Enter your last name.';
+    if (!/^\+?\d{10,14}$/.test(f.phone.replace(/[\s-]/g, ''))) e.phone = 'Enter a valid phone number.';
+    if (!/\S+@\S+\.\S+/.test(f.email.trim())) e.email = 'Enter a valid email address.';
+    if (f.password.length < 6) e.password = 'Use at least 6 characters.';
+    if (f.password !== f.Cpassword) e.Cpassword = 'Passwords do not match.';
+    if (!/^\d{10}$/.test(f.accountnumber.trim())) e.accountnumber = 'Enter your 10-digit account number.';
+    if (!f.bankcode) e.bankcode = 'Select your bank.';
+    if (!f.address.trim()) e.address = 'Enter your address.';
+    const age = ageFromDob(f.dateOfBirth);
+    if (age === null) e.dateOfBirth = 'Use the format DD/MM/YYYY.';
+    else if (age < 18) e.dateOfBirth = 'You must be at least 18 years old.';
+    if (!f.gender) e.gender = 'Select your gender.';
+    if (!f.employmentType) e.employmentType = 'Select an employment type.';
+    if (!f.experience.trim() || isNaN(Number(f.experience))) e.experience = 'Enter your years of experience as a number.';
+    if (!f.state) e.state = 'Select your state.';
+    if (!f.lga) e.lga = 'Select your LGA.';
+    if (!selectedJobs.length) e.selectedJobs = 'Select at least one job type.';
+    if (!facePicture) e.facePicture = 'A profile photo is required.';
+    if (!location) e.location = 'We need your location to match you with nearby jobs.';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleDone = async () => {
+    if (!validate()) {
+      Alert.alert('Almost there', 'Please fix the highlighted fields.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const email = form.email.trim().toLowerCase();
+
+      // Only look up THIS email instead of downloading every househelp.
+      const dup = await db.collection('househelps').where('email', '==', email).limit(1).get();
+      if (!dup.empty) {
+        setErrors((e) => ({ ...e, email: 'This email is already registered. Try logging in.' }));
+        return;
+      }
+
+      const verificationCode = generateVerificationCode();
+      const fullName = `${form.firstname.trim()} ${form.lastname.trim()}`;
+      await sendVerificationEmail({ name: fullName, code: verificationCode, email });
+
+      // Same storage keys the verification step already reads, plus the bank details
+      // that were being collected but never saved.
+      await Promise.all([
+        // The Guarantor step reads this combined record, so keep saving it in the same shape.
+        AsyncStorage.setItem('househelpdata', JSON.stringify({
+          firstname: form.firstname.trim(),
+          lastname: form.lastname.trim(),
+          email,
+          phone: form.phone.trim(),
+          address: form.address.trim(),
+          state: form.state,
+          lga: form.lga,
+          gender: form.gender,
+          location,
+          dateOfBirth: form.dateOfBirth.trim(),
+          employmentType: form.employmentType,
+          experience: form.experience.trim(),
+          selectedJobs,
+          verificationCode,
+          facePicture,
+          password: form.password,
+          accountnumber: form.accountnumber.trim(),
+          bankcode: form.bankcode,
+        })),
+        AsyncStorage.setItem('hname', fullName),
+        AsyncStorage.setItem('hemail', email),
+        AsyncStorage.setItem('haddress', form.address.trim()),
+        AsyncStorage.setItem('hphonenumber', form.phone.trim()),
+        AsyncStorage.setItem('state', form.state),
+        AsyncStorage.setItem('lga', form.lga),
+        AsyncStorage.setItem('gender', form.gender),
+        AsyncStorage.setItem('DOB', form.dateOfBirth.trim()),
+        AsyncStorage.setItem('emplaymenttype', form.employmentType),
+        AsyncStorage.setItem('experience', form.experience.trim()),
+        AsyncStorage.setItem('selectedJobs', JSON.stringify(selectedJobs)),
+        AsyncStorage.setItem('code', verificationCode),
+        AsyncStorage.setItem('facepicture', facePicture),
+        AsyncStorage.setItem('password', form.password),
+        AsyncStorage.setItem('hlocation', JSON.stringify(location)),
+        AsyncStorage.setItem('haccountnumber', form.accountnumber.trim()),
+        AsyncStorage.setItem('hbankcode', form.bankcode),
+      ]);
+      navigation.navigate('codevalidation');
+    } catch (err) {
+      Alert.alert("Couldn't continue", 'We could not send your verification email. Check your connection and try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <ScrollView>
-      <View style={styles.container}>
-        <Header navigation={navigation} />
-        <Text style={styles.title}>Enter your Personal Information</Text>
+    <Screen>
+      <ScreenHeader
+        title="Join as a househelp"
+        subtitle="Create your profile so clients near you can find and hire you."
+        onBack={() => navigation.goBack()}
+        step={1}
+        totalSteps={3}
+      />
 
-        <View style={styles.formContainer}>
-          <TextInput style={styles.input} placeholder="First Name" value={firstname} onChangeText={setFirstName} />
-          <TextInput style={styles.input} placeholder="Last Name" value={lastname} onChangeText={setLastName} />
-          <TextInput style={styles.input} placeholder="Phone Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-          <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail}/>
-          <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} keyboardType="phone-pad" secureTextEntry />
-          <TextInput style={styles.input} placeholder="Confirm Password" value={Cpassword} onChangeText={setCPassword} keyboardType="phone-pad" secureTextEntry />
-       <View style={{marginPadding:10,width:"100%"}}>
+      <Card title="About you" icon="person-outline">
+        <Field label="First name" value={form.firstname} onChangeText={set('firstname')} error={errors.firstname} autoCapitalize="words" />
+        <Field label="Last name" value={form.lastname} onChangeText={set('lastname')} error={errors.lastname} autoCapitalize="words" />
+        <Field label="Phone number" value={form.phone} onChangeText={set('phone')} error={errors.phone} keyboardType="phone-pad" placeholder="08012345678" />
+        <Field label="Email" value={form.email} onChangeText={set('email')} error={errors.email} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+        <Field label="Date of birth" value={form.dateOfBirth} onChangeText={set('dateOfBirth')} error={errors.dateOfBirth} placeholder="DD/MM/YYYY" keyboardType="numbers-and-punctuation" hint="You must be 18 or older" />
+        <Select label="Gender" value={form.gender} onChange={set('gender')} items={['Male', 'Female']} placeholder="Select gender" error={errors.gender} />
+      </Card>
 
-       
-        <Text style={styles.title}>Bank Account Details for Recieving Your Payments<Text style={{color:"red",fontWeight:"bold"}}> (very crucial)</Text> </Text>
-          <TextInput style={styles.input} placeholder="Account Number" value={accountnumber} onChangeText={setAccountNumber} keyboardType="numeric" />
-          <BankPicker onBankSelect={setBankName} />
-          </View>
-          
-          <TextInput style={styles.input} placeholder="Address" value={address} onChangeText={setAddress}/>
+      <Card title="Password" icon="lock-closed-outline">
+        <Field label="Password" value={form.password} onChangeText={set('password')} error={errors.password} secure hint="At least 6 characters" autoCapitalize="none" />
+        <Field label="Confirm password" value={form.Cpassword} onChangeText={set('Cpassword')} error={errors.Cpassword} secure autoCapitalize="none" />
+      </Card>
 
+      <Card title="Where you get paid" icon="wallet-outline">
+        <Text style={{ color: colors.muted, fontSize: 13 }}>
+          Your pay is sent to this account, so double-check the details.
+        </Text>
+        <Field label="Account number" value={form.accountnumber} onChangeText={set('accountnumber')} error={errors.accountnumber} keyboardType="number-pad" maxLength={10} />
+        <BankPicker onBankSelect={onBank} />
+        <ErrorText>{errors.bankcode}</ErrorText>
+      </Card>
 
-          <TextInput style={styles.input} placeholder="Date of Birth" value={dateOfBirth} onChangeText={setDateOfBirth} />
-          <Picker selectedValue={gender} onValueChange={setGender} style={styles2.input}>
-            <Picker.Item label="Select Gender" value="" />
-            <Picker.Item label="Male" value="Male" />
-            <Picker.Item label="Female" value="Female" />
-          </Picker>
-          <Picker selectedValue={employmentType} onValueChange={setEmploymentType} style={styles2.input}>
-            <Picker.Item label="Select Employment Type" value="" />
-            <Picker.Item label="Full-Time" value="Full-Time" />
-            <Picker.Item label="Part-Time" value="Part-Time" />
-            <Picker.Item label="Live-In" value="Live-In" />
-          </Picker>
-          <TextInput style={styles2.input} placeholder="Years of Experience" value={experience} onChangeText={setExperience} keyboardType="numeric" />
-          <NigerianStateAndLGASelector onStateChange={setState} onLGAChange={setLGA} />
-          <View >
-            <View>
-              </View>
-            <Text style={styles2.title}>select the list of jobs that suits your preference</Text>
-            {jobOptions.map((job) => (
-              <Pressable key={job} onPress={() => {
-                setSelectedJobs(selectedJobs.includes(job) ? selectedJobs.filter(j => j !== job) : [...selectedJobs, job]);
-              }}>
-                <Text style={[styles2.jobOption, selectedJobs.includes(job) && styles2.selectedJob]}>{job}</Text>
-              </Pressable>
-            ))}
-          </View>
-          <Pressable style={styles2.picturebtn} onPress={() => selectPicture(setFacePicture)}><Text style={styles.doneButtonText}>Select Face Picture</Text></Pressable>
-          <View style={{margin:10}}>
-          <Image source={{ uri: facePicture }} style={styles.imagePreview} />
-
-          </View>
-         
-
-          {/* <Pressable style={styles.doneButton} onPress={() => selectPicture(setIDPicture)}><Text style={styles.doneButtonText}>Select ID Picture</Text></Pressable> */}
-          <Pressable onPress={handleDone} style={styles.doneButton}><Text style={styles.doneButtonText}>Done</Text></Pressable>
+      <Card title="Where you live" icon="home-outline">
+        <Field label="Address" value={form.address} onChangeText={set('address')} error={errors.address} />
+        <NigerianStateAndLGASelector onStateChange={onState} onLGAChange={onLGA} />
+        <ErrorText>{errors.state}</ErrorText>
+        <ErrorText>{errors.lga}</ErrorText>
+        <View style={[hs.locRow, locStatus === 'ok' && hs.locOk, locStatus === 'denied' && hs.locBad]}>
+          <Ionicons
+            name={locStatus === 'ok' ? 'checkmark-circle' : locStatus === 'denied' ? 'alert-circle' : 'locate'}
+            size={20}
+            color={locStatus === 'denied' ? colors.danger : colors.primary}
+          />
+          <Text style={hs.locText}>
+            {locStatus === 'ok' && 'Location captured'}
+            {locStatus === 'loading' && 'Getting your location…'}
+            {locStatus === 'denied' && 'Location is off. We need it to show you nearby jobs.'}
+          </Text>
+          {locStatus === 'denied' ? (
+            <TouchableOpacity onPress={fetchLocation}><Text style={hs.retry}>Retry</Text></TouchableOpacity>
+          ) : null}
         </View>
+        <ErrorText>{errors.location}</ErrorText>
+      </Card>
 
-        <Footer />
-      </View>
-    </ScrollView>
+      <Card title="Your work" icon="briefcase-outline">
+        <Select label="Employment type" value={form.employmentType} onChange={set('employmentType')} items={['Full-Time', 'Part-Time', 'Live-In']} placeholder="Select employment type" error={errors.employmentType} />
+        <Field label="Years of experience" value={form.experience} onChangeText={set('experience')} error={errors.experience} keyboardType="number-pad" />
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: colors.muted, fontSize: 13, fontWeight: '600' }}>Jobs you can do</Text>
+          <Chips options={jobOptions} selected={selectedJobs} onToggle={toggleJob} />
+          <ErrorText>{errors.selectedJobs}</ErrorText>
+        </View>
+      </Card>
+
+      <Card title="Profile photo" icon="camera-outline">
+        <PhotoTile label="Your face" hint="Tap to add a photo" uri={facePicture} onPress={pickPhoto} error={errors.facePicture} />
+      </Card>
+
+      <Button title="Continue" onPress={handleDone} loading={submitting} />
+      <TouchableOpacity onPress={() => navigation.navigate('login')} style={{ alignSelf: 'center', padding: space.lg }}>
+        <Text style={{ color: colors.muted }}>
+          Already have an account? <Text style={{ color: colors.primary, fontWeight: '700' }}>Log in</Text>
+        </Text>
+      </TouchableOpacity>
+    </Screen>
   );
 }
 
-
-
-
-
-
-
+const hs = StyleSheet.create({
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md, borderRadius: radius.md, backgroundColor: colors.bg },
+  locOk: { backgroundColor: colors.primarySoft },
+  locBad: { backgroundColor: colors.dangerSoft },
+  locText: { flex: 1, fontSize: 13, color: colors.text },
+  retry: { color: colors.primary, fontWeight: '700' },
+});
 
 function CodeValidation({ navigation }) {
   const [code, setCode] = useState("");
@@ -462,6 +497,8 @@ async function registerForPushNotificationsAsync() {
         const hselectedJob = await AsyncStorage.getItem("selectedJobs");
         const hpassword = await AsyncStorage.getItem("password");
         const hLocation = await AsyncStorage.getItem("hlocation");
+        const haccountnumber = await AsyncStorage.getItem("haccountnumber");
+        const hbankcode = await AsyncStorage.getItem("hbankcode");
         const storedURI = await AsyncStorage.getItem("facepicture");
         console.log("CodeValidation: Fetched all data, hname:", hname, "hemail:", hemail, "storedURI:", storedURI);
         
@@ -504,6 +541,8 @@ async function registerForPushNotificationsAsync() {
           experience: hexperience,
           selectedJobs: JSON.parse(hselectedJob || "[]"),
           password: hpassword,
+          accountnumber: haccountnumber,
+          bankcode: hbankcode,
           location: JSON.parse(hLocation || "{}"),
           expotoken: expotoken,
           fcmtoken: fcmtoken
@@ -550,15 +589,23 @@ async function registerForPushNotificationsAsync() {
 
       // 3. Upload to Firestore
    
-      const docId = await uploadDataToFirestore("househelps", data);
+      const photoUrl = await uploadImageToFirebase(facePicture, code, data.name || "househelp");
+      if (!photoUrl) {
+        setIsLoading(false);
+        Alert.alert("Photo upload failed", "We could not upload your profile photo. Check your connection and try again.");
+        return;
+      }
+      const docId = await uploadDataToFirestore("househelps", { ...data, url: photoUrl, uri: photoUrl });
+      setIsLoading(false);
       
 
       if (docId) {
         setIsLoading(false); // Hide loading indicator
-        navigation.navigate("Guarantor", { data2: data });
+        navigation.navigate("Guarantor", { data2: { ...data, url: photoUrl, uri: photoUrl } });
       }
     } catch (error) {
-      console.log("Final submission failed:", error);
+      setIsLoading(false);
+      Alert.alert("Could not finish signup", "Something went wrong. Please try again.");
     }
   } else {
     Alert.alert("Error", "Invalid verification code.");
@@ -567,37 +614,38 @@ async function registerForPushNotificationsAsync() {
 
 if (isLoading) {
   return (
-    <View>
-      <Loader />
-    </View>
-   
-  );
-}
-
-  return (
-    <ScrollView>
-      <Header />
-      <View style={styles.container}>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Enter the verification code sent to your email</Text>
-          <TextInput
-            onChangeText={(text) => setCode2(text)}
-            style={styles.input}
-            keyboardType="numeric"
-          />
-          <Pressable onPress={handleDone} style={styles.doneButton}>
-            <Text style={styles.doneButtonText}>Confirm</Text>
-          </Pressable>
-        </View>
+    <Screen scroll={false}>
+      <View style={{ flex: 1, justifyContent: 'center' }}>
+        <Loader />
       </View>
-    </ScrollView>
+    </Screen>
   );
 }
-
-
-
-
-
+  return (
+    <Screen>
+      <ScreenHeader
+        title="Verify your email"
+        subtitle={email ? `Enter the 6-digit code we sent to ${email}.` : 'Enter the code we emailed you.'}
+        onBack={() => navigation.goBack()}
+        step={2}
+        totalSteps={3}
+      />
+      <Card>
+        <Field
+          label="Verification code"
+          value={code2}
+          onChangeText={(t) => setCode2(t.replace(/[^0-9]/g, ''))}
+          keyboardType="number-pad"
+          maxLength={6}
+          placeholder="••••••"
+          textAlign="center"
+          inputStyle={{ fontSize: 26, letterSpacing: 8, fontWeight: '700' }}
+        />
+        <Button title="Confirm" onPress={handleDone} disabled={code2.length < 6} />
+      </Card>
+    </Screen>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {

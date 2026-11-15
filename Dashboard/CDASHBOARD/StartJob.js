@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Modal } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert, TouchableOpacity, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { db } from '../../pages/firebase';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useKeepAwake } from 'expo-keep-awake';
+import { Card, Field, Button, InfoRow } from '../../component/ui';
+import { colors, space, radius, type, shadow } from '../../component/theme';
+
+const docExists = (snap) => (typeof snap.exists === 'function' ? snap.exists() : !!snap.exists);
 
 // Star component for the rating system
 const Star = ({ filled, onPress }) => (
-  <TouchableOpacity onPress={onPress}>
-    <Text style={[styles.star, filled ? styles.filledStar : styles.emptyStar]}>★</Text>
+  <TouchableOpacity onPress={onPress} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
+    <Ionicons name={filled ? 'star' : 'star-outline'} size={38} color={filled ? colors.accent : colors.border} style={styles.star} />
   </TouchableOpacity>
 );
 
@@ -39,9 +44,12 @@ const CStartJob = ({ navigation, route }) => {
         const storedJobId = await AsyncStorage.getItem('jobId');
         if (storedJobId) {
           setDocumentId(storedJobId);
+        } else {
+          // No stored job id: fall back to the job passed in via route params.
+          setLoading(false);
         }
       } catch (error) {
-        console.error('Error retrieving jobId from AsyncStorage:', error);
+        setLoading(false);
       }
     };
 
@@ -56,19 +64,19 @@ const CStartJob = ({ navigation, route }) => {
       .doc(documentId)
       .onSnapshot(
         (docSnap) => {
-          if (docSnap.exists) { 
+          if (docExists(docSnap)) {
             const data = docSnap.data();
             setJobData(data);
             setLoading(false);
 
-            if (data && data.chores) {
+            if (data && Array.isArray(data.chores) && data.chores.length > 0) {
               const allCompleted = data.chores.every((chore) => chore.completed);
               setIsCompleted(allCompleted);
             }
           }
         },
-        (error) => {
-          console.error("Error listening to document changes:", error);
+        () => {
+          setLoading(false);
         }
       );
 
@@ -78,7 +86,7 @@ const CStartJob = ({ navigation, route }) => {
   const toggleChore = async (index) => {
     if (!jobData || !documentId) return;
 
-    const updatedChores = [...jobData.chores];
+    const updatedChores = (jobData.chores || []).map((c) => ({ ...c }));
 
     if (updatedChores[index].completed) {
       Alert.alert('Notice', 'This chore has already been completed.');
@@ -98,7 +106,6 @@ const CStartJob = ({ navigation, route }) => {
         chores: updatedChores,
       }));
     } catch (error) {
-      console.error("Error updating chore status:", error);
       Alert.alert("Error", "Failed to update chore status.");
     }
   };
@@ -148,7 +155,6 @@ const CStartJob = ({ navigation, route }) => {
 
     } catch (dbError) {
       setProcessingPayment(false);
-      console.error("Error updating firestore tracking documents:", dbError);
       Alert.alert("Data Error", "Payment hit Monnify successfully but failed to update status locally.");
     }
   };
@@ -157,7 +163,7 @@ const CStartJob = ({ navigation, route }) => {
   const handlePayment = () => {
     if (!jobData || !documentId) return;
 
-    const totalAmount = jobData.chores.reduce((sum, chore) => sum + Number(chore.price || 0), 0);
+    const totalAmount = (jobData.chores || []).reduce((sum, chore) => sum + Number(chore.price || 0), 0);
 
     if (totalAmount <= 0) {
       Alert.alert("Error", "Invalid payment value configuration detected.");
@@ -167,6 +173,8 @@ const CStartJob = ({ navigation, route }) => {
     setProcessingPayment(true); // Lock the button to prevent double execution triggers
 
     const txRef = `JOB-${documentId}-${Date.now()}`;
+    // Values are embedded in an inline <script>, so serialise them safely (names may contain quotes).
+    const js = (v) => JSON.stringify(String(v)).replace(/</g, '\\u003c');
     const customerName = jobData.clientName || "Househelp Client";
     const customerEmail = jobData.clientEmail || "client@househelp.ng";
     const paymentDesc = `Payment for job by ${jobData.househelpName || 'Provider'}`;
@@ -190,12 +198,12 @@ const CStartJob = ({ navigation, route }) => {
               MonnifySDK.initialize({
                 amount: ${totalAmount},
                 currency: "NGN",
-                reference: "${txRef}",
-                customerName: "${customerName}",
-                customerEmail: "${customerEmail}",
-                apiKey: "${monnifyApiKey}",
-                contractCode: "${monnifyContractCode}",
-                paymentDescription: "${paymentDesc}",
+                reference: ${js(txRef)},
+                customerName: ${js(customerName)},
+                customerEmail: ${js(customerEmail)},
+                apiKey: ${js(monnifyApiKey)},
+                contractCode: ${js(monnifyContractCode)},
+                paymentDescription: ${js(paymentDesc)},
                 isTestMode: true,
                 onComplete: function(response){
                   window.ReactNativeWebView.postMessage(JSON.stringify({status: 'SUCCESS', data: response}));
@@ -229,7 +237,6 @@ const CStartJob = ({ navigation, route }) => {
         Alert.alert('Payment Declined', 'The transaction was not authorized or cleared successfully.');
       }
     } catch (err) {
-      console.error("Parsing message failed:", err);
       setProcessingPayment(false);
       setShowWebView(false);
     }
@@ -250,43 +257,72 @@ const CStartJob = ({ navigation, route }) => {
   if (loading || !jobData) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#28a745" />
-        <Text>Loading job details...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.muted}>Loading job details...</Text>
       </View>
     );
   }
+
+  const chores = jobData.chores || [];
+  const doneCount = chores.filter((c) => c.completed).length;
+  const total = chores.reduce((sum, c) => sum + Number(c.price || 0), 0);
 
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.container}>
           <Header2 />
-          <Cmenu navigation={navigation} />
 
-          <ScrollView contentContainerStyle={styles.content}>
-            <Text style={styles.header}>Client: {jobData.clientName}</Text>
-            <Text style={styles.header}>Househelp: {jobData.househelpName}</Text>
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <Card style={styles.statusCard}>
+              <View style={styles.statusIcon}>
+                <Ionicons name={isCompleted ? 'checkmark-done' : 'construct-outline'} size={28} color={colors.primary} />
+              </View>
+              <Text style={type.h2}>{isCompleted ? 'All chores done' : 'Job in progress'}</Text>
+              <Text style={styles.muted}>
+                {isCompleted
+                  ? 'Rate the service below to complete payment.'
+                  : `${doneCount} of ${chores.length} chores completed. Tap a chore once it is finished.`}
+              </Text>
+            </Card>
 
-            <Text style={styles.header}>Chores for Job</Text>
+            <Card title="Job details" icon="person-outline">
+              <View>
+                <InfoRow label="Client" value={jobData.clientName} />
+                <InfoRow label="Househelp" value={jobData.househelpName} />
+                <InfoRow label="Total" value={`₦${total.toLocaleString()}`} last />
+              </View>
+            </Card>
 
-            {jobData.chores.map((chore, index) => (
-              <Pressable
-                key={index}
-                style={[styles.choreItem, chore.completed ? styles.choreCompleted : styles.chorePending]}
-                onPress={() => toggleChore(index)}
-              >
-                <Text style={styles.choreText}>
-                  {chore.chore} - ₦{Number(chore.price).toLocaleString()}{chore.completed ? ' ✅' : ''}
-                </Text>
-              </Pressable>
-            ))}
+            <Card title="Chores for job" icon="list-outline">
+              {chores.length === 0 ? (
+                <View style={styles.empty}>
+                  <Ionicons name="clipboard-outline" size={32} color={colors.muted} />
+                  <Text style={styles.muted}>No chores on this job yet.</Text>
+                </View>
+              ) : null}
+              {chores.map((chore, index) => (
+                <Pressable
+                  key={index}
+                  style={[styles.choreItem, chore.completed ? styles.choreCompleted : styles.chorePending]}
+                  onPress={() => toggleChore(index)}
+                >
+                  <Ionicons
+                    name={chore.completed ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={24}
+                    color={chore.completed ? colors.primary : colors.muted}
+                  />
+                  <Text style={styles.choreText}>{chore.chore}</Text>
+                  <Text style={styles.chorePrice}>₦{Number(chore.price || 0).toLocaleString()}</Text>
+                </Pressable>
+              ))}
+            </Card>
 
             {isCompleted && (
-              <View style={styles.ratingContainer}>
-                <Text style={styles.ratingHeader}>Rate the Service</Text>
+              <Card title="Rate the service" icon="star-outline">
                 <View style={styles.starsContainer}>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Star
@@ -297,41 +333,40 @@ const CStartJob = ({ navigation, route }) => {
                   ))}
                 </View>
 
-                <TextInput
-                  style={styles.commentBox}
+                <Field
                   placeholder="Leave a comment..."
                   value={comment}
                   onChangeText={setComment}
                   multiline
+                  inputStyle={styles.commentBox}
                   onEndEditing={enablePaymentButton}
                 />
 
                 {paymentEnabled && (
-                  <TouchableOpacity 
-                    style={[styles.paymentButton, processingPayment && { backgroundColor: '#6c757d' }]} 
+                  <Button
+                    title="Process Payment"
                     onPress={handlePayment}
+                    loading={processingPayment}
                     disabled={processingPayment}
-                  >
-                    {processingPayment ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={styles.paymentText}>Process Payment</Text>
-                    )}
-                  </TouchableOpacity>
+                  />
                 )}
-              </View>
+              </Card>
             )}
           </ScrollView>
 
           {/* Checkout Sheet Modal overlay structure view */}
           <Modal visible={showWebView} animationType="slide" transparent={false}>
-            <View style={{ flex: 1, paddingTop: Platform.OS === 'ios' ? 50 : 0 }}>
+            <View style={{ flex: 1, paddingTop: Platform.OS === 'ios' ? 50 : 0, backgroundColor: colors.white }}>
               <View style={styles.webviewHeader}>
-                <TouchableOpacity onPress={() => {
-                  setShowWebView(false);
-                  setProcessingPayment(false);
-                }}>
-                  <Text style={styles.closeText}>✕ Close Checkout</Text>
+                <TouchableOpacity
+                  style={styles.closeBtn}
+                  onPress={() => {
+                    setShowWebView(false);
+                    setProcessingPayment(false);
+                  }}
+                >
+                  <Ionicons name="close" size={20} color={colors.danger} />
+                  <Text style={styles.closeText}>Close Checkout</Text>
                 </TouchableOpacity>
                 <Text style={styles.webviewTitle}>Secure Monnify Payment</Text>
               </View>
@@ -342,12 +377,13 @@ const CStartJob = ({ navigation, route }) => {
                 domStorageEnabled={true}
                 startInLoadingState={true}
                 renderLoading={() => (
-                  <ActivityIndicator size="large" color="#28a745" style={StyleSheet.absoluteFill} />
+                  <ActivityIndicator size="large" color={colors.primary} style={StyleSheet.absoluteFill} />
                 )}
               />
             </View>
           </Modal>
 
+          <Cmenu navigation={navigation} />
         </View>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -355,26 +391,25 @@ const CStartJob = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  content: { paddingHorizontal: 20, paddingBottom: 20 },
-  header: { fontSize: 18, fontWeight: 'bold', marginVertical: 10, color: '#343a40' },
-  choreItem: { padding: 15, borderRadius: 10, marginBottom: 10 },
-  choreText: { fontSize: 16, fontWeight: '500' },
-  choreCompleted: { backgroundColor: '#d4edda' },
-  chorePending: { backgroundColor: '#f8d7da' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  ratingContainer: { marginTop: 20, paddingHorizontal: 20, backgroundColor: '#fff', borderRadius: 10, paddingVertical: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 3 },
-  ratingHeader: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 10, color: '#343a40' },
-  starsContainer: { flexDirection: 'row', justifyContent: 'center', marginBottom: 10 },
-  star: { fontSize: 40, marginHorizontal: 5 },
-  filledStar: { color: '#ffd700' },
-  emptyStar: { color: '#d3d3d3' },
-  commentBox: { height: 80, borderWidth: 1, borderColor: '#ccc', borderRadius: 5, marginBottom: 15, paddingHorizontal: 10, paddingVertical: 5, fontSize: 14, color: '#343a40' },
-  paymentButton: { backgroundColor: '#28a745', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
-  paymentText: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
-  webviewHeader: { height: 50, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, justifyContent: 'space-between' },
-  closeText: { color: '#dc3545', fontSize: 16, fontWeight: 'bold' },
-  webviewTitle: { fontSize: 16, fontWeight: '600', color: '#343a40' }
+  container: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110 },
+  muted: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  statusCard: { alignItems: 'center' },
+  statusIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  empty: { alignItems: 'center', gap: space.sm, paddingVertical: space.md },
+  choreItem: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 52, padding: space.md, borderRadius: radius.md, borderWidth: 1.5 },
+  choreText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
+  chorePrice: { fontSize: 14, fontWeight: '700', color: colors.text },
+  choreCompleted: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoft },
+  chorePending: { backgroundColor: colors.white, borderColor: colors.border },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg, gap: space.md },
+  starsContainer: { flexDirection: 'row', justifyContent: 'center' },
+  star: { marginHorizontal: 4 },
+  commentBox: { minHeight: 80, textAlignVertical: 'top' },
+  webviewHeader: { minHeight: 52, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.lg, justifyContent: 'space-between' },
+  closeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 48 },
+  closeText: { color: colors.danger, fontSize: 15, fontWeight: '700' },
+  webviewTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
 });
 
 export { CStartJob };

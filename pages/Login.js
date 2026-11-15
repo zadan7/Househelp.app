@@ -1,322 +1,186 @@
-import React, { useEffect, useState, useRef } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  Animated,
-} from 'react-native';
-import { Header } from '../component/Header';
-import { Footer } from '../component/Footer';
-import { db } from './firebase';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, Alert, TouchableOpacity, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
-import messaging from '@react-native-firebase/messaging';
-import { useCallback } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { Screen, Card, Field, Button } from '../component/ui';
+import { colors, space, radius, type, shadow } from '../component/theme';
+import { db } from './firebase';
+import { registerForPushNotificationsAsync, registerForFcmToken } from '../services/notifications';
+import logo from '../assets/Househelp.png';
 
-
- const loginAsHousehelp = async (user) => {
-    setLoading(true);
-    console.log('Logging in as Househelp:', user);
-    try {
-      const userData = { ...user, id: user.id };
-      
-      // Update DB and LocalStorage in parallel (FAST)
-      await Promise.all([
-        storeData('househelpdata', userData),
-        db.collection('househelps').doc(user.id).update({
-          expotoken: expotoken || '',
-          fcmtoken: fcmtoken || ''
-        })
-      ]);
-
-      navigation.navigate('hdashboard', { househelpdata: userData });
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Login Error', 'Failed to update session.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loginAsClient = async (user) => {
-    setLoading(true);
-    try {
-      const userData = { ...user, id: user.id };
-
-      await Promise.all([
-        storeData('clientdata', userData),
-        db.collection('clients').doc(user.id).update({
-          expotoken: expotoken || '',
-          fcmtoken: fcmtoken || ''
-        })
-      ]);
-
-      navigation.navigate('cdashboard', { clientdata: userData });
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Login Error', 'Failed to update session.');
-    } finally {
-      setLoading(false);
-    }
-  };
+// Looks up accounts for ONE email instead of downloading every user in the database.
+// Firestore cannot search case-insensitively, so this tries the email as typed, lowercased,
+// and with a capital first letter (what phone keyboards often produced for older accounts).
+// Accounts stored with other capitalisation need a one-time migration that lowercases the
+// stored `email` field; new signups are already saved in lowercase.
+// NOTE: passwords are still compared as stored plaintext; that is only fully fixed by moving
+// to Firebase Auth (planned).
+async function findUser(collection, typedEmail, password) {
+  const lower = typedEmail.toLowerCase();
+  const capitalised = lower.charAt(0).toUpperCase() + lower.slice(1);
+  const variants = Array.from(new Set([typedEmail, lower, capitalised]));
+  for (const v of variants) {
+    const snap = await db.collection(collection).where('email', '==', v).get();
+    const match = snap.docs.map((d) => ({ id: d.id, ...d.data() })).find((u) => u.password === password);
+    if (match) return match;
+  }
+  return null;
+}
 
 function Login({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [househelps, setHousehelps] = useState([]);
-  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
-  const spinValue = useRef(new Animated.Value(0)).current;
-  const [fcmtoken, setFcmToken] = useState(null);
+  const [error, setError] = useState('');
   const [expotoken, setExpoToken] = useState(null);
-
-  // Animation logic
-  useEffect(() => {
-    if (loading) {
-      Animated.loop(
-        Animated.timing(spinValue, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        })
-      ).start();
-    } else {
-      spinValue.stopAnimation();
-    }
-  }, [loading]);
-
-  // Optimized Fetch: Gets data once when the app opens
-  const fetchData = async () => {
-    try {
-      const [hhSnap, clSnap] = await Promise.all([
-        db.collection('househelps').get(),
-        db.collection('clients').get()
-      ]);
-
-      const hhData = hhSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const clData = clSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    setHousehelps(hhData);
-       setClients(clData);
-      // console.log('Data fetched successfully:', { househelps: househelps.length, clients: clients.length });
-    } catch (error) {
-      console.error('Initial fetch error:', error);
-    }
-  };
+  const [fcmtoken, setFcmToken] = useState(null);
 
   useEffect(() => {
-    fetchData(); // Pre-load data so login is instant later
-
-    // Run token logic in background
-    registerForPushNotificationsAsync().then(token => setExpoToken(token));
-    registerForFcmToken().then(token => setFcmToken(token));
+    registerForPushNotificationsAsync().then(setExpoToken);
+    registerForFcmToken().then(setFcmToken);
   }, []);
 
-  const storeData = async (key, data) => {
+  const enter = async (role, user) => {
+    setLoading(true);
     try {
-      await AsyncStorage.setItem(key, JSON.stringify(data));
+      const isClient = role === 'client';
+      const userData = { ...user, id: user.id };
+
+      // Only overwrite saved push tokens when we actually have new ones.
+      const tokens = {};
+      if (expotoken) tokens.expotoken = expotoken;
+      if (fcmtoken) tokens.fcmtoken = fcmtoken;
+
+      await Promise.all([
+        AsyncStorage.setItem(isClient ? 'clientdata' : 'househelpdata', JSON.stringify(userData)),
+        Object.keys(tokens).length
+          ? db.collection(isClient ? 'clients' : 'househelps').doc(user.id).update(tokens)
+          : Promise.resolve(),
+      ]);
+
+      navigation.reset({
+        index: 0,
+        routes: [
+          isClient
+            ? { name: 'cdashboard', params: { clientdata: userData } }
+            : { name: 'hdashboard', params: { househelpdata: userData } },
+        ],
+      });
     } catch (e) {
-      console.error('Storage error:', e);
+      Alert.alert('Login error', 'We could not finish signing you in. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const registerForPushNotificationsAsync = async () => {
+  const handleLogin = async () => {
+    const typed = email.trim();
+    if (!typed || !password) {
+      setError('Enter your email and password.');
+      return;
+    }
+    setError('');
+    setLoading(true);
     try {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
+      const [hh, cl] = await Promise.all([
+        findUser('househelps', typed, password),
+        findUser('clients', typed, password),
+      ]);
+
+      if (hh && cl) {
+        setLoading(false);
+        Alert.alert('Which account?', 'This email has both a client and a househelp account.', [
+          { text: 'Client', onPress: () => enter('client', cl) },
+          { text: 'Househelp', onPress: () => enter('househelp', hh) },
+        ]);
+      } else if (cl) {
+        await enter('client', cl);
+      } else if (hh) {
+        await enter('househelp', hh);
+      } else {
+        setError('Incorrect email or password.');
       }
-      if (finalStatus !== 'granted') return null;
-      return (await Notifications.getExpoPushTokenAsync()).data;
-    } catch (e) { return null; }
-  };
-
-  const registerForFcmToken = async () => {
-    try {
-      const authStatus = await messaging().requestPermission();
-      const enabled = authStatus === messaging.AuthorizationStatus.AUTHORIZED || authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-      if (!enabled) return null;
-      return await messaging().getToken();
-    } catch (e) { return null; }
-  };
-
-  // Optimized Login Handlers
-  const loginAsHousehelp = async (user) => {
-    setLoading(true);
-    console.log('Logging in as Househelp:', user);
-    try {
-      const userData = { ...user, id: user.id };
-      
-      // Update DB and LocalStorage in parallel (FAST)
-      await Promise.all([
-        storeData('househelpdata', userData),
-        db.collection('househelps').doc(user.id).update({
-          expotoken: expotoken || '',
-          fcmtoken: fcmtoken || ''
-        })
-      ]);
-
-      navigation.navigate('hdashboard', { househelpdata: userData });
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Login Error', 'Failed to update session.');
+    } catch (e) {
+      setError('Could not reach the server. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
-
-  const loginAsClient = async (user) => {
-    setLoading(true);
-    try {
-      const userData = { ...user, id: user.id };
-
-      await Promise.all([
-        storeData('clientdata', userData),
-        db.collection('clients').doc(user.id).update({
-          expotoken: expotoken || '',
-          fcmtoken: fcmtoken || ''
-        })
-      ]);
-
-      navigation.navigate('cdashboard', { clientdata: userData });
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Login Error', 'Failed to update session.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-const handleLogin = useCallback(() => {
-    // 1. Initial Validation
-    if (!email || !password) {
-      Alert.alert('Missing Fields', 'Please enter email and password.');
-      return;
-    }
-
-    // 2. Logging for Debugging
-    console.log('--- Login Attempt ---');
-    console.log('Stored Househelps:', househelps.length);
-    console.log('Stored Clients:', clients.length);
-    console.log(clients);
-
-    // 3. Safety Check: If data hasn't arrived yet
-    if (househelps.length === 0 && clients.length === 0) {
-      setLoading(false);
-      Alert.alert(
-        'Data Loading', 
-        'We are still syncing user data from the cloud. Please wait a few seconds and try again.'
-      );
-      console.warn('Login attempted before data was loaded. Triggering fetch again.');
-      fetchData(); // Trigger a fetch in case it failed the first time
-      return;
-    }
-
-    setLoading(true);
-    const emailLower = email.toLowerCase();
-
-    // 4. Find the user in the pre-fetched lists
-    const hhUser = househelps.find(
-      (u) => u.email?.toLowerCase() === emailLower && u.password === password
-    );
-    const clUser = clients.find(
-      (u) => u.email?.toLowerCase() === emailLower && u.password === password
-    );
-
-    console.log('Search Results:', { 
-      foundHousehelp: !!hhUser, 
-      foundClient: !!clUser 
-    });
-
-    // 5. Logic for Dual-Role Users
-    if (hhUser && clUser) {
-      setLoading(false);
-      Alert.alert('Account Type', 'Which account would you like to access?', [
-        { text: 'Client', onPress: () => loginAsClient(clUser) },
-        { text: 'Househelp', onPress: () => loginAsHousehelp(hhUser) },
-      ]);
-    } 
-    // 6. Logic for Single-Role Users
-    else if (clUser) {
-      loginAsClient(clUser);
-    } else if (hhUser) {
-      loginAsHousehelp(hhUser);
-    } 
-    // 7. Fallback for incorrect credentials
-    else {
-      setLoading(false);
-      Alert.alert('Login Failed', 'Incorrect email or password. Please try again.');
-    }
-  }, [email, password, househelps, clients]); // These dependencies are CRITICAL
-
-  const spin = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Header navigation={navigation} />
-        <Text style={styles.title}>Login</Text>
+    <Screen>
+      {navigation.canGoBack() ? (
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back} accessibilityLabel="Go back">
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
+        </TouchableOpacity>
+      ) : null}
 
-        <View style={styles.formContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            editable={!loading}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!loading}
-          />
-          <Pressable style={styles.button} onPress={handleLogin} disabled={loading}>
-            <Text style={styles.buttonText}>{loading ? 'Authenticating...' : 'Login'}</Text>
-          </Pressable>
+      <View style={styles.hero}>
+        <View style={styles.logoWrap}>
+          <Image source={logo} style={styles.logo} resizeMode="contain" />
         </View>
+        <Text style={styles.title}>Welcome back</Text>
+        <Text style={styles.sub}>Log in to continue to Househelp.</Text>
+      </View>
 
-        {loading && (
-          <View style={styles.loadingOverlay}>
-            <View style={styles.spinnerContainer}>
-              <Animated.Image
-                source={require('../assets/icon.png')}
-                style={[styles.spinnerIcon, { transform: [{ rotate: spin }] }]}
-              />
-            </View>
+      <Card>
+        <Field
+          label="Email"
+          value={email}
+          onChangeText={(t) => { setEmail(t); setError(''); }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!loading}
+          placeholder="you@example.com"
+        />
+        <Field
+          label="Password"
+          value={password}
+          onChangeText={(t) => { setPassword(t); setError(''); }}
+          secure
+          autoCapitalize="none"
+          editable={!loading}
+          onSubmitEditing={handleLogin}
+        />
+        {error ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Text style={styles.errorText}>{error}</Text>
           </View>
-        )}
-        <Footer />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        ) : null}
+        <Button title="Log in" onPress={handleLogin} loading={loading} />
+      </Card>
+
+      <TouchableOpacity onPress={() => navigation.navigate('Signup')} style={styles.linkRow}>
+        <Text style={{ color: colors.muted }}>
+          New to Househelp? <Text style={styles.link}>Create an account</Text>
+        </Text>
+      </TouchableOpacity>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#fff', alignItems: 'center' },
-  title: { color: 'green', fontSize: 36, fontWeight: 'bold', marginVertical: 10 },
-  formContainer: { width: '100%', maxWidth: 400, alignItems: 'center', padding: 10 },
-  input: { width: '100%', height: 50, borderColor: 'green', borderWidth: 1, borderRadius: 25, paddingHorizontal: 15, marginVertical: 10, fontSize: 16 },
-  button: { backgroundColor: 'green', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 25, marginTop: 20, width: '100%', alignItems: 'center' },
-  buttonText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255, 255, 255, 0.88)', justifyContent: 'center', alignItems: 'center', zIndex: 999 },
-  spinnerContainer: { alignItems: 'center', justifyContent: 'center', borderRadius: 55, borderColor: 'green', borderWidth: 5 },
-  spinnerIcon: { width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: 'white' },
+  back: {
+    width: 40, height: 40, borderRadius: radius.pill, backgroundColor: colors.white,
+    alignItems: 'center', justifyContent: 'center', ...shadow,
+  },
+  hero: { alignItems: 'center', paddingVertical: space.xl },
+  logoWrap: {
+    width: 84, height: 84, borderRadius: 42, backgroundColor: colors.white,
+    alignItems: 'center', justifyContent: 'center', ...shadow,
+  },
+  logo: { width: 64, height: 64 },
+  title: { ...type.h1, marginTop: space.lg },
+  sub: { color: colors.muted, marginTop: space.xs },
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md,
+    borderRadius: radius.md, backgroundColor: colors.dangerSoft,
+  },
+  errorText: { color: colors.danger, flex: 1, fontSize: 13 },
+  linkRow: { alignSelf: 'center', padding: space.lg },
+  link: { color: colors.primary, fontWeight: '700' },
 });
 
-export { Login ,loginAsClient,loginAsHousehelp };
+export { Login };

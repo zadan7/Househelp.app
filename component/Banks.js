@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import { colors, space, radius, type } from './theme';
 
 const BankPicker = ({ onBankSelect }) => {
   const [banks, setBanks] = useState([]);
@@ -36,10 +37,13 @@ const BankPicker = ({ onBankSelect }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Select Your Bank</Text>
+      <Text style={type.label}>Select Your Bank</Text>
       
       {loading ? (
-        <ActivityIndicator size="small" color="#28a745" />
+        <View style={[styles.pickerWrapper, { paddingHorizontal: space.md }]}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading banks...</Text>
+        </View>
       ) : (
         <View style={styles.pickerWrapper}>
           <Picker
@@ -49,8 +53,9 @@ const BankPicker = ({ onBankSelect }) => {
               // Pass the code and name back to your registration form
               onBankSelect(itemValue); 
             }}
+            style={{ flex: 1, color: colors.text }}
           >
-            <Picker.Item label="Choose a bank..." value="" />
+            <Picker.Item label="Choose a bank..." value="" color="#9AABA2" />
             {banks.map((bank) => (
               <Picker.Item 
                 key={bank.id} 
@@ -66,22 +71,19 @@ const BankPicker = ({ onBankSelect }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: 10,
-    width: '100%',
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
-  },
+  container: { width: '100%', gap: 6 },
   pickerWrapper: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 50,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.bg,
+    overflow: 'hidden',
+    paddingHorizontal: 0,
   },
+  loadingText: { marginLeft: space.sm, color: colors.muted, fontSize: 14 },
 });
 
 export default BankPicker;

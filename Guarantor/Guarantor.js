@@ -1,18 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Pressable, StyleSheet, Text, View, ScrollView, Alert, TextInput, Image, ActivityIndicator } from "react-native";
-import { Header } from "../component/Header";
-import { Footer } from "../component/Footer";
+import { StyleSheet, Text, View, Alert, ActivityIndicator } from "react-native";
 import NigerianStateAndLGASelector from "../component/NigerianStateAndLGASelector";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-// import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-// import { getAuth } from 'firebase/auth';
-// import { getFirestore } from 'firebase/firestore';
-// import { getStorage } from 'firebase/storage';
-import {db} from "../pages/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import firebase from 'firebase/compat/app';
+import { db } from "../pages/firebase";
+import firestore from "@react-native-firebase/firestore";
+import { Screen, ScreenHeader, Card, Field, PhotoTile, Button, ErrorText } from "../component/ui";
+import { colors, space } from "../component/theme";
 
 function Guarantor({ navigation ,route}) {
   const [househelpdata ,setHousehelpdata] = useState();
@@ -49,9 +44,7 @@ function Guarantor({ navigation ,route}) {
     });
     if (!result.canceled){
       setter(result.assets[0].uri);
-      setFace(result.assets[0].uri)
-      setFacePicture(result.assets[0].uri)
-    } 
+    }
   };
 
   const uploadDataToFirestore = async (collectionName, data) => {
@@ -144,11 +137,10 @@ function Guarantor({ navigation ,route}) {
         househelpemail: hemail,
         househelpphone: hphonenumber,
         code: code,
-        timestamp: serverTimestamp(),
+        timestamp: firestore.FieldValue.serverTimestamp(),
       };
       setdata(guarantorData)
-      console.log(data)
-      uploadDataToFirestore("guarantors",data)
+      await uploadDataToFirestore("guarantors", guarantorData)
       
       Alert.alert("Success", "Guarantor information has been saved successfully.");
       navigation.navigate("login");
@@ -160,142 +152,55 @@ function Guarantor({ navigation ,route}) {
     }
   };
   return (
-    <ScrollView>
-      <View style={styles.container}>
-        <Header navigation={navigation} />
-        <Text style={styles.title}>Enter your Guarantor Information</Text>
-        {loading ? <ActivityIndicator size="large" color="green" /> : null}
-        <View style={styles.formContainer}>
-          <TextInput placeholder="First Name" value={Gfirstname} onChangeText={setFirstName} style={styles.input} />
-          {errors.Gfirstname && <Text style={styles.errorText}>{errors.Gfirstname}</Text>}
-          <TextInput placeholder="Last Name" value={Glastname} onChangeText={setLastName} style={styles.input} />
-          {errors.Glastname && <Text style={styles.errorText}>{errors.Glastname}</Text>}
-          <TextInput placeholder="Phone Number" value={Gphone} onChangeText={setPhone} style={styles.input} keyboardType="phone-pad" />
-          {errors.Gphone && <Text style={styles.errorText}>{errors.Gphone}</Text>}
-          <TextInput placeholder="Email" value={Gemail} onChangeText={setEmail} style={styles.input} />
-          {errors.Gemail && <Text style={styles.errorText}>{errors.Gemail}</Text>}
-          <TextInput placeholder="Address" value={Gaddress} onChangeText={setAddress} style={styles.input} />
-          {errors.Gaddress && <Text style={styles.errorText}>{errors.Gaddress}</Text>}
-          <NigerianStateAndLGASelector selectedState={Gstate} selectedLGA={Glga} onStateChange={setState} onLGAChange={setLGA} />
-          {errors.Gstate && <Text style={styles.errorText}>{errors.Gstate}</Text>}
-          <TextInput placeholder="Relationship to Applicant" value={relationship} onChangeText={setRelationship} style={styles.input} />
-          {errors.relationship && <Text style={styles.errorText}>{errors.relationship}</Text>}
-          <TextInput placeholder="Occupation" value={occupation} onChangeText={setOccupation} style={styles.input} />
-          {errors.occupation && <Text style={styles.errorText}>{errors.occupation}</Text>}
-          <TextInput placeholder="Company Name" value={companyName} onChangeText={setCompanyName} style={styles.input} />
+    <Screen>
+      <ScreenHeader
+        title="Guarantor details"
+        subtitle="Tell us about someone who can vouch for you."
+        onBack={() => navigation.goBack()}
+        step={3}
+        totalSteps={3}
+      />
+      {loading ? <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: space.md }} /> : null}
 
-          <TextInput placeholder="Company Address" value={companyAddress} onChangeText={setCompanyAddress} style={styles.input} />
-          {errors.companyAddress && <Text style={styles.errorText}>{errors.companyAddress}</Text>}
-          <TextInput placeholder="NIN Number (11 digits)" value={ninNumber} onChangeText={setNinNumber} keyboardType="numeric" maxLength={11} style={styles.input} />
-          {errors.ninNumber && <Text style={styles.errorText}>{errors.ninNumber}</Text>}
-          
-          <Pressable style={styles2.doneButton} onPress={() => selectPicture(setFacePicture)}>
+      <Card title="Guarantor" icon="person-outline">
+        <Field label="First name" placeholder="First Name" value={Gfirstname} onChangeText={setFirstName} error={errors.Gfirstname} />
+        <Field label="Last name" placeholder="Last Name" value={Glastname} onChangeText={setLastName} error={errors.Glastname} />
+        <Field label="Phone number" placeholder="Phone Number" value={Gphone} onChangeText={setPhone} keyboardType="phone-pad" error={errors.Gphone} />
+        <Field label="Email" placeholder="Email" value={Gemail} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" error={errors.Gemail} />
+        <Field label="Relationship to applicant" placeholder="Relationship to Applicant" value={relationship} onChangeText={setRelationship} error={errors.relationship} />
+      </Card>
 
-            <Text style={{ color: 'white' }}>Select ID Image (Optional)</Text>
-          </Pressable>
-          {idImage && <Image source={{ uri: idImage }} style={styles2.imagePreview} />}
-          <View style={{ margin: 10 }}>
-            <Image source={{ uri: GfacePicture }} style={styles2.imagePreview} />
-          </View>
-          <Pressable onPress={handleDone} style={styles2.doneButton}>
-            <Text style={styles2.doneButtonText}>Done</Text>
-          </Pressable>
-        </View>
-        <Footer />
-      </View>
-    </ScrollView>
+      <Card title="Where they live" icon="home-outline">
+        <Field label="Address" placeholder="Address" value={Gaddress} onChangeText={setAddress} error={errors.Gaddress} />
+        <NigerianStateAndLGASelector selectedState={Gstate} selectedLGA={Glga} onStateChange={setState} onLGAChange={setLGA} />
+        <ErrorText>{errors.Gstate}</ErrorText>
+        <ErrorText>{errors.Glga}</ErrorText>
+        <ErrorText>{errors.location}</ErrorText>
+      </Card>
+
+      <Card title="Work" icon="briefcase-outline">
+        <Field label="Occupation" placeholder="Occupation" value={occupation} onChangeText={setOccupation} error={errors.occupation} />
+        <Field label="Company name" placeholder="Company Name" value={companyName} onChangeText={setCompanyName} />
+        <Field label="Company address" placeholder="Company Address" value={companyAddress} onChangeText={setCompanyAddress} error={errors.companyAddress} />
+      </Card>
+
+      <Card title="Identity" icon="id-card-outline">
+        <Field
+          label="NIN number"
+          placeholder="NIN Number (11 digits)"
+          value={ninNumber}
+          onChangeText={setNinNumber}
+          keyboardType="numeric"
+          maxLength={11}
+          error={errors.ninNumber}
+        />
+        <PhotoTile label="ID image (optional)" hint="Tap to add an ID photo" uri={idImage} onPress={() => selectPicture(setIdImage)} />
+        <PhotoTile label="Guarantor photo" hint="Tap to add a photo" uri={GfacePicture} onPress={() => selectPicture(setFacePicture)} error={errors.GfacePicture} />
+      </Card>
+
+      <Button title="Done" onPress={handleDone} />
+    </Screen>
   );
 }
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", alignItems: "center" },
-  title: { color: "green", fontWeight: "bold", fontSize: 18, marginBottom: 10 },
-  formContainer: { width: "80%", alignItems: "center", marginTop: 20, padding: 20 },
-  input: { padding: 10, borderWidth: 1, borderRadius: 5, width: "100%", marginBottom: 10 },
-  doneButton: { backgroundColor: "green", padding: 10, borderRadius: 5 },
-  errorText: { color: "red", fontSize: 12, marginBottom: 10 },
-});
-const styles2 = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    height: '100%',
-  },
-  title: {
-    color: 'green',
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginBottom: 10,
-  },
-  formContainer: {
-    width: '80%',
-    alignItems: 'center',
-    marginTop: 20,
-    borderWidth: 2,
-    borderColor: 'green',
-    borderRadius: 10,
-    padding: 20,
-    marginBottom:30
-  },
-  label: {
-    fontSize: 15,
-    textAlign: 'center',
-    marginBottom: 5,
-  },
-  inputContainer: {
-    width: "90%",
-    padding: 10,
-  },
-  input: {
-    padding: 10,
-    borderColor: 'green',
-    borderWidth: 1,
-    borderRadius: 5,
-    textAlign: 'center',
-    marginBottom: 10,
-    width: "100%",
-  },
-  errorInput: {
-    borderColor: 'red',
-  },
-  errorText: {
-    color: 'red',
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  doneButton: {
-    backgroundColor: 'green',
-    borderRadius: 5,
-    paddingVertical: 10,
-    paddingHorizontal: 80,
-    margin:10
-  },
-  doneButtonText: {
-    color: 'white',
-    fontSize: 16,
-  },
-  uploadButton: {
-    backgroundColor: 'lightgray',
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  uploadButtonText: {
-    color: 'black',
-    fontSize: 16,
-  },
-  imagePreview: {
-    width: 150,
-    height: 150,
-    marginTop: 10,
-    borderRadius: 10,
-  }
-});
-
 
 export { Guarantor };
-
-
-

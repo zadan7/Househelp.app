@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Share } fr
 import { Ionicons } from '@expo/vector-icons';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
+import { Card, Button } from '../../component/ui';
+import { colors, space, radius, type, shadow } from '../../component/theme';
 
 const ReferAndEarn = ({ navigation }) => {
   const referralCode = "HOUSE123"; // Replace with dynamic code if needed
@@ -23,92 +25,51 @@ const ReferAndEarn = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <Header2 />
-      <Cmenu navigation={navigation} />
 
-      <ScrollView>
-        <Text style={styles.header}>Refer & Earn</Text>
-        <Text style={styles.description}>
-          Share your referral code with friends and earn rewards when they sign up!
-        </Text>
-
-        <View style={styles.card}>
-          <Text style={styles.referralText}>Your Referral Code:</Text>
-          <View style={styles.codeContainer}>
-            <Text style={styles.code}>{referralCode}</Text>
-            <TouchableOpacity onPress={copyToClipboard}>
-              <Ionicons name="copy-outline" size={24} color="#28a745" />
-            </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.hero}>
+          <View style={styles.heroIcon}>
+            <Ionicons name="gift-outline" size={30} color={colors.primary} />
           </View>
+          <Text style={styles.heroTitle}>Refer & Earn</Text>
+          <Text style={styles.heroText}>
+            Share your referral code with friends and earn rewards when they sign up!
+          </Text>
         </View>
 
-        <TouchableOpacity style={styles.shareButton} onPress={shareReferral}>
-          <Ionicons name="share-social-outline" size={20} color="#fff" />
-          <Text style={styles.shareText}>Share Referral Code</Text>
-        </TouchableOpacity>
+        <Card title="Your referral code" icon="ticket-outline">
+          <View style={styles.codeBox}>
+            <Text style={styles.code}>{referralCode}</Text>
+            <TouchableOpacity style={styles.copyBtn} onPress={copyToClipboard} accessibilityLabel="Copy referral code">
+              <Ionicons name="copy-outline" size={22} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        </Card>
+
+        <Button title="Share Referral Code" onPress={shareReferral} />
       </ScrollView>
+
+      <Cmenu navigation={navigation} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110 },
+  hero: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: radius.lg, padding: space.xl, marginBottom: space.lg, gap: space.sm },
+  heroIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', ...shadow },
+  heroTitle: { ...type.h1 },
+  heroText: { ...type.body, color: colors.muted, textAlign: 'center' },
+  codeBox: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.primary, borderRadius: radius.md,
+    backgroundColor: colors.primarySoft, paddingVertical: space.sm, paddingLeft: space.lg, paddingRight: space.sm,
   },
-  header: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#343a40',
-  },
-  description: {
-    fontSize: 16,
-    color: '#555',
-    textAlign: 'center',
-    marginHorizontal: 20,
-    marginBottom: 20,
-  },
-  card: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    elevation: 2,
-  },
-  referralText: {
-    fontSize: 18,
-    color: '#28a745',
-    marginBottom: 10,
-  },
-  codeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  code: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  shareButton: {
-    backgroundColor: '#28a745',
-    padding: 15,
-    marginHorizontal: 20,
-    borderRadius: 10,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  shareText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 10,
-  },
+  code: { fontSize: 24, fontWeight: '800', letterSpacing: 2, color: colors.text },
+  copyBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
 });
 
 export { ReferAndEarn };

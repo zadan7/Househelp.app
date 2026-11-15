@@ -1,210 +1,91 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  View, Text, StyleSheet, TouchableOpacity, FlatList, Image, Animated, Easing 
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Header2 } from '../component/Header';
-import { Cmenu } from '../component/Menu';
+import { View, Text, ScrollView, Alert, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db } from '../pages/firebase';
+import { Cmenu } from '../component/Menu';
+import { Hero, Tile } from '../component/ui';
+import { Footer } from '../component/Footer';
+import { colors, space, type } from '../component/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const menuItems = [
-  { title: 'Profile', icon: 'person-circle-outline', screen: 'cprofile' },
-  { title: 'Make Request', icon: 'create-outline', screen: 'cmakerequest' },
-  { title: 'Request fulltime', icon: 'create-outline', screen: 'cfulltimeselection' },
-  { title: 'Pending Jobs', icon: 'hourglass-outline', screen: 'requestconfirmation' },
-  { title: 'Job History', icon: 'document-text-outline', screen: 'ccompletedjobs' },
-  { title: 'Favorites', icon: 'heart-outline', screen: 'FavoriteHelpers' },
-  { title: 'Refer & Earn', icon: 'gift-outline', screen: 'referandearn' },
-  { title: 'Settings', icon: 'settings-outline', screen: 'csettings' },
-  { title: 'Balances', icon: 'wallet-outline', screen: 'cwallet' },
-  { title: 'Arriving', icon: 'car-outline', screen: 'arriving' },
-  { title: 'Help Center', icon: 'help-circle-outline', screen: 'ClientSupport' },
+// "Favorites" and "Help Center" pointed at screens that are not registered in App.js, so
+// tapping them did nothing. They are kept as "Soon" tiles instead of dead buttons.
+const TILES = [
+  { title: 'Make request', subtitle: 'Book a part-time househelp', icon: 'create-outline', screen: 'cmakerequest' },
+  { title: 'Full-time', subtitle: 'Live-in or live-out help', icon: 'business-outline', screen: 'cfulltimeselection' },
+  { title: 'Pending jobs', subtitle: 'Requests awaiting a reply', icon: 'hourglass-outline', screen: 'requestconfirmation' },
+  { title: 'Arriving', subtitle: 'Track your househelp', icon: 'navigate-outline', screen: 'arriving' },
+  { title: 'Job history', subtitle: 'Completed jobs', icon: 'document-text-outline', screen: 'ccompletedjobs' },
+  { title: 'Balances', subtitle: 'Wallet and payments', icon: 'wallet-outline', screen: 'cwallet' },
+  { title: 'Profile', subtitle: 'Your details', icon: 'person-circle-outline', screen: 'cprofile' },
+  { title: 'Refer & earn', subtitle: 'Invite friends', icon: 'gift-outline', screen: 'referandearn' },
+  { title: 'Settings', subtitle: 'Account preferences', icon: 'settings-outline', screen: 'csettings' },
+  { title: 'Favorites', subtitle: 'Saved househelps', icon: 'heart-outline', soon: true },
+  { title: 'Help center', subtitle: 'Get support', icon: 'help-circle-outline', soon: true },
 ];
 
-const getTimeGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
   return 'Good evening';
 };
 
 const ClientDashboard = ({ navigation }) => {
-  const [userData, setUserData] = useState();
-  const scaleAnim = new Animated.Value(1);
-
-
-
-  // useEffect(() => {
-  //   const fetchPassedJob = async () => {
-  //     try {
-  //       await AsyncStorage.setItem('jobId', 'DaBzErRCR76yWcr5vTdf');
-  //       const passedJobPayload = await db.collection('partimeRequest').doc("DaBzErRCR76yWcr5vTdf").get();
-  //       navigation.navigate('cstartjob', { job: passedJobPayload });
-  //     } catch (error) {
-  //       console.error('Error fetching passed job:', error);
-  //     }
-  //   };
-
-  //   fetchPassedJob();
-  // }, []);
+  const insets = useSafeAreaInsets();
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const userData = await AsyncStorage.getItem('clientdata');
-        if (userData) {
-          const parsedUser = JSON.parse(userData);
-          setUserData(parsedUser);
-        }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      }
-    };
-
-    fetchUserData();
+    AsyncStorage.getItem('clientdata')
+      .then((raw) => raw && setUser(JSON.parse(raw)))
+      .catch(() => {});
   }, []);
 
-  const handlePress = (screen) => {
-    navigation.navigate(screen);
+  const open = (t) => {
+    if (t.soon) {
+      Alert.alert('Coming soon', `${t.title} is not available yet.`);
+      return;
+    }
+    navigation.navigate(t.screen);
   };
-
-  const animatePressIn = () => {
-    Animated.timing(scaleAnim, {
-      toValue: 0.97,
-      duration: 100,
-      useNativeDriver: true,
-      easing: Easing.out(Easing.ease),
-    }).start();
-  };
-
-  const animatePressOut = () => {
-    Animated.timing(scaleAnim, {
-      toValue: 1,
-      duration: 100,
-      useNativeDriver: true,
-      easing: Easing.out(Easing.ease),
-    }).start();
-  };
-
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      onPressIn={animatePressIn}
-      onPressOut={animatePressOut}
-      activeOpacity={0.9}
-      onPress={() => handlePress(item.screen)}
-      style={styles.gridItem}
-    >
-      <Animated.View style={[styles.iconContainer, { transform: [{ scale: scaleAnim }] }]}>
-        <Ionicons name={item.icon} size={36} color="#28a745" />
-      </Animated.View>
-      <Text style={styles.gridText}>{item.title}</Text>
-    </TouchableOpacity>
-  );
 
   return (
-    <View style={styles.container}>
-      <Header2 />
-      <Cmenu navigation={navigation} />
-
-      <View style={styles.welcomeCard}>
-      <Image
-  source={{ uri: userData?.facepicture }}
-  style={styles.profileImage}
-/>
-        <View style={styles.textWrapper}>
-          <Text style={styles.greeting}>{getTimeGreeting()},</Text>
-          <Text style={styles.nameText}>{userData?.firstname || 'Client'} 👋</Text>
+    <View style={styles.root}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        <View style={{ paddingTop: insets.top, backgroundColor: colors.primary }}>
+          <Hero
+            greeting={greeting()}
+            name={user?.firstname || 'Client'}
+            photo={user?.facepicture}
+            role="Client"
+          />
         </View>
-      </View>
 
-      <FlatList
-        data={menuItems}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        keyExtractor={(item) => item.title}
-        renderItem={renderItem}
-        contentContainerStyle={styles.gridContainer}
-      />
+        <View style={styles.body}>
+          <Text style={[type.h2, { marginBottom: space.md }]}>What would you like to do?</Text>
+          <View style={styles.grid}>
+            {TILES.map((t) => (
+              <Tile
+                key={t.title}
+                title={t.title}
+                subtitle={t.subtitle}
+                icon={t.icon}
+                badge={t.soon ? 'Soon' : undefined}
+                onPress={() => open(t)}
+              />
+            ))}
+          </View>
+        </View>
+        <Footer />
+      </ScrollView>
+      <Cmenu navigation={navigation} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f1f3f6',
-  },
-  welcomeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    margin: 20,
-    borderRadius: 12,
-    padding: 16,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-  },
-  profileImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 15,
-  },
-  textWrapper: {
-    flexDirection: 'column',
-  },
-  greeting: {
-    fontSize: 16,
-    color: '#666',
-  },
-  nameText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginVertical: 20,
-    textAlign: 'center',
-    color: '#222',
-  },
-  gridContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  row: {
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  gridItem: {
-    width: '48%',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-  },
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gridText: {
-    marginTop: 10,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#444',
-    textAlign: 'center',
-  },
+  root: { flex: 1, backgroundColor: colors.bg },
+  body: { padding: space.lg, marginTop: space.sm },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
 });
 
 export { ClientDashboard };

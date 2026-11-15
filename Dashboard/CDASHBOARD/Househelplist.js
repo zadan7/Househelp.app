@@ -1,337 +1,207 @@
-import * as React from 'react';
-import { Pressable, StyleSheet, Text, View, ScrollView, Image, Linking, Button, TouchableOpacity } from 'react-native';
-import { Header } from '../../component/Header';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, ScrollView, Image, Linking, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../pages/firebase';
-import { useState, useEffect } from 'react';
 import NigerianStateAndLGASelector from '../../component/NigerianStateAndLGASelector';
+import { Header2 } from '../../component/Header';
 import { Cmenu } from '../../component/Menu';
+import { Card, InfoRow, Button } from '../../component/ui';
+import { colors, space, radius, type, shadow } from '../../component/theme';
+
+// Turns the stored jobs value (array or JSON string) into readable text.
+const jobsText = (jobsData, empty = 'None specified') => {
+  if (!jobsData) return empty;
+  try {
+    const parsed = typeof jobsData === 'string' ? JSON.parse(jobsData) : jobsData;
+    return Array.isArray(parsed) ? parsed.join(', ') : String(parsed);
+  } catch (e) {
+    return String(jobsData);
+  }
+};
+
+const callNumber = (n) => n && Linking.openURL(`tel:${n}`);
 
 function HousehelpList({ navigation }) {
   const [househelps, setHousehelps] = useState([]);
-  const [filteredHousehelps, setFilteredHousehelps] = useState([]);
-  const [locationFilter, setLocationFilter] = useState('Lagos'); // Filter by state
-  const [addressFilter, setAddressFilter] = useState('Ojo'); // Filter by LGA or address
+  const [loading, setLoading] = useState(true);
+  const [stateFilter, setStateFilter] = useState('');
+  const [lgaFilter, setLgaFilter] = useState('');
 
-  // Fetch househelps data from Firestore
   useEffect(() => {
-    const fetchHousehelps = async () => {
+    (async () => {
       try {
-        const querySnapshot = await db.collection('househelps').get();
-        const househelpsList = querySnapshot.docs.map(doc => doc.data());
-        setHousehelps(househelpsList);
-        setFilteredHousehelps(househelpsList);
-      } catch (error) {
-        console.error('Error fetching data: ', error);
+        const snap = await db.collection('househelps').get();
+        // Never keep other people's passwords in memory or pass them between screens.
+        setHousehelps(
+          snap.docs.map((d) => {
+            const { password, ...safe } = d.data();
+            return safe;
+          })
+        );
+      } catch (e) {
+        // Leave the list empty; the empty state explains it.
+      } finally {
+        setLoading(false);
       }
-    };
-    fetchHousehelps();
+    })();
   }, []);
 
-  // Filter househelps based on location and address
-  const filterHousehelps = (currentState = locationFilter, currentLGA = addressFilter) => {
-    const filtered = househelps.filter(househelp => {
-      // Safe parsing fallback for location filtering
-      let locationObj = {};
-      try {
-        locationObj = househelp.location ? JSON.parse(househelp.location) : {};
-      } catch (e) {
-        console.warn("Failed to parse location for filter:", househelp.name);
-      }
-
-      const househelpState = househelp.state ? househelp.state.toLowerCase() : '';
-      const househelpLGA = househelp.lga ? househelp.lga.toLowerCase() : '';
-
-      const isInLocation = househelpState === currentState.toLowerCase();
-      const isInAddress = househelpLGA.includes(currentLGA.toLowerCase());
-
-      return isInLocation && isInAddress;
-    });
-    setFilteredHousehelps(filtered);
-  };
-
-  // Handler for state and LGA change (pass fresh values directly into filter)
-  const handleStateChange = (state) => {
-    setLocationFilter(state);
-    filterHousehelps(state, addressFilter); 
-  };
-
-  const handleLGAChange = (lga) => {
-    setAddressFilter(lga);
-    filterHousehelps(locationFilter, lga); 
-  };
-
-  // Safe UI helper for processing selected jobs array strings safely
-  const renderJobsInline = (jobsData) => {
-    if (!jobsData) return "None specified";
-    try {
-      const parsed = typeof jobsData === 'string' ? JSON.parse(jobsData) : jobsData;
-      return Array.isArray(parsed) ? parsed.join(", ") : String(parsed);
-    } catch (e) {
-      return String(jobsData);
-    }
-  };
+  // Fixed: the old filter ran inside two change handlers that each used the other's stale
+  // value, so choosing a state could filter by the previously selected state. Filtering is now
+  // derived from the current selection. With nothing selected, everyone is shown (as before).
+  const filtered = useMemo(
+    () =>
+      househelps.filter((h) => {
+        const okState = !stateFilter || (h.state || '').toLowerCase() === stateFilter.toLowerCase();
+        const okLga = !lgaFilter || (h.lga || '').toLowerCase().includes(lgaFilter.toLowerCase());
+        return okState && okLga;
+      }),
+    [househelps, stateFilter, lgaFilter]
+  );
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Header navigation={navigation} />
-      <Cmenu navigation={navigation} />
+    <View style={styles.root}>
+      <Header2 />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={type.h1}>Househelps</Text>
+        <Text style={styles.sub}>Browse househelps near you.</Text>
 
-      <View style={styles.filtersContainer}>
-        <NigerianStateAndLGASelector 
-          onStateChange={handleStateChange}
-          onLGAChange={handleLGAChange}
-        />
-      </View>
+        <Card title="Filter by area" icon="filter-outline" style={{ marginTop: space.lg }}>
+          <NigerianStateAndLGASelector onStateChange={setStateFilter} onLGAChange={setLgaFilter} />
+        </Card>
 
-      <View style={styles.househelpContainer}>
-        <Text style={styles.subtitle}>Househelps List</Text>
-        {filteredHousehelps.length > 0 ? (
-          filteredHousehelps.map((househelp, index) => (
-            <Pressable 
-              key={index} 
-              style={styles.card} 
-              onPress={() => navigation.navigate('HousehelpDetail', { househelp })}
-            >
-              <Image source={{ uri: househelp.url }} style={styles.image} />
-              <View style={styles.details}>
-                <Text style={styles.name}>{househelp.name}</Text>
-                <Text style={styles.info}>📧 {househelp.email}</Text>
-                <Pressable onPress={() => Linking.openURL(`tel:${househelp.phonenumber}`)}>
-                  <Text style={styles.info}>📞 {househelp.phonenumber}</Text>
-                </Pressable>
-                <Text style={styles.info}>📍 {househelp.address}, {househelp.state}</Text>
-                <Text style={styles.info}>🛠️ {renderJobsInline(househelp.selectedJobs)}</Text>
-              </View>
-            </Pressable>
-          ))
+        {loading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: space.xl }} />
+        ) : filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <Ionicons name="people-outline" size={32} color={colors.muted} />
+            <Text style={styles.emptyText}>No househelps found for the selected area.</Text>
+          </View>
         ) : (
-          <Text style={styles.noDataText}>No househelps found for the selected filters.</Text>
+          filtered.map((h, i) => (
+            <TouchableOpacity
+              key={h.email || i}
+              style={styles.card}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('HousehelpDetail', { househelp: h })}
+            >
+              {h.url ? (
+                <Image source={{ uri: h.url }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarEmpty]}>
+                  <Ionicons name="person" size={30} color={colors.primary} />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.name} numberOfLines={1}>{h.name}</Text>
+                <Text style={styles.meta} numberOfLines={1}>
+                  <Ionicons name="location-outline" size={12} color={colors.muted} /> {[h.address, h.state].filter(Boolean).join(', ')}
+                </Text>
+                <Text style={styles.meta} numberOfLines={2}>
+                  <Ionicons name="construct-outline" size={12} color={colors.muted} /> {jobsText(h.selectedJobs)}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => callNumber(h.phonenumber)} style={styles.callBtn} accessibilityLabel={`Call ${h.name}`}>
+                <Ionicons name="call" size={18} color={colors.white} />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))
         )}
-      </View>
-    </ScrollView>
+      </ScrollView>
+      <Cmenu navigation={navigation} />
+    </View>
+  );
+}
+
+function HousehelpDetail({ route, navigation }) {
+  const { househelp } = route.params;
+  // The old screen showed a made-up 3.2-star rating for everyone. Ratings are only shown now
+  // when a real `rating` value is stored on the househelp.
+  const rating = typeof househelp.rating === 'number' ? househelp.rating : null;
+  const registered = househelp.createdAt?.toDate ? househelp.createdAt.toDate().toDateString() : 'N/A';
+
+  return (
+    <View style={styles.root}>
+      <Header2 />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.top}>
+          {househelp.url ? (
+            <Image source={{ uri: househelp.url }} style={styles.bigAvatar} />
+          ) : (
+            <View style={[styles.bigAvatar, styles.avatarEmpty]}>
+              <Ionicons name="person" size={48} color={colors.primary} />
+            </View>
+          )}
+          <Text style={[type.h1, { marginTop: space.md }]}>{househelp.name}</Text>
+          <Text style={styles.sub}>{[househelp.employmentType, househelp.gender].filter(Boolean).join(' · ')}</Text>
+          {rating !== null ? (
+            <Text style={styles.rating}>
+              {'★'.repeat(Math.round(rating))}
+              <Text style={styles.ratingNum}> ({rating.toFixed(1)})</Text>
+            </Text>
+          ) : null}
+        </View>
+
+        <Card title="Personal info" icon="person-outline">
+          <InfoRow label="Email" value={househelp.email} />
+          <InfoRow label="Phone" value={househelp.phonenumber} />
+          <InfoRow label="Date of birth" value={househelp.dateOfBirth} />
+          <InfoRow label="Code" value={househelp.code} />
+          <InfoRow label="Address" value={[househelp.address, househelp.lga, househelp.state].filter(Boolean).join(', ')} last />
+        </Card>
+
+        <Card title="Work details" icon="briefcase-outline">
+          <InfoRow label="Jobs" value={jobsText(househelp.selectedJobs, 'None')} />
+          <InfoRow label="Experience" value={househelp.experience ? `${househelp.experience} years` : null} />
+          <InfoRow label="Registered" value={registered} last />
+        </Card>
+
+        {/* The old screen printed the househelp's exact GPS coordinates to every client. It now
+            shows the area only. */}
+        <Card title="Area" icon="location-outline">
+          <InfoRow label="LGA" value={househelp.lga} />
+          <InfoRow label="State" value={househelp.state} last />
+        </Card>
+
+        <Button title={`Call ${househelp.name || 'househelp'}`} onPress={() => callNumber(househelp.phonenumber)} />
+      </ScrollView>
+      <Cmenu navigation={navigation} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    backgroundColor: '#f9f9f9',
-    alignItems: 'center',
-    paddingBottom: 20,
-  },
-  househelpContainer: {
-    marginTop: 20,
-    width: '90%',
-  },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#28a745',
-    textAlign: 'center',
-  },
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110 },
+  sub: { color: colors.muted, marginTop: 2 },
+  empty: { alignItems: 'center', padding: space.xl, gap: space.sm },
+  emptyText: { color: colors.muted, textAlign: 'center' },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: space.md,
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    padding: space.md,
+    marginBottom: space.md,
+    ...shadow,
   },
-  image: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginRight: 15,
-  },
-  details: {
-    flex: 1,
-  },
-  name: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  info: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 5,
-  },
-  noDataText: {
-    textAlign: 'center',
-    color: '#777',
-    fontSize: 16,
-    marginTop: 20,
-  },
-  filtersContainer: {
-    width: '90%',
-    marginTop: 20,
+  avatar: { width: 64, height: 64, borderRadius: 32 },
+  avatarEmpty: { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  name: { fontSize: 16, fontWeight: '700', color: colors.text },
+  meta: { fontSize: 12, color: colors.muted, marginTop: 3 },
+  callBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-});
-
-
-function HousehelpDetail({ route, navigation }) {
-  const { househelp } = route.params;
-  const averageRating = 3.2;
-
-  const renderStars = (rating) => {
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating - fullStars >= 0.5;
-    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-
-    return (
-      <Text style={styles2.stars}>
-        {'★'.repeat(fullStars)}
-        {hasHalfStar ? '⯪' : ''}
-        <Text style={styles2.starNumber}> ({rating.toFixed(1)})</Text>
-      </Text>
-    );
-  };
-
-  // Safe structural fallback parsing functions
-  const renderJobsDetail = (jobsData) => {
-    if (!jobsData) return "None";
-    try {
-      const parsed = typeof jobsData === 'string' ? JSON.parse(jobsData) : jobsData;
-      return Array.isArray(parsed) ? parsed.join(', ') : String(parsed);
-    } catch (e) {
-      return String(jobsData);
-    }
-  };
-
-  const renderLocationDetail = (locationData) => {
-    if (!locationData) return <Text style={styles2.info}>No location details stored.</Text>;
-    try {
-      const loc = typeof locationData === 'string' ? JSON.parse(locationData) : locationData;
-      return (
-        <>
-          <Text style={styles2.info}>Accuracy: {loc.accuracy ?? 'N/A'} meters</Text>
-          <Text style={styles2.info}>
-            Coordinates: ({loc.latitude ?? 0}, {loc.longitude ?? 0})
-          </Text>
-        </>
-      );
-    } catch (e) {
-      return <Text style={styles2.info}>Raw Location: {String(locationData)}</Text>;
-    }
-  };
-
-  return (
-    <ScrollView style={{ backgroundColor: '#f1f3f6' }}>
-      <Header />
-      <Cmenu navigation={navigation} />
-
-      <View style={styles2.card}>
-        <Image source={{ uri: househelp.url }} style={styles2.image} />
-        <Text style={styles2.name}>{househelp.name}</Text>
-        <Text style={styles2.subText}>{househelp.employmentType} | {househelp.gender}</Text>
-        {renderStars(averageRating)}
-      </View>
-
-      <View style={styles2.infoSection}>
-        <Text style={styles2.sectionHeader}>📋 Personal Info</Text>
-        <Text style={styles2.info}>📧 {househelp.email}</Text>
-        <Text style={styles2.info}>📞 {househelp.phonenumber}</Text>
-        <Text style={styles2.info}>🎂 {househelp.dateOfBirth}</Text>
-        <Text style={styles2.info}>🆔 Code: {househelp.code}</Text>
-        <Text style={styles2.info}>📍 {househelp.address}, {househelp.lga}, {househelp.state}</Text>
-      </View>
-
-      <View style={styles2.infoSection}>
-        <Text style={styles2.sectionHeader}>💼 Work Details</Text>
-        <Text style={styles2.info}>🛠️ Jobs: {renderJobsDetail(househelp.selectedJobs)}</Text>
-        <Text style={styles2.info}>📅 Experience: {househelp.experience} years</Text>
-        <Text style={styles2.info}>📆 Registered: {househelp.createdAt?.toDate ? househelp.createdAt.toDate().toDateString() : 'N/A'}</Text>
-      </View>
-
-      <View style={styles2.infoSection}>
-        <Text style={styles2.sectionHeader}>📍 Location</Text>
-        {renderLocationDetail(househelp.location)}
-      </View>
-
-      <TouchableOpacity style={styles2.callButton} onPress={() => Linking.openURL(`tel:${househelp.phonenumber}`)}>
-        <Text style={styles2.callText}>📞 Call {househelp.name}</Text>
-      </TouchableOpacity>
-    </ScrollView>
-  );
-}
-
-const styles2 = StyleSheet.create({
-  card: {
-    alignItems: 'center',
-    padding: 25,
-    backgroundColor: '#fff',
-    margin: 15,
-    borderRadius: 16,
-    elevation: 4,
-  },
-  image: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: '#28a745',
-    marginBottom: 15,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#222',
-    marginBottom: 4,
-  },
-  subText: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 5,
-  },
-  stars: {
-    fontSize: 22,
-    color: '#f4c542',
-    marginVertical: 10,
-  },
-  starNumber: {
-    fontSize: 16,
-    color: '#444',
-  },
-  infoSection: {
-    backgroundColor: '#fff',
-    padding: 20,
-    marginHorizontal: 15,
-    marginBottom: 15,
-    borderRadius: 12,
-    elevation: 2,
-  },
-  sectionHeader: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#28a745',
-    marginBottom: 10,
-  },
-  info: {
-    fontSize: 16,
-    color: '#444',
-    marginBottom: 8,
-  },
-  callButton: {
-    backgroundColor: '#28a745',
-    marginHorizontal: 60,
-    marginBottom: 30,
-    paddingVertical: 15,
-    borderRadius: 30,
-    alignItems: 'center',
-    elevation: 3,
-  },
-  callText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+  top: { alignItems: 'center', paddingVertical: space.lg },
+  bigAvatar: { width: 112, height: 112, borderRadius: 56, borderWidth: 4, borderColor: colors.white, ...shadow },
+  rating: { color: colors.accent, fontSize: 18, marginTop: space.sm },
+  ratingNum: { color: colors.muted, fontSize: 13 },
 });
 
 export { HousehelpList, HousehelpDetail };

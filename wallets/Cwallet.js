@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
-import firebase from 'firebase/app'; // Required for FieldValue increment tracking
+import { Ionicons } from '@expo/vector-icons';
+import firestore from '@react-native-firebase/firestore'; // FieldValue increment (native SDK, matches db in pages/firebase)
 import { db } from '../pages/firebase';
 import { Cmenu } from '../component/Menu';
 import { Header2 } from '../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Field, Button } from '../component/ui';
+import { colors, space, radius, type, shadow } from '../component/theme';
 
 const Cwallet = ({ navigation }) => {
   const [balance, setBalance] = useState(0);
@@ -32,11 +35,14 @@ const Cwallet = ({ navigation }) => {
   const MONNIFY_CONTRACT_CODE = "5732437028";
 
   useEffect(() => {
+    let unsubWallet = () => {};
+    let unsubTx = () => {};
     const initializeWallet = async () => {
       try {
         const storedClient = await AsyncStorage.getItem('clientdata');
-        setClientData(JSON.parse(storedClient));
-        const storedClientId =  JSON.parse(storedClient).id 
+        const parsedClient = storedClient ? JSON.parse(storedClient) : null;
+        setClientData(parsedClient);
+        const storedClientId = parsedClient && parsedClient.id;
         if (!storedClientId) {
           Alert.alert("Error", "User session not found. Please re-login.");
           setLoading(false);
@@ -45,7 +51,7 @@ const Cwallet = ({ navigation }) => {
         setClientId(storedClientId);
 
         // Real-time wallet balance listener with data existence safeguards
-        db.collection('wallets').doc(storedClientId).onSnapshot((docSnap) => {
+        unsubWallet = db.collection('wallets').doc(storedClientId).onSnapshot((docSnap) => {
           if (docSnap.exists && docSnap.data()) {
             setBalance(docSnap.data().balance || 0);
           } else {
@@ -55,7 +61,7 @@ const Cwallet = ({ navigation }) => {
         });
 
         // Real-time transaction records listener
-        db.collection('transactions')
+        unsubTx = db.collection('transactions')
           .where('userId', '==', storedClientId)
           .onSnapshot((querySnapshot) => {
             const txList = [];
@@ -77,6 +83,10 @@ const Cwallet = ({ navigation }) => {
     };
 
     initializeWallet();
+    return () => {
+      unsubWallet();
+      unsubTx();
+    };
   }, []);
 
   // --- 1. GENERATE LOCAL CLIENT-SIDE MONNIFY SDK PAYLOAD ---
@@ -154,7 +164,7 @@ const Cwallet = ({ navigation }) => {
 
         // Atomic update of current balance fields using dots notation safely
         await db.collection('wallets').doc(clientId).update({
-          balance: firebase.firestore.FieldValue.increment(creditAmount)
+          balance: firestore.FieldValue.increment(creditAmount)
         });
 
         // Build system entry history receipt log trace
@@ -197,7 +207,7 @@ const Cwallet = ({ navigation }) => {
     setProcessing(true);
     try {
       await db.collection('wallets').doc(clientId).update({
-        balance: firebase.firestore.FieldValue.increment(-parsedAmount)
+        balance: firestore.FieldValue.increment(-parsedAmount)
       });
 
       await db.collection('transactions').add({
@@ -249,7 +259,7 @@ const Cwallet = ({ navigation }) => {
   //       return;
   //     }
 
-  //     await db.collection('wallets').doc(clientId).update({ balance: firebase.firestore.FieldValue.increment(-parsedAmount) });
+  //     await db.collection('wallets').doc(clientId).update({ balance: firestore.FieldValue.increment(-parsedAmount) });
       
   //     const recipientWalletRef = db.collection('wallets').doc(recipientId);
   //     const recipientWalletDoc = await recipientWalletRef.get();
@@ -286,145 +296,115 @@ const Cwallet = ({ navigation }) => {
   //   }
   // };
 
+  const closeForm = () => { setActiveModal(null); setAmount(''); setRecipientEmail(''); setAccountNumber(''); setBankCode(''); };
+  const naira = (n) => `\u20A6${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fullName = clientData ? `${clientData.firstname || ''} ${clientData.lastname || ''}`.trim() : '';
+
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#28a745" />
-        <Text style={{ marginTop: 10 }}>Syncing Secure Ledger...</Text>
+      <View style={styles.root}>
+        <Header2 />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.muted}>Syncing secure ledger...</Text>
+        </View>
+        <Cmenu navigation={navigation} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <Header2 />
-      <Cmenu navigation={navigation} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.header}>Client Wallet</Text>
-
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.balanceCard}>
-           <Text style={styles.balanceLabel}>{(clientData?.firstname + ' ' + clientData?.lastname).toUpperCase()}</Text>
-           <Text style={styles.balanceLabel}></Text>
-
-          <Text style={styles.balanceLabel}>AVAILABLE BALANCE</Text>
-          <Text style={styles.balanceAmount}>₦{balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+          {fullName ? <Text style={styles.balanceName}>{fullName.toUpperCase()}</Text> : null}
+          <Text style={styles.balanceLabel}>Available balance</Text>
+          <Text style={styles.balanceAmount}>{naira(balance)}</Text>
+          <View style={styles.actionRow}>
+            <Button title="+ Add Money" variant="secondary" onPress={() => setActiveModal('fund')} style={styles.actionBtn} />
+            <TouchableOpacity style={styles.withdrawBtn} onPress={() => setActiveModal('withdraw')} activeOpacity={0.85}>
+              <Text style={styles.withdrawText}>Withdraw</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#28a745' }]} onPress={() => setActiveModal('fund')}>
-            <Text style={styles.actionBtnText}>+ Add Money</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#dc3545' }]} onPress={() => setActiveModal('withdraw')}>
-            <Text style={styles.actionBtnText}>⤻ Withdraw</Text>
-          </TouchableOpacity>
-
-          {/* <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#007bff' }]} onPress={() => setActiveModal('send')}>
-            <Text style={styles.actionBtnText}>✈ Send Money</Text>
-          </TouchableOpacity> */}
-        </View>
-
-        <Text style={styles.historyHeading}>Recent Statements</Text>
+        <Text style={[type.h2, { marginTop: space.xl, marginBottom: space.md }]}>Recent statements</Text>
         {transactions.length === 0 ? (
-          <Text style={styles.emptyText}>No transaction records found.</Text>
+          <View style={styles.empty}>
+            <Ionicons name="receipt-outline" size={30} color={colors.muted} />
+            <Text style={styles.muted}>No transaction records found.</Text>
+          </View>
         ) : (
-          transactions.map(item => (
-            <View key={item.id} style={styles.txCard}>
-              <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={styles.txTitle}>{item.title}</Text>
-                <Text style={styles.txDate}>
-                  {item.date ? `${new Date(item.date).toLocaleDateString()} ${new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 'N/A'}
+          transactions.map((item) => {
+            const inflow = item.type === 'Inflow';
+            return (
+              <View key={item.id} style={styles.tx}>
+                <View style={[styles.txIcon, { backgroundColor: inflow ? colors.primarySoft : colors.dangerSoft }]}>
+                  <Ionicons name={inflow ? 'arrow-down' : 'arrow-up'} size={18} color={inflow ? colors.primary : colors.danger} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.txTitle}>{item.title}</Text>
+                  <Text style={styles.txMeta}>
+                    {item.date ? `${new Date(item.date).toLocaleDateString()} ${new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'N/A'}
+                  </Text>
+                  {item.details ? <Text style={styles.txMeta}>{item.details}</Text> : null}
+                </View>
+                <Text style={[styles.txAmount, { color: inflow ? colors.primary : colors.danger }]}>
+                  {inflow ? '+' : '-'} {'\u20A6'}{item.amount ? item.amount.toLocaleString() : 0}
                 </Text>
-                {item.details && <Text style={styles.txDetails}>{item.details}</Text>}
               </View>
-              <Text style={[styles.txAmount, { color: item.type === 'Inflow' ? '#28a745' : '#dc3545' }]}>
-                {item.type === 'Inflow' ? '+' : '-'} ₦{item.amount ? item.amount.toLocaleString() : 0}
-              </Text>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
 
-      {/* --- REUSABLE OPERATIONAL FORMS MODALS --- */}
-      <Modal visible={activeModal !== null} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalHeader}>
-              {activeModal === 'fund' && 'Fund Wallet'}
-              {activeModal === 'withdraw' && 'Withdraw Funds'}
-              {activeModal === 'send' && 'Send Money Directly'}
+      {/* --- OPERATIONAL FORMS MODAL --- */}
+      <Modal visible={activeModal !== null} animationType="slide" transparent={true} onRequestClose={closeForm}>
+        <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.sheet}>
+            <Text style={type.h1}>
+              {activeModal === 'fund' && 'Fund wallet'}
+              {activeModal === 'withdraw' && 'Withdraw funds'}
+              {activeModal === 'send' && 'Send money directly'}
             </Text>
+            {activeModal === 'withdraw' ? <Text style={styles.sheetSub}>Available: {naira(balance)}</Text> : null}
 
-            <TextInput
-              style={styles.input}
-              placeholder="Amount (₦)"
-              keyboardType="numeric"
-              value={amount}
-              onChangeText={setAmount}
-            />
+            <Field label={'Amount (\u20A6)'} keyboardType="numeric" value={amount} onChangeText={setAmount} />
 
             {activeModal === 'withdraw' && (
               <>
-                <TextInput
-                  style={styles.input}
-                  placeholder="10-Digit Account Number"
-                  keyboardType="numeric"
-                  maxLength={10}
-                  value={accountNumber}
-                  onChangeText={setAccountNumber}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Bank Name (e.g., GTBank)"
-                  value={bankCode}
-                  onChangeText={setBankCode}
-                />
+                <Field label="Account number" placeholder="10-digit account number" keyboardType="numeric" maxLength={10} value={accountNumber} onChangeText={setAccountNumber} />
+                <Field label="Bank name" placeholder="e.g. GTBank" value={bankCode} onChangeText={setBankCode} />
               </>
             )}
 
             {activeModal === 'send' && (
-              <TextInput
-                style={styles.input}
-                placeholder="Recipient Account Email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={recipientEmail}
-                onChangeText={setRecipientEmail}
-              />
+              <Field label="Recipient email" placeholder="Recipient account email" keyboardType="email-address" autoCapitalize="none" value={recipientEmail} onChangeText={setRecipientEmail} />
             )}
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={[styles.modalBtn, styles.cancelBtn]} 
-                onPress={() => { setActiveModal(null); setAmount(''); setRecipientEmail(''); setAccountNumber(''); setBankCode(''); }}
-              >
-                <Text style={styles.modalBtnText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.modalBtn, styles.confirmBtn]} 
-                onPress={() => {
-                  if (activeModal === 'fund') handleAddMoney();
-                  if (activeModal === 'withdraw') handleWithdrawMoney();
-                  if (activeModal === 'send') handleSendMoney();
-                }}
-                disabled={processing}
-              >
-                {processing ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnText}>Confirm</Text>}
-              </TouchableOpacity>
-            </View>
+            <Button
+              title="Confirm"
+              loading={processing}
+              onPress={() => {
+                if (activeModal === 'fund') handleAddMoney();
+                if (activeModal === 'withdraw') handleWithdrawMoney();
+              }}
+            />
+            <Button title="Cancel" variant="secondary" onPress={closeForm} disabled={processing} />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* --- WEB CHECKOUT WEBVIEW WINDOW CONTAINER --- */}
       <Modal visible={showWebView} animationType="fade" onRequestClose={() => { setShowWebView(false); setCheckoutUrl(null); }}>
-        <View style={{ flex: 1, backgroundColor: '#fff' }}>
-          <View style={{ height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: '#eee', paddingTop: 10 }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 16 }}>Secure Monnify Checkout</Text>
-            <TouchableOpacity onPress={() => { setShowWebView(false); setCheckoutUrl(null); }}>
-              <Text style={{ color: '#dc3545', fontWeight: 'bold' }}>Close</Text>
+        <View style={{ flex: 1, backgroundColor: colors.white }}>
+          <View style={styles.checkoutBar}>
+            <Ionicons name="lock-closed" size={16} color={colors.primary} />
+            <Text style={styles.checkoutTitle}>Secure Monnify Checkout</Text>
+            <TouchableOpacity style={styles.closeBtn} onPress={() => { setShowWebView(false); setCheckoutUrl(null); }}>
+              <Text style={{ color: colors.danger, fontWeight: '700' }}>Close</Text>
             </TouchableOpacity>
           </View>
           {checkoutUrl && (
@@ -435,42 +415,42 @@ const Cwallet = ({ navigation }) => {
               javaScriptEnabled={true}
               domStorageEnabled={true}
               startInLoadingState={true}
-              renderLoading={() => <ActivityIndicator size="large" color="#28a745" style={{ position: 'absolute', top: '50%', left: '50%', marginLeft: -20, marginTop: -20 }} />}
+              renderLoading={() => <ActivityIndicator size="large" color={colors.primary} style={{ position: 'absolute', top: '50%', left: '50%', marginLeft: -20, marginTop: -20 }} />}
             />
           )}
         </View>
       </Modal>
+
+      <Cmenu navigation={navigation} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  scrollContent: { paddingBottom: 30 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginVertical: 15, color: '#343a40' },
-  balanceCard: { backgroundColor: '#212529', padding: 25, borderRadius: 15, marginHorizontal: 20, marginVertical: 10, elevation: 4 },
-  balanceLabel: { color: '#adb5bd', fontSize: 12, fontWeight: '700', letterSpacing: 1 },
-  balanceAmount: { color: '#ffffff', fontSize: 30, fontWeight: 'bold', marginTop: 5 },
-  actionRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 15 },
-  actionBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginHorizontal: 4, elevation: 1 },
-  actionBtnText: { color: '#fff', fontSize: 13, fontWeight: 'bold' },
-  historyHeading: { fontSize: 18, fontWeight: 'bold', marginHorizontal: 20, marginTop: 25, marginBottom: 10, color: '#495057' },
-  emptyText: { textAlign: 'center', color: '#6c757d', marginTop: 20, fontSize: 15 },
-  txCard: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginHorizontal: 20, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 1 },
-  txTitle: { fontSize: 15, fontWeight: '600', color: '#212529' },
-  txDate: { fontSize: 12, color: '#868e96', marginTop: 2 },
-  txDetails: { fontSize: 12, color: '#6c757d', fontStyle: 'italic', marginTop: 1 },
-  txAmount: { fontSize: 16, fontWeight: 'bold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#fff', width: '85%', padding: 20, borderRadius: 12, elevation: 5 },
-  modalHeader: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#212529', textAlign: 'center' },
-  input: { borderWidth: 1, borderColor: '#ced4da', padding: 12, borderRadius: 6, marginBottom: 12, fontSize: 15 },
-  modalActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  modalBtn: { flex: 1, padding: 12, borderRadius: 6, alignItems: 'center', marginHorizontal: 5 },
-  cancelBtn: { backgroundColor: '#6c757d' },
-  confirmBtn: { backgroundColor: '#28a745' },
-  modalBtnText: { color: '#fff', fontWeight: 'bold' }
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md },
+  muted: { color: colors.muted, textAlign: 'center' },
+  balanceCard: { backgroundColor: colors.primary, borderRadius: radius.lg, padding: space.xl, ...shadow },
+  balanceName: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: space.sm },
+  balanceLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
+  balanceAmount: { color: colors.white, fontSize: 34, fontWeight: '800', marginTop: 4 },
+  actionRow: { flexDirection: 'row', gap: space.md, marginTop: space.lg },
+  actionBtn: { flex: 1 },
+  withdrawBtn: { flex: 1, minHeight: 54, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' },
+  withdrawText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  empty: { alignItems: 'center', padding: space.xl, backgroundColor: colors.white, borderRadius: radius.lg, gap: space.sm },
+  tx: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.white, borderRadius: radius.md, padding: space.md, marginBottom: space.sm, ...shadow },
+  txIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  txTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  txMeta: { fontSize: 12, color: colors.muted, marginTop: 1 },
+  txAmount: { fontSize: 14, fontWeight: '800' },
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(8,20,14,0.5)' },
+  sheet: { backgroundColor: colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: space.xl, gap: space.md },
+  sheetSub: { color: colors.muted, marginTop: -space.sm },
+  checkoutBar: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
+  checkoutTitle: { flex: 1, fontWeight: '700', fontSize: 16, color: colors.text },
+  closeBtn: { minHeight: 48, justifyContent: 'center', paddingHorizontal: space.sm },
 });
 
 export { Cwallet };

@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, Text, Pressable, StyleSheet, ScrollView, Alert, ActivityIndicator, TextInput 
-} from 'react-native';
-// import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../pages/firebase';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
+import { Card, Field, Button } from '../../component/ui';
+import { colors, space, radius, type } from '../../component/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const MakeRequest = ({ navigation }) => { 
+const naira = (n) => `₦${Number(n || 0).toLocaleString()}`;
+
+const MakeRequest = ({ navigation }) => {
   const [selectedChores, setSelectedChores] = useState([]);
   const [customChore, setCustomChore] = useState('');
   const [customPrice, setCustomPrice] = useState('');
@@ -30,8 +32,12 @@ const MakeRequest = ({ navigation }) => {
 
   useEffect(() => {
     const fetchUserData = async () => {
-      const data = await AsyncStorage.getItem('clientdata');
-      if (data) setUser(JSON.parse(data));
+      try {
+        const data = await AsyncStorage.getItem('clientdata');
+        if (data) setUser(JSON.parse(data));
+      } catch (e) {
+        // leave user null; submit will ask the client to log in
+      }
     };
     fetchUserData();
   }, []);
@@ -98,14 +104,12 @@ const MakeRequest = ({ navigation }) => {
         isjobcompleted: false,
       };
 
-      // await addDoc(collection(db, 'partimeRequest'), requestData);
-      // const docRef = await addDoc(collection(db, 'partimeRequest'), requestData);
       const docRef = await db.collection('partimeRequest').add(requestData);
-const newDocId = docRef.id;
+      const newDocId = docRef.id;
 
-db.collection('partimeRequest').doc(newDocId).update({ id: newDocId });
+      // Was not awaited, so a failure here was silently lost.
+      await db.collection('partimeRequest').doc(newDocId).update({ id: newDocId });
 
-console.log('New document created with ID:', newDocId);
       await AsyncStorage.setItem('chores', JSON.stringify(selectedChores));
       await AsyncStorage.setItem('total', `${totalCost}`);
       await AsyncStorage.setItem('requestdata', JSON.stringify(requestData));
@@ -122,155 +126,111 @@ console.log('New document created with ID:', newDocId);
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <Header2 />
-      <Cmenu navigation={navigation} />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={type.h1}>Request a Househelp</Text>
+          <Text style={styles.sub}>Pick the chores you need done today.</Text>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Text style={styles.header}>Request a Househelp</Text>
+          <View style={styles.totalBox}>
+            <View>
+              <Text style={styles.totalLabel}>Total cost</Text>
+              <Text style={styles.totalValue}>{naira(totalCost)}</Text>
+            </View>
+            <View style={styles.countPill}>
+              <Text style={styles.countText}>{selectedChores.length} selected</Text>
+            </View>
+          </View>
 
-        <View style={styles.choreListContainer}>
-          <Text style={styles.totalCost}>Total Cost: ₦{totalCost}</Text>
+          <Card title="Chores" icon="list-outline">
+            {allChores.map((chore) => {
+              const on = selectedChores.some((item) => item.id === chore.id);
+              return (
+                <TouchableOpacity
+                  key={chore.id}
+                  activeOpacity={0.8}
+                  onPress={() => toggleChore(chore)}
+                  style={[styles.choreItem, on && styles.choreOn]}
+                  accessibilityState={{ selected: on }}
+                >
+                  <Ionicons
+                    name={on ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={24}
+                    color={on ? colors.primary : colors.border}
+                  />
+                  <Text style={styles.choreText}>{chore.chore}</Text>
+                  <Text style={[styles.chorePrice, on && { color: colors.primary }]}>{naira(chore.price)}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </Card>
 
-          {allChores.map((chore) => (
-            <Pressable
-              key={chore.id}
-              style={[
-                styles.choreItem,
-                selectedChores.some((item) => item.id === chore.id) && styles.selectedChore,
-              ]}
-              onPress={() => toggleChore(chore)}
-            >
-              <Text style={styles.choreText}>
-                {chore.chore} - ₦{chore.price}
-              </Text>
-            </Pressable>
-          ))}
+          <Card title="Add a custom chore" icon="add-circle-outline">
+            <Field label="Chore description" placeholder="Chore Description" value={customChore} onChangeText={setCustomChore} />
+            <Field
+              label="Price (₦)"
+              placeholder="Price (₦)"
+              keyboardType="numeric"
+              value={customPrice}
+              onChangeText={setCustomPrice}
+            />
+            <Button title="+ Add Chore" variant="secondary" onPress={handleAddCustomChore} />
+          </Card>
 
-          <Text style={styles.customHeader}>Add a Custom Chore</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Chore Description"
-            value={customChore}
-            onChangeText={setCustomChore}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Price (₦)"
-            keyboardType="numeric"
-            value={customPrice}
-            onChangeText={setCustomPrice}
-          />
-          <Pressable style={styles.addButton} onPress={handleAddCustomChore}>
-            <Text style={styles.submitButtonText}>+ Add Chore</Text>
-          </Pressable>
-
-          <Pressable 
-            style={[styles.submitButton, loading && styles.disabledButton]} 
-            onPress={handleSubmit} 
+          <Button
+            title={loading ? 'Submitting...' : 'Confirm Request'}
+            onPress={handleSubmit}
+            loading={loading}
             disabled={loading}
-          >
-            <Text style={styles.submitButtonText}>
-              {loading ? 'Submitting...' : 'Confirm Request'}
-            </Text>
-          </Pressable>
-        </View>
-      </ScrollView>
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
+      <Cmenu navigation={navigation} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f4f7f9',
-  },
-  scrollContainer: {
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110 },
+  sub: { color: colors.muted, marginTop: space.xs, marginBottom: space.lg },
+  totalBox: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 30,
+    justifyContent: 'space-between',
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    padding: space.lg,
+    marginBottom: space.lg,
   },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginVertical: 20,
+  totalLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
+  totalValue: { color: colors.white, fontSize: 28, fontWeight: '800' },
+  countPill: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
-  choreListContainer: {
-    width: '90%',
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-    marginBottom: 30,
-  },
-  totalCost: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#27ae60',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
+  countText: { color: colors.white, fontWeight: '600', fontSize: 12 },
   choreItem: {
-    backgroundColor: '#ecf0f1',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 10,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#d5dbdb',
+    gap: space.md,
+    minHeight: 52,
+    paddingHorizontal: space.md,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
   },
-  selectedChore: {
-    backgroundColor: '#27ae60',
-    borderColor: '#1e8449',
-  },
-  choreText: {
-    fontSize: 16,
-    color: '#2c3e50',
-    fontWeight: 'bold',
-  },
-  customHeader: {
-    fontSize: 18,
-    marginTop: 20,
-    marginBottom: 10,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    textAlign: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  addButton: {
-    backgroundColor: '#1abc9c',
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  submitButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 15,
-    borderRadius: 8,
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  disabledButton: {
-    backgroundColor: '#95a5a6',
-  },
-  submitButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
+  choreOn: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  choreText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
+  chorePrice: { fontSize: 14, fontWeight: '700', color: colors.muted },
 });
 
 export { MakeRequest };

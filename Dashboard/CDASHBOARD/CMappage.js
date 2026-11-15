@@ -1,96 +1,85 @@
 import React, { useEffect, useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  Animated,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Animated } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { db } from '../../pages/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import { useKeepAwake } from 'expo-keep-awake';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { db } from '../../pages/firebase';
 import { Header2 } from '../../component/Header';
 import { Cmenu } from '../../component/Menu';
-import { FontAwesome } from '@expo/vector-icons';
-import { useKeepAwake } from 'expo-keep-awake';
-import { use } from 'react';
+import { Button } from '../../component/ui';
+import { colors, space, radius, type, shadow } from '../../component/theme';
 
 const CMappage = ({ navigation }) => {
-  useKeepAwake(); // Keep the screen on while this component is active
+  useKeepAwake(); // keep the screen on while tracking
+  const insets = useSafeAreaInsets();
   const [location, setLocation] = useState(null);
   const [househelps, setHousehelps] = useState([]);
   const [requestData, setRequestData] = useState(null);
   const [selectedHelper, setSelectedHelper] = useState(null);
   const [loading, setLoading] = useState(true);
   const [jobId, setJobId] = useState(null);
+  const [problem, setProblem] = useState('');
   const bounceValue = useRef(new Animated.Value(1)).current;
 
-  // 1. Initial Data & Location Loading
+  // 1. Initial data and location
   useEffect(() => {
-    const initialize = async () => {
+    (async () => {
       try {
         setLoading(true);
-
         const request = await AsyncStorage.getItem('requestdata');
         const storedJobId = await AsyncStorage.getItem('jobId');
-
         if (!request) {
-          Alert.alert('Error', 'No request data found.');
+          setProblem('No request found. Make a request first, then open the map.');
           return;
         }
-
         const parsedRequest = JSON.parse(request);
         setRequestData(parsedRequest);
         setJobId(storedJobId || parsedRequest.id);
 
-        // Get Current Location
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission denied', 'Location access is required for the map.');
+          setProblem('Location access is required to show nearby househelps.');
           return;
         }
-
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
         setLocation(loc.coords);
 
-        // Fetch Househelps
-        const househelpSnapshot = await db.collection('househelps').get();
-        const helps = househelpSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setHousehelps(helps);
-
-      } catch (error) {
-        console.error('Initialization error:', error);
+        // Never keep other people's passwords; the selected househelp's record is later written
+        // into the job document, so the password must not be in it.
+        const snap = await db.collection('househelps').get();
+        setHousehelps(
+          snap.docs.map((d) => {
+            const { password, ...safe } = d.data();
+            return { id: d.id, ...safe };
+          })
+        );
+      } catch (e) {
+        setProblem('We could not load the map. Check your connection and try again.');
       } finally {
         setLoading(false);
       }
-    };
-
-    initialize();
+    })();
   }, []);
 
-  // 2. Real-time Job Listener
+  // 2. Live job updates (e.g. househelps accepting)
   useEffect(() => {
     if (!jobId) return;
-
     const unsubscribe = db
       .collection('partimeRequest')
       .doc(jobId)
-      .onSnapshot((docSnap) => {
-        if (docSnap.exists) {
-          setRequestData({ id: docSnap.id, ...docSnap.data() });
-        }
-      }, (err) => console.error("Snapshot error:", err));
-
+      .onSnapshot(
+        (snap) => {
+          if (snap.exists) setRequestData({ id: snap.id, ...snap.data() });
+        },
+        () => {}
+      );
     return () => unsubscribe();
   }, [jobId]);
 
-  // 3. Selection Animation
+  // 3. Pop animation when a househelp is selected
   useEffect(() => {
     if (selectedHelper) {
       Animated.sequence([
@@ -100,14 +89,12 @@ const CMappage = ({ navigation }) => {
     }
   }, [selectedHelper]);
 
-  // 4. Notification Logic
+  // 4. Notify househelps in the same LGA
   const handleSendPushNotification = async () => {
-    if (!requestData?.clientData) return 
-
+    if (!requestData?.clientData) return;
     try {
-      let i = 0;
-      for (let help of househelps) {
-        // Only notify those in the same LGA with a token
+      let sent = 0;
+      for (const help of househelps) {
         if (help.lga === requestData.clientData.lga && help.fcmtoken) {
           await fetch('https://househelp-app-h28t.vercel.app/sendNotificationToUser', {
             method: 'POST',
@@ -116,16 +103,16 @@ const CMappage = ({ navigation }) => {
               token: help.fcmtoken,
               title: `New Job in ${requestData.clientData.lga}`,
               jobId: requestData.id,
-              body: `Job: ${requestData.chores?.map(c => c.chore).join(', ')} \nPay: ₦${requestData.totalCost}
+              body: `Job: ${requestData.chores?.map((c) => c.chore).join(', ')} \nPay: ₦${requestData.totalCost}
              \n Client: Mr ${requestData.clientData.firstname} Apartment Size:${requestData.clientData.apartmentsize}`,
             }),
           });
-          i++;
-        } 
+          sent++;
+        }
       }
-      Alert.alert('Sent',  `${i} nearby househelps have been notified.`);
+      Alert.alert('Sent', `${sent} nearby househelps have been notified.`);
     } catch (e) {
-      console.error("Notification failed", e);
+      Alert.alert('Not sent', 'We could not notify nearby househelps. Try again.');
     }
   };
 
@@ -135,47 +122,53 @@ const CMappage = ({ navigation }) => {
 
   const handleConfirm = async () => {
     if (!selectedHelper || !requestData) return;
-
     try {
-
-     await AsyncStorage.setItem(jobId, JSON.stringify(requestData.id));
-
+      await AsyncStorage.setItem(jobId, JSON.stringify(requestData.id));
       await db.collection('partimeRequest').doc(requestData.id).update({
         househelpName: selectedHelper.househelpName,
         househelpId: selectedHelper.househelpId,
         househelpdata: selectedHelper.househelpdata,
         status: 'confirmed',
-
       });
-
-      console.log("Job confirmed with helper:", selectedHelper.househelpName);
-
-      await AsyncStorage.setItem('jobId', requestData.id); 
+      await AsyncStorage.setItem('jobId', requestData.id);
       await AsyncStorage.setItem('requestdata', JSON.stringify(requestData));
-      console.log(requestData.id);
-     navigation.navigate('arriving', { 
-        clientId: requestData.clientId, 
-        jobId: requestData.id 
-      });
+      navigation.navigate('arriving', { clientId: requestData.clientId, jobId: requestData.id });
     } catch (error) {
       Alert.alert('Error', 'Failed to confirm selection.');
     }
   };
-  // CRITICAL: Safety Check for Undefined Location
-  if (loading || !location || !location.latitude) {
+
+  if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#28a745" />
-        <Text style={{ marginTop: 10 }}>Setting up the map...</Text>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.centerText}>Setting up the map…</Text>
       </View>
     );
   }
 
-  return (
-    <View style={{ flex: 1 }}>
-      <Header2 />
-      <Cmenu navigation={navigation} />
+  // Previously this screen spun forever when location was denied or no request existed.
+  if (!location || !location.latitude) {
+    return (
+      <View style={styles.root}>
+        <Header2 />
+        <View style={styles.center}>
+          <Ionicons name="location-outline" size={42} color={colors.muted} />
+          <Text style={[styles.centerText, { textAlign: 'center', paddingHorizontal: space.xl }]}>
+            {problem || 'We could not get your location.'}
+          </Text>
+          <Button title="Back" variant="secondary" onPress={() => navigation.goBack()} style={{ marginTop: space.lg, alignSelf: 'stretch', marginHorizontal: space.xl }} />
+        </View>
+        <Cmenu navigation={navigation} />
+      </View>
+    );
+  }
 
+  const accepted = requestData?.acceptedHelpers || [];
+
+  return (
+    <View style={styles.root}>
+      <Header2 />
       <MapView
         provider={PROVIDER_GOOGLE}
         style={{ flex: 1 }}
@@ -186,113 +179,109 @@ const CMappage = ({ navigation }) => {
           longitudeDelta: 0.05,
         }}
       >
-        {/* User Marker */}
-        <Marker
-          coordinate={{ latitude: location.latitude, longitude: location.longitude }}
-          title="My Location"
-          pinColor="green"
-        />
+        <Marker coordinate={{ latitude: location.latitude, longitude: location.longitude }} title="My location" pinColor="green" />
 
-        {/* Househelp Markers */}
         {househelps.map((helper, index) => {
-          let helperLoc;
           try {
             if (!helper.location) return null;
-            helperLoc = typeof helper.location === 'string' ? JSON.parse(helper.location) : helper.location;
-            
-            // Check if coordinates exist within the helper object
-            if (!helperLoc?.latitude || !helperLoc?.longitude) return null;
-
-            const lat = parseFloat(helperLoc.latitude);
-            const lng = parseFloat(helperLoc.longitude);
+            const loc = typeof helper.location === 'string' ? JSON.parse(helper.location) : helper.location;
+            if (!loc?.latitude || !loc?.longitude) return null;
             const isSelected = selectedHelper?.househelpId === helper.id;
-
+            // The old marker showed 4 stars for everyone; stars now only appear for a real rating.
+            const rating = typeof helper.rating === 'number' ? helper.rating : null;
             return (
               <Marker
                 key={helper.id || index}
-                coordinate={{ latitude: lat, longitude: lng }}
+                coordinate={{ latitude: parseFloat(loc.latitude), longitude: parseFloat(loc.longitude) }}
                 title={helper.name}
-                onPress={() => setSelectedHelper({
-                    househelpId: helper.id,
-                    househelpName: helper.name,
-                    househelpdata: helper
-                })}
+                onPress={() =>
+                  setSelectedHelper({ househelpId: helper.id, househelpName: helper.name, househelpdata: helper })
+                }
               >
-                <Animated.View style={{
-                  transform: [{ scale: isSelected ? bounceValue : 1 }],
-                  alignItems: 'center'
-                }}>
-                  <View style={styles.markerContainer}>
-                    <FontAwesome name="user-circle" size={30} color={isSelected ? "#007bff" : "#555"} />
-                    <View style={{ flexDirection: 'row' }}>
-                      {[...Array(5)].map((_, i) => (
-                        <FontAwesome 
-                          key={i} 
-                          name={i < (helper.rating || 4) ? 'star' : 'star-o'} 
-                          size={10} 
-                          color="#f1c40f" 
-                        />
-                      ))}
-                    </View>
+                <Animated.View style={{ transform: [{ scale: isSelected ? bounceValue : 1 }], alignItems: 'center' }}>
+                  <View style={styles.marker}>
+                    <FontAwesome name="user-circle" size={30} color={isSelected ? colors.primary : '#555'} />
+                    {rating !== null ? (
+                      <View style={{ flexDirection: 'row' }}>
+                        {[...Array(5)].map((_, i) => (
+                          <FontAwesome key={i} name={i < Math.round(rating) ? 'star' : 'star-o'} size={10} color="#f1c40f" />
+                        ))}
+                      </View>
+                    ) : null}
                   </View>
                 </Animated.View>
               </Marker>
             );
-          } catch (e) { return null; }
+          } catch (e) {
+            return null;
+          }
         })}
       </MapView>
 
-      <View style={styles.bottomSheet}>
-        {requestData?.acceptedHelpers?.length > 0 && (
-          <View style={{ marginBottom: 10 }}>
-            <Text style={styles.sectionHeader}>Helpers who accepted:</Text>
-            {requestData.acceptedHelpers.map((helper, idx) => (
-              <TouchableOpacity
-                key={idx}
-                onPress={() => setSelectedHelper(helper)}
-                style={[
-                  styles.helperButton,
-                  selectedHelper?.househelpId === helper.househelpId && styles.selectedHelper
-                ]}
-              >
-                <Text style={[
-                  styles.helperText,
-                  selectedHelper?.househelpId === helper.househelpId && styles.selectedHelperText
-                ]}>{helper.househelpName}</Text>
-              </TouchableOpacity>
-            ))}
+      <View style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]}>
+        <View style={styles.handle} />
+        {accepted.length > 0 ? (
+          <View style={{ marginBottom: space.md }}>
+            <Text style={type.h2}>Househelps who accepted</Text>
+            {accepted.map((helper, idx) => {
+              const on = selectedHelper?.househelpId === helper.househelpId;
+              return (
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => setSelectedHelper(helper)}
+                  style={[styles.helperRow, on && styles.helperRowOn]}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name={on ? 'checkmark-circle' : 'person-circle-outline'} size={22} color={on ? colors.white : colors.primary} />
+                  <Text style={[styles.helperText, on && { color: colors.white }]}>{helper.househelpName}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
+        ) : (
+          <Text style={styles.hint}>
+            {selectedHelper ? `Selected: ${selectedHelper.househelpName}` : 'Tap a househelp on the map to select them.'}
+          </Text>
         )}
-
-        <TouchableOpacity
-          onPress={handleConfirm}
-          disabled={!selectedHelper}
-          style={[styles.confirmButton, !selectedHelper && { backgroundColor: '#ccc' }]}
-        >
-          <Text style={styles.confirmButtonText}>Confirm Selected Househelp</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={handleSendPushNotification} style={styles.alertButton}>
-          <Text style={styles.alertButtonText}>Alert Nearby Househelps</Text>
+        <Button title="Confirm selected househelp" onPress={handleConfirm} disabled={!selectedHelper} />
+        <TouchableOpacity onPress={handleSendPushNotification} style={styles.alertBtn}>
+          <Text style={styles.alertText}>Alert nearby househelps</Text>
         </TouchableOpacity>
       </View>
+
+      {/* The bottom sheet fills the bottom of this screen, so the menu button sits at the top. */}
+      <Cmenu navigation={navigation} fabStyle={{ top: insets.top + 76, right: 16 }} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  markerContainer: { alignItems: 'center', backgroundColor: 'white', padding: 5, borderRadius: 10, elevation: 3 },
-  bottomSheet: { padding: 15, backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-  sectionHeader: { fontSize: 16, fontWeight: 'bold', marginBottom: 5 },
-  helperButton: { backgroundColor: '#f0f0f0', padding: 12, borderRadius: 8, marginVertical: 4 },
-  selectedHelper: { backgroundColor: '#007bff' },
-  helperText: { fontSize: 15, color: '#333' },
-  selectedHelperText: { color: 'white', fontWeight: 'bold' },
-  confirmButton: { backgroundColor: '#28a745', padding: 15, borderRadius: 10, alignItems: 'center' },
-  confirmButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  alertButton: { padding: 15, alignItems: 'center', marginTop: 5 },
-  alertButtonText: { color: '#007bff', fontWeight: '600' },
+  root: { flex: 1, backgroundColor: colors.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  centerText: { color: colors.muted, marginTop: space.md },
+  marker: { alignItems: 'center', backgroundColor: colors.white, padding: 5, borderRadius: radius.md, elevation: 3 },
+  sheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: space.lg,
+    ...shadow,
+  },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: space.md },
+  hint: { color: colors.muted, textAlign: 'center', marginBottom: space.md },
+  helperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    padding: space.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    marginTop: space.sm,
+  },
+  helperRowOn: { backgroundColor: colors.primary },
+  helperText: { fontSize: 15, fontWeight: '600', color: colors.text },
+  alertBtn: { padding: space.md, alignItems: 'center', marginTop: space.xs },
+  alertText: { color: colors.primary, fontWeight: '700' },
 });
 
 export { CMappage };

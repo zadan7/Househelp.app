@@ -1,23 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  ActivityIndicator,
-} from 'react-native';
-// import { collection, getDocs } from 'firebase/firestore';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../pages/firebase';
 import { Hmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Picker } from '@react-native-picker/picker';
+import { Card, InfoRow } from '../../component/ui';
+import { colors, space, radius, type } from '../../component/theme';
+
+const TYPES = [
+  { value: 'fulltime', label: 'Full-time Jobs' },
+  { value: 'partime', label: 'Part-time Jobs' },
+];
+
+const statusStyle = (status) => {
+  const s = String(status || '').toLowerCase();
+  if (['rejected', 'declined', 'cancelled', 'canceled'].includes(s)) return { bg: colors.dangerSoft, fg: colors.danger };
+  if (['confirmed', 'accepted', 'completed', 'in-progress', 'hired'].includes(s)) return { bg: colors.primarySoft, fg: colors.primary };
+  return { bg: colors.accent, fg: colors.text };
+};
+
+const appliedBy = (job, househelp) =>
+  (job.acceptedHelpers || []).some(
+    (helper) => helper && (helper.id === househelp.id || helper.househelpId === househelp.id)
+  );
 
 const HappliedJobs = ({ navigation }) => {
-  const [jobs, setJobs] = useState([]);
-  const [selectedType, setSelectedType] = useState('');
+  // Fixed: the picker used to start on '' so nothing was listed until the user changed it.
+  const [selectedType, setSelectedType] = useState('fulltime');
   const [househelp, setHousehelp] = useState({});
   const [loading, setLoading] = useState(true);
   const [fulltimeJobs, setFulltimeJobs] = useState([]);
@@ -25,9 +35,14 @@ const HappliedJobs = ({ navigation }) => {
 
   useEffect(() => {
     const fetchHousehelpData = async () => {
-      const househelpData = await AsyncStorage.getItem('househelpdata');
-      const parsedHousehelp = JSON.parse(househelpData);
-      setHousehelp(parsedHousehelp);
+      try {
+        const househelpData = await AsyncStorage.getItem('househelpdata');
+        const parsedHousehelp = househelpData ? JSON.parse(househelpData) : null;
+        if (parsedHousehelp) setHousehelp(parsedHousehelp);
+        else setLoading(false);
+      } catch (e) {
+        setLoading(false);
+      }
     };
     fetchHousehelpData();
   }, []);
@@ -39,28 +54,12 @@ const HappliedJobs = ({ navigation }) => {
         const fulltimeSnapshot = await db.collection('fulltimeRequest').get();
         const partimeSnapshot = await db.collection('partimeRequest').get();
 
-        const fulltimeList = fulltimeSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const fulltimeList = fulltimeSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const partimeList = partimeSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-        const partimeList = partimeSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        const filteredFulltime = fulltimeList.filter(job =>
-          job.acceptedHelpers?.some(helper => helper.id === househelp.id)
-        );
-        console.log('Filtered Fulltime Jobs:', filteredFulltime[0]);
-
-        const filteredPartime = partimeList.filter(job =>
-          job.acceptedHelpers?.some(helper => helper.id === househelp.id)
-        );
-        console.log('Filtered Partime Jobs:', filteredPartime[0]);
-
-        setFulltimeJobs(filteredFulltime);
-        setPartimeJobs(filteredPartime);
+        setFulltimeJobs(fulltimeList.filter((job) => appliedBy(job, househelp)));
+        // Fixed: part-time applicants are stored with `househelpId`, not `id`, so none matched before.
+        setPartimeJobs(partimeList.filter((job) => appliedBy(job, househelp)));
       } catch (error) {
         console.error('Error fetching jobs:', error);
       } finally {
@@ -75,152 +74,96 @@ const HappliedJobs = ({ navigation }) => {
 
   const handlePickerChange = (value) => {
     setSelectedType(value);
-    if (value === 'fulltime') {
-      setJobs(fulltimeJobs);
-    } else if (value === 'partime') {
-      setJobs(partimeJobs);
-    } else {
-      setJobs([]);
-    }
   };
 
+  const jobs = selectedType === 'fulltime' ? fulltimeJobs : selectedType === 'partime' ? partimeJobs : [];
+
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <Header2 />
-      <Hmenu navigation={navigation} />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={type.h1}>Applied Jobs</Text>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Text style={styles.header}>Applied Jobs</Text>
-
-        <View style={styles.pickerContainer}>
-          <Text style={styles.pickerLabel}>Filter by Job Type:</Text>
-          <Picker
-            selectedValue={selectedType}
-            onValueChange={handlePickerChange}
-            style={styles.picker}
-            itemStyle={{ fontSize: 16 }}
-          >
-            <Picker.Item label="Full-time Jobs" value="fulltime" />
-            <Picker.Item label="Part-time Jobs" value="partime" />
-          </Picker>
+        <View style={styles.segment}>
+          {TYPES.map((t) => {
+            const on = selectedType === t.value;
+            return (
+              <TouchableOpacity
+                key={t.value}
+                onPress={() => handlePickerChange(t.value)}
+                style={[styles.segBtn, on && styles.segBtnOn]}
+                accessibilityState={{ selected: on }}
+              >
+                <Text style={[styles.segText, on && { color: colors.white }]}>{t.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 30 }} />
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: space.xxl }} />
         ) : jobs.length === 0 ? (
-          <Text style={styles.emptyText}>No applied jobs found in this category.</Text>
+          <View style={styles.emptyBox}>
+            <Ionicons name="document-text-outline" size={44} color={colors.muted} />
+            <Text style={styles.empty}>No applied jobs found in this category.</Text>
+          </View>
         ) : (
-          jobs.map((job) => (
-            <View key={job.id} style={styles.jobCard}>
-              <Image
-                source={{ uri: job.clientData?.facepicture }}
-                style={{ width: 60, height: 60, borderRadius: 30, marginBottom: 10 }}
-              />
-              <Text style={styles.jobTitle}>{job.requestType || 'Househelp Job'}</Text>
-              <Text style={styles.jobAmount}>₦{job.salary || job.totalCost || 'N/A'}</Text>
-              <Text style={styles.jobInfo}>📍 {job.clientData.state +" "+   job.clientData.lga +" "+ job.clientData.address || 'N/A'}</Text>
-              <Text style={styles.jobInfo}>🗓️ {job.date  || 'N/A'}</Text>
-              <Text style={styles.jobInfo}>⏰ {job.time || 'N/A'}</Text>
-              <Text style={styles.jobInfo}>👤 {job.clientData.firstname + ' ' + job.clientData.lastname || 'N/A'}</Text>
-              <Text style={styles.jobInfo}>📞 {job.clientData.phone || 'N/A'}</Text>
-              <Text style={styles.jobInfo}>✉️ {job.clientData.email || 'N/A'}</Text>
-              <TouchableOpacity
-                style={styles.acceptButton}
-             
-              >
-                <Text style={styles.acceptButtonText}>{job.status}</Text>
-              </TouchableOpacity>
-            </View>
-          ))
+          jobs.map((job) => {
+            const c = job.clientData || {};
+            const st = statusStyle(job.status);
+            const location = [c.state, c.lga, c.address].filter(Boolean).join(' ');
+            const clientName = [c.firstname, c.lastname].filter(Boolean).join(' ');
+            return (
+              <Card key={job.id} style={{ marginBottom: 0, marginTop: space.lg }}>
+                <View style={styles.topRow}>
+                  {c.facepicture ? (
+                    <Image source={{ uri: c.facepicture }} style={styles.avatar} />
+                  ) : (
+                    <View style={[styles.avatar, styles.avatarEmpty]}>
+                      <Ionicons name="person" size={26} color={colors.primary} />
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={type.h2} numberOfLines={1}>{job.requestType || 'Househelp Job'}</Text>
+                    <Text style={styles.price}>₦{job.salary || job.totalCost || 'N/A'}</Text>
+                  </View>
+                  <View style={[styles.pill, { backgroundColor: st.bg }]}>
+                    <Text style={[styles.pillText, { color: st.fg }]}>{job.status || 'pending'}</Text>
+                  </View>
+                </View>
+                <View>
+                  <InfoRow label="Location" value={location || 'N/A'} />
+                  <InfoRow label="Date" value={job.date || 'N/A'} />
+                  <InfoRow label="Time" value={job.time || 'N/A'} />
+                  <InfoRow label="Client" value={clientName || 'N/A'} />
+                  <InfoRow label="Phone" value={c.phone || 'N/A'} />
+                  <InfoRow label="Email" value={c.email || 'N/A'} last />
+                </View>
+              </Card>
+            );
+          })
         )}
       </ScrollView>
+      <Hmenu navigation={navigation} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fafafa',
-  },
-  scrollContainer: {
-    paddingHorizontal: 15,
-    paddingBottom: 30,
-  },
-  header: {
-    fontSize: 22,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#111',
-  },
-  pickerContainer: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 20,
-    elevation: 1,
-    shadowColor: '#ccc',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  pickerLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-    color: '#333',
-  },
-  picker: {
-    height: "auto",
-    width: '100%',
-  },
-  jobCard: {
-    backgroundColor: '#fff',
-    padding: 18,
-    borderRadius: 12,
-    marginBottom: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  jobTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 4,
-  },
-  jobAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#007bff',
-    marginBottom: 8,
-  },
-  jobInfo: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 4,
-  },
-  acceptButton: {
-    marginTop: 12,
-    backgroundColor: '#ccaa00',
-    paddingVertical: 10, 
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  acceptButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#888',
-    fontSize: 15,
-    marginTop: 30,
-  },
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110 },
+  segment: { flexDirection: 'row', backgroundColor: colors.white, borderRadius: radius.pill, padding: 4, marginTop: space.lg, borderWidth: 1, borderColor: colors.border },
+  segBtn: { flex: 1, minHeight: 44, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  segBtnOn: { backgroundColor: colors.primary },
+  segText: { fontWeight: '700', color: colors.text, fontSize: 14 },
+  emptyBox: { alignItems: 'center', marginTop: space.xxl, gap: space.sm },
+  empty: { color: colors.muted, textAlign: 'center' },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  avatar: { width: 56, height: 56, borderRadius: 28 },
+  avatarEmpty: { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  price: { color: colors.primary, fontWeight: '800', marginTop: 2 },
+  pill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill },
+  pillText: { fontSize: 12, fontWeight: '800', textTransform: 'capitalize' },
 });
 
 export { HappliedJobs };

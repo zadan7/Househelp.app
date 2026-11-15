@@ -1,20 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  ActivityIndicator,
-} from 'react-native';
-// import { collection, getDocs, updateDoc, doc, arrayUnion } from 'firebase/firestore';
+import { View, Text, FlatList, StyleSheet, Image, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../pages/firebase';
 import { Hmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import firestore from '@react-native-firebase/firestore';
 import Loader from '../../component/Loader';
+import { Button, InfoRow } from '../../component/ui';
+import { colors, space, radius, shadow, type } from '../../component/theme';
 
 const Hfulltime = ({ navigation }) => {
   const [jobs, setJobs] = useState([]);
@@ -24,76 +18,48 @@ const Hfulltime = ({ navigation }) => {
 
   useEffect(() => {
     const fetchHousehelpData = async () => {
-      const househelpData = await AsyncStorage.getItem('househelpdata');
-      const parsedHousehelp = JSON.parse(househelpData);
-      console.log('Househelp data: ', parsedHousehelp);
-      setHousehelp(parsedHousehelp);
+      try {
+        const househelpData = await AsyncStorage.getItem('househelpdata');
+        const parsedHousehelp = househelpData ? JSON.parse(househelpData) : null;
+        if (parsedHousehelp) {
+          setHousehelp(parsedHousehelp);
+          // Fixed: without an lga the job fetch never ran and the loader spun forever.
+          if (!parsedHousehelp.lga) setisLoading(false);
+        } else {
+          setisLoading(false);
+        }
+      } catch (e) {
+        setisLoading(false);
+      }
     };
     fetchHousehelpData();
   }, []);
-  const fetchFulltimeJobs = async () => {
+
+  // Single fetch routine (the screen used to carry two near-identical copies).
+  const fetchFulltimeJobs = async (helper = househelp) => {
     setisLoading(true);
     try {
       const querySnapshot = await db.collection('fulltimeRequest').get();
-      const jobList = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const jobList = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
       const filteredJobs = jobList.filter((job) => {
-        const alreadyApplied = job.acceptedHelpers?.some(
-          (helper) => helper.id === househelp.id
-        );
+        if (!helper || !helper.id) return true;
+        const acceptedHelpersArray = Array.isArray(job.acceptedHelpers) ? job.acceptedHelpers : [];
+        const alreadyApplied = acceptedHelpersArray.some((h) => h && h.id === helper.id);
         return !alreadyApplied;
       });
 
       setJobs(filteredJobs);
-      setisLoading(false);
     } catch (error) {
       console.error('Error fetching full-time jobs: ', error);
     } finally {
       setisLoading(false);
     }
   };
+
   useEffect(() => {
-    const fetchFulltimeJobs = async () => {
-      setisLoading(true);
-      try {
-        const querySnapshot = await db.collection('fulltimeRequest').get();
-        const jobList = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-    const filteredJobs = jobList.filter((job) => {
-  // 1. Defend against missing local data: If househelp or its ID isn't ready, don't crash
-  if (!househelp || !househelp.id) {
-    return true; // Keep the jobs listed until data resolves, or false to hide them
-  }
-
-  // 2. Defend against missing database array fields
-  const acceptedHelpersArray = Array.isArray(job.acceptedHelpers) ? job.acceptedHelpers : [];
-
-  const alreadyApplied = acceptedHelpersArray.some((helper) => {
-    // 3. Defend against corrupt, incomplete, or broken helper objects in the array
-    return helper && helper.id === househelp.id;
-  });
-
-  // Return the jobs they haven't applied to yet
-  return !alreadyApplied;
-});
-       
-
-        setJobs(filteredJobs);
-      } catch (error) {
-        console.error('Error fetching full-time jobs: ', error);
-      } finally {
-        setisLoading(false);
-      }
-    };
-
     if (househelp.lga) {
-      fetchFulltimeJobs();
+      fetchFulltimeJobs(househelp);
     }
   }, [househelp.lga]);
 
@@ -103,198 +69,116 @@ const Hfulltime = ({ navigation }) => {
     try {
       await db.collection('fulltimeRequest').doc(jobId).update({
         status: 'applied',
-        acceptedHelpers: firestore.FieldValue.arrayUnion(househelp) // Direct object, not nested
+        acceptedHelpers: firestore.FieldValue.arrayUnion(househelp),
       });
-      console.log('Job application submitted successfully!');
-      fetchFulltimeJobs(); // Refresh the job list after applying
+      fetchFulltimeJobs();
     } catch (error) {
       console.error('Error submitting job application: ', error);
+      setAppliedJobs((prevState) => prevState.filter((id) => id !== jobId));
+      Alert.alert('Error', 'Could not submit your application. Please try again.');
     }
   };
 
-  const renderJobCard = ({ item }) => (
-    <View style={styles.jobCard}>
-      <View style={styles.cardHeader}>
-        <View style={styles.headerItem}>
-          <Text style={styles.headerLabel}>Location</Text>
-          <Text style={styles.headerValue}>
-            {item.clientData.lga}, {item.clientData.state}
-          </Text>
+  const renderJobCard = ({ item }) => {
+    const c = item.clientData || {};
+    const applied = appliedJobs.includes(item.id);
+    const chores = Array.isArray(item.chores) ? item.chores.join(', ') : item.chores;
+    return (
+      <View style={styles.jobCard}>
+        <View style={styles.topRow}>
+          {c.facepicture ? (
+            <Image source={{ uri: c.facepicture }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarEmpty]}>
+              <Ionicons name="person" size={26} color={colors.primary} />
+            </View>
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={type.h2} numberOfLines={1}>{item.requestType}</Text>
+            <View style={styles.locRow}>
+              <Ionicons name="location-outline" size={14} color={colors.muted} />
+              <Text style={styles.meta} numberOfLines={1}>{[c.lga, c.state].filter(Boolean).join(', ')}</Text>
+            </View>
+          </View>
+          <View style={styles.pricePill}>
+            <Text style={styles.priceText}>₦{item.salary}</Text>
+          </View>
         </View>
-        <View style={styles.headerItem}>
-          <Text style={styles.headerLabel}>Salary</Text>
-          <Text style={styles.headerValue}>₦{item.salary}</Text>
-        </View>
-      </View>
 
-      <View style={styles.profileSection}>
-        <Image
-          source={{ uri: item.clientData.facepicture || 'https://via.placeholder.com/50' }}
-          style={styles.clientImage}
+        <View>
+          <InfoRow label="Apartment Size" value={c.apartmentsize} />
+          <InfoRow label="Description" value={item.description} />
+          <InfoRow label="Chores" value={chores} />
+          <InfoRow label="Number of Kids" value={item.kidsnum} />
+          <InfoRow label="Secondary Provision" value={item.secondaryProvision} />
+          <InfoRow label="Address" value={c.address} last={!item.closingTime} />
+          {item.closingTime ? (
+            <>
+              <InfoRow label="Resumption Time" value={item.resuptionTime} />
+              <InfoRow label="Closing Time" value={item.closingTime} last />
+            </>
+          ) : null}
+        </View>
+
+        <Button
+          title={applied ? 'Applied' : 'Apply'}
+          onPress={() => applyJob(item.id)}
+          disabled={applied}
         />
-        <Text style={styles.jobType}>{item.requestType}</Text>
       </View>
-
-      <View style={styles.detailSection}>
-        <Text style={styles.jobLabel}>Apartment Size:</Text>
-        <Text style={styles.jobValue}>{item.clientData.apartmentsize}</Text>
-
-        <Text style={styles.jobLabel}>Description:</Text>
-        <Text style={styles.jobValue}>{item.description}</Text>
-
-        <Text style={styles.jobLabel}>Chores:</Text>
-        <Text style={styles.jobValue}>{item.chores.join(', ')}</Text>
-
-        <Text style={styles.jobLabel}>Number of Kids:</Text>
-        <Text style={styles.jobValue}>{item.kidsnum}</Text>
-
-        <Text style={styles.jobLabel}>Secondary Provision:</Text>
-        <Text style={styles.jobValue}>{item.secondaryProvision}</Text>
-
-        <Text style={styles.jobLabel}>Address:</Text>
-        <Text style={styles.jobValue}>{item.clientData.address}</Text>
-
-        {item.closingTime !== "" && (
-  <View>
-    <Text style={styles.jobLabel}>Resumption Time: {item.resuptionTime}</Text>
-    <Text style={styles.jobLabel}>Closing Time: {item.closingTime}</Text>
-  </View>
-)}
-
-
-
-
-        <Text style={styles.jobValue}>{item.clientData.address}</Text>
-      </View>
-
-      <TouchableOpacity
-        style={styles.acceptButton}
-        onPress={() => applyJob(item.id)}
-        disabled={appliedJobs.includes(item.id)}
-      >
-        <Text style={styles.acceptButtonText}>
-          {appliedJobs.includes(item.id) ? 'Applied' : 'Apply'}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   if (isloading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.root}>
         <Loader />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <Header2 />
+      <FlatList
+        contentContainerStyle={styles.content}
+        data={jobs}
+        renderItem={renderJobCard}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          jobs.length > 0 ? (
+            <View style={{ marginBottom: space.lg }}>
+              <Text style={type.h1}>Available Full-time Jobs</Text>
+              <Text style={styles.meta}>Apply to live-in and live-out roles.</Text>
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyBox}>
+            <Ionicons name="briefcase-outline" size={44} color={colors.muted} />
+            <Text style={styles.empty}>No Available Full-time Jobs Yet</Text>
+          </View>
+        }
+      />
       <Hmenu navigation={navigation} />
-      {jobs.length > 0 && (
-  <Text style={styles.header}>Available Full-time Jobs</Text>
-)}
-
-<FlatList
-  contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
-  data={jobs}
-  renderItem={renderJobCard}
-  keyExtractor={(item) => item.id}
-  ListEmptyComponent={
-    <Text style={styles.header}>No Available Full-time Jobs Yet</Text>
-  }
-/>
-
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#343a40',
-  },
-  jobCard: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
-    marginHorizontal: 15,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  headerItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerLabel: {
-    fontSize: 14,
-    color: '#6c757d',
-  },
-  headerValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#343a40',
-  },
-  profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  clientImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 10,
-  },
-  jobType: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#28a745',
-  },
-  detailSection: {
-    marginTop: 10,
-  },
-  jobLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#555',
-  },
-  jobValue: {
-    fontSize: 15,
-    color: '#444',
-    marginBottom: 8,
-  },
-  acceptButton: {
-    backgroundColor: '#28a745',
-    padding: 12,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  acceptButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110, flexGrow: 1 },
+  jobCard: { backgroundColor: colors.card, borderRadius: radius.lg, padding: space.lg, marginBottom: space.lg, gap: space.md, ...shadow },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  avatar: { width: 56, height: 56, borderRadius: 28 },
+  avatarEmpty: { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  meta: { color: colors.muted, fontSize: 13, flexShrink: 1 },
+  pricePill: { backgroundColor: colors.primarySoft, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
+  priceText: { color: colors.primary, fontWeight: '800', fontSize: 14 },
+  emptyBox: { alignItems: 'center', marginTop: space.xxl, gap: space.sm },
+  empty: { color: colors.muted, textAlign: 'center' },
 });
 
 export { Hfulltime };

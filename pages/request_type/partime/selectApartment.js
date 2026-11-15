@@ -1,129 +1,56 @@
-import * as React from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
-// import { Header } from '../../../component/Header';
-import { Header } from '../../../component/Header';
-import { Footer } from '../../../component/Footer';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useState } from 'react';
+import { Screen, ScreenHeader } from '../../../component/ui';
+import { colors, space, radius, shadow } from '../../../component/theme';
+
+const APARTMENTS = [
+  'One bedroom flat',
+  'Two bedroom flat',
+  'Three bedroom flat',
+  'Three bedroom duplex',
+  'Four bedroom flat',
+  'Five bedroom duplex',
+];
 
 function SelectApartment({ navigation }) {
-  // State to track which button is selected
-  const [selectedButton, setSelectedButton] = useState(null);
-  const [selectedApartment, setselectedApartment] = useState("");
-
-
-  // Style for active and inactive buttons
-  const activeButtonStyle = {
-    backgroundColor: 'white',
-    color: 'green',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    fontSize: 15,
-    textAlign: 'center',
-    borderRadius: 5,
-    borderColor:"green",
-    borderWidth:1,
+  const choose = async (apartment) => {
+    try {
+      await AsyncStorage.setItem('apartmenttype', apartment);
+    } catch (e) {}
+    navigation.navigate('selectchores');
   };
-
-  const inactiveButtonStyle = {
-    backgroundColor: 'green',
-    color: 'white',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    fontSize: 15,
-    textAlign: 'center',
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: 'green',
-  };
-
-  // Function to check which button is clicked and toggle styles
-  function toggleButton(buttonIndex,selectedApartment) {
-    console.log(selectedApartment)
-    setselectedApartment(selectedApartment)
-    setSelectedButton(buttonIndex);
-    async function storeApartment() {
-      await AsyncStorage.setItem("apartmenttype",selectedApartment)
-      
-    }
-    storeApartment()
-    navigation.navigate("selectchores")
-  }
 
   return (
-    <ScrollView>
-      <View style={styles.container}>
-        <Header navigation={navigation} />
-
-      <Text style={{color:"green",fontWeight:"bold"}}>Select Apartment type</Text>
-
-        <View style={styles.buttonContainer}>
-          <Pressable style={styles.Pressable} onPress={() => toggleButton(1,"One bedroom flat")}>
-            <Text style={selectedButton === 1 ? activeButtonStyle : inactiveButtonStyle}>One bedroom flat</Text>
-          </Pressable>
-
-          <Pressable style={styles.Pressable} onPress={() => toggleButton(2,"Two bedroom flat")}>
-            <Text style={selectedButton === 2 ? activeButtonStyle : inactiveButtonStyle}>Two bedroom flat</Text>
-          </Pressable>
-
-          <Pressable style={styles.Pressable} onPress={() => toggleButton(3,"Three bedroom flat")}>
-            <Text style={selectedButton === 3 ? activeButtonStyle : inactiveButtonStyle}>Three bedroom flat</Text>
-          </Pressable>
-
-          <Pressable style={styles.Pressable} onPress={() => toggleButton(4,"Three bedroom duplex")}>
-            <Text style={selectedButton === 4 ? activeButtonStyle : inactiveButtonStyle}>Three bedroom duplex</Text>
-          </Pressable>
-
-          <Pressable style={styles.Pressable} onPress={() => toggleButton(5,"Four bedroom flat")}>
-            <Text style={selectedButton === 5 ? activeButtonStyle : inactiveButtonStyle}>Four bedroom flat</Text>
-          </Pressable>
-
-          <Pressable style={styles.Pressable} onPress={() => toggleButton(6,"Five bedroom duplex")}>
-            <Text style={selectedButton === 6 ? activeButtonStyle : inactiveButtonStyle}>Five bedroom duplex</Text>
-          </Pressable>
-
-         
-        </View>
-
-        <Footer />
-      </View>
-    </ScrollView>
+    <Screen>
+      <ScreenHeader
+        title="Apartment type"
+        subtitle="Tell us the size of your home."
+        onBack={() => navigation.goBack()}
+        step={1}
+        totalSteps={2}
+      />
+      {APARTMENTS.map((a) => (
+        <TouchableOpacity key={a} style={styles.row} activeOpacity={0.85} onPress={() => choose(a)}>
+          <View style={styles.icon}>
+            <Ionicons name="business-outline" size={22} color={colors.primary} />
+          </View>
+          <Text style={styles.label}>{a}</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+        </TouchableOpacity>
+      ))}
+    </Screen>
   );
 }
 
-
-
-
-
-const SelectChorespage=({navigation})=>{
-  
-
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    // height: 800,
-    fontFamily: 'Roboto',
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.white,
+    borderRadius: radius.lg, padding: space.md, marginBottom: space.sm, ...shadow,
   },
-  buttonContainer: {
-    width: '80%',
-    alignItems: 'center',
-    marginTop: 20,
-    borderWidth: 2,
-    borderColor: 'green',
-    borderRadius: 10,
-    padding: 20,
-  },
-  Pressable: {
-    marginBottom: 20,
-    marginTop: 20,
-    width: '100%',
-    borderRadius: 20,
-  },
+  icon: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  label: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
 });
 
 export { SelectApartment };

@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../pages/firebase';
 import { Cmenu } from '../../component/Menu';
 import { Header2 } from '../../component/Header';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Loader from '../../component/Loader';
+import { Card, InfoRow, Button, StatusPill } from '../../component/ui';
+import { colors, space, radius, type } from '../../component/theme';
+
+const naira = (n) => `₦${Number(n || 0).toLocaleString()}`;
 
 const Arriving = ({ navigation, route }) => {
   const { jobId } = route.params || {};
@@ -14,57 +19,37 @@ const Arriving = ({ navigation, route }) => {
 
   useEffect(() => {
     let unsubscribe = null;
-
-    const getRequestData = async () => {
+    (async () => {
       try {
-        const rawRequestData = await AsyncStorage.getItem('requestdata');
-        console.log("Raw AsyncStorage string retrieved:", rawRequestData);
-
-        if (rawRequestData) {
-          const parsedRequestData = JSON.parse(rawRequestData);
-          
-          // Fallback tracking to find the right ID from routing context or parsed keys
-          const activeId = parsedRequestData.id ;
-
-          if (!activeId) {
-            console.warn("Could not isolate a valid document reference hash ID.");
-            setJobs([parsedRequestData]);
-            setLoading(false);
-            return;
-          }
-
-          // Real-time synchronization loop to listen for 'confirmed' updates automatically
-          unsubscribe = db.collection('partimeRequest').doc(activeId).onSnapshot(
-            (docSnap) => {
-              if (docSnap.exists) {
-                const updatedJob = { id: docSnap.id, ...docSnap.data() };
-                setJobs([updatedJob]);
-              } else {
-                // If it doesn't exist on the server yet, fall back onto disk state records safely
-                setJobs([{ id: activeId, ...parsedRequestData }]);
-              }
-              setLoading(false);
-              setRefreshing(false);
-            },
-            (error) => {
-              console.error("Live track link stream failure:", error);
-              setLoading(false);
-              setRefreshing(false);
-            }
-          );
-        } else {
-          console.log("No previous requestdata payload layout found in storage.");
+        const raw = await AsyncStorage.getItem('requestdata');
+        if (!raw) {
           setLoading(false);
+          return;
         }
-      } catch (error) {
-        console.error("Failed to read arriving payload layout metrics:", error);
+        const parsed = JSON.parse(raw);
+        const activeId = parsed.id;
+        if (!activeId) {
+          setJobs([parsed]);
+          setLoading(false);
+          return;
+        }
+        // Live updates, so the screen flips to "confirmed" as soon as a househelp accepts.
+        unsubscribe = db.collection('partimeRequest').doc(activeId).onSnapshot(
+          (snap) => {
+            if (snap.exists) setJobs([{ id: snap.id, ...snap.data() }]);
+            else setJobs([{ id: activeId, ...parsed }]);
+            setLoading(false);
+            setRefreshing(false);
+          },
+          () => {
+            setLoading(false);
+            setRefreshing(false);
+          }
+        );
+      } catch (e) {
         setLoading(false);
       }
-    };
-
-    getRequestData();
-
-    // Kill active stream queries safely when backing out of the view layout
+    })();
     return () => {
       if (unsubscribe) unsubscribe();
     };
@@ -72,22 +57,35 @@ const Arriving = ({ navigation, route }) => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    // Triggering structural reload safely clears stale render elements
     if (jobs[0]?.id) {
-      db.collection('partimeRequest').doc(jobs[0].id).get().then((docSnap) => {
-        if (docSnap.exists) {
-          setJobs([{ id: docSnap.id, ...docSnap.data() }]);
-        }
-        setRefreshing(false);
-      }).catch(() => setRefreshing(false));
+      db.collection('partimeRequest')
+        .doc(jobs[0].id)
+        .get()
+        .then((snap) => {
+          if (snap.exists) setJobs([{ id: snap.id, ...snap.data() }]);
+          setRefreshing(false);
+        })
+        .catch(() => setRefreshing(false));
     } else {
       setRefreshing(false);
     }
   };
 
+  const handleStartJob = async (targetId, job) => {
+    try {
+      const updatedData = { status: 'in-progress', startedAt: new Date() };
+      setJobs((prev) => prev.map((j) => (j.id === targetId ? { ...j, ...updatedData } : j)));
+      await db.collection('partimeRequest').doc(targetId).update(updatedData);
+      Alert.alert('Success', 'Job started successfully!');
+      navigation.navigate('cstartjob', { job });
+    } catch (err) {
+      Alert.alert('Error', 'Could not update the job. Try again.');
+    }
+  };
+
   const confirmStartJob = (targetId, job) => {
     Alert.alert(
-      'Confirm Arrival',
+      'Confirm arrival',
       'Has the househelp arrived at the location?',
       [
         { text: 'No, not yet', style: 'cancel' },
@@ -97,122 +95,113 @@ const Arriving = ({ navigation, route }) => {
     );
   };
 
-  const handleStartJob = async (targetId, job) => {
-    try {
-      const updatedData = {
-        status: 'in-progress',
-        startedAt: new Date(),
-      };
-
-      // Optimistic locally managed UI state update
-      setJobs(prev =>
-        prev.map(j => (j.id === targetId ? { ...j, ...updatedData } : j))
-      );
-
-      await db.collection('partimeRequest').doc(targetId).update(updatedData);
-      Alert.alert("Success", "Job started successfully!");
-      navigation.navigate("cstartjob",{job: job}); 
-    } catch (err) {
-      console.error('Failed to start job:', err);
-      Alert.alert("Error", "Could not update server tracker. Try again.");
-    }
-  };
-
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <Header2 />
-      <Cmenu navigation={navigation} />
-
       {loading ? (
-        <View style={styles.loaderContainer}>
+        <View style={styles.loader}>
           <Loader />
-          <Text style={styles.loaderText}>Loading current appointment info...</Text>
+          <Text style={styles.loaderText}>Loading your appointment…</Text>
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={styles.scrollView}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#28a745']} />}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
         >
-          <Text style={styles.header}>Awaiting Househelp's Arrival</Text>
+          <Text style={type.h1}>Househelp arrival</Text>
+          <Text style={styles.sub}>Pull down to refresh the latest status.</Text>
 
           {jobs.length === 0 || !jobs[0] ? (
-            <Text style={styles.noJobText}>No active or confirmed bookings listed right now.</Text>
+            <View style={styles.empty}>
+              <Ionicons name="navigate-outline" size={34} color={colors.muted} />
+              <Text style={styles.emptyText}>No active or confirmed bookings right now.</Text>
+            </View>
           ) : (
-            jobs.map(job => (
-              <View key={job.id || 'fallback-key'} style={styles.jobCard}>
-                <Text style={styles.jobTitle}>Househelp: {job.househelpName || 'Assigned Help'}</Text>
-                <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Job ID:</Text> {job.id}</Text>
-                <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Client:</Text> {job.clientName}</Text>
-                <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Phone:</Text> {job.phone}</Text>
-                <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Type:</Text> {job.requestType} ({job.apartmentType})</Text>
-                <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Address:</Text> {job.address}</Text>
-                <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Status:</Text> {job.status}</Text>
-                <Text style={styles.jobInfo}><Text style={styles.boldLabel}>Total Cost:</Text> ₦{Number(job.totalCost || 0).toLocaleString()}</Text>
+            jobs.map((job) => (
+              <View key={job.id || 'fallback-key'} style={{ marginTop: space.lg }}>
+                <Card>
+                  <View style={styles.titleRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.jobTitle}>{job.househelpName || 'Assigned househelp'}</Text>
+                      <Text style={styles.muted}>Job {job.id}</Text>
+                    </View>
+                    <StatusPill status={job.status} />
+                  </View>
+                  <InfoRow label="Client" value={job.clientName} />
+                  <InfoRow label="Phone" value={job.phone} />
+                  <InfoRow label="Type" value={[job.requestType, job.apartmentType && `(${job.apartmentType})`].filter(Boolean).join(' ')} />
+                  <InfoRow label="Address" value={job.address} />
+                  <InfoRow label="Total cost" value={naira(job.totalCost)} last />
+                </Card>
 
-                <Text style={styles.sectionTitle}>Chores Breakdown:</Text>
-                {job.chores && job.chores.map((chore, index) => (
-                  <Text key={index} style={styles.choreItem}>
-                    • {chore.chore} — ₦{Number(chore.price || 0).toLocaleString()}
-                  </Text>
-                ))}
+                {job.chores && job.chores.length ? (
+                  <Card title="Chores" icon="list-outline">
+                    {job.chores.map((c, i) => (
+                      <InfoRow key={i} label={c.chore} value={naira(c.price)} last={i === job.chores.length - 1} />
+                    ))}
+                  </Card>
+                ) : null}
 
-                {job.househelpdata && (
-                  <>
-                    <Text style={styles.sectionTitle}>Househelp Profile:</Text>
+                {job.househelpdata ? (
+                  <Card title="Your househelp" icon="person-outline">
                     <View style={styles.profileRow}>
-                      {job.househelpdata.url && (
-                        <Image source={{ uri: job.househelpdata.url }} style={styles.profileImage} />
+                      {job.househelpdata.url ? (
+                        <Image source={{ uri: job.househelpdata.url }} style={styles.avatar} />
+                      ) : (
+                        <View style={[styles.avatar, { backgroundColor: colors.primarySoft }]} />
                       )}
-                      <View style={styles.profileDetails}>
-                        <Text style={styles.profileText}>📞 {job.househelpdata.phonenumber}</Text>
-                        <Text style={styles.profileText}>⭐ Exp: {job.househelpdata.experience} Years</Text>
-                        <Text style={styles.profileText}>👤 Gender: {job.househelpdata.gender}</Text>
+                      <View style={{ flex: 1 }}>
+                        <InfoRow label="Phone" value={job.househelpdata.phonenumber} />
+                        <InfoRow label="Experience" value={job.househelpdata.experience ? `${job.househelpdata.experience} years` : null} />
+                        <InfoRow label="Gender" value={job.househelpdata.gender} last />
                       </View>
                     </View>
-                  </>
-                )}
+                  </Card>
+                ) : null}
 
-                {/* The Conditional Elements Will Evaluate Smoothly Now */}
-                {job.status === 'confirmed' && (
-                  <TouchableOpacity onPress={() => confirmStartJob(job.id, job)} style={styles.startButton}>
-                    <Text style={styles.startButtonText}>Confirm Arrival & Start</Text>
-                  </TouchableOpacity>
-                )}
-                {job.status === 'in-progress' && (
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.inProgress}>⚡ Job in Progress</Text>
+                {job.status === 'confirmed' ? (
+                  <Button title="Confirm arrival and start" onPress={() => confirmStartJob(job.id, job)} />
+                ) : null}
+                {job.status === 'in-progress' ? (
+                  <View style={styles.progress}>
+                    <Ionicons name="flash" size={18} color={colors.primary} />
+                    <Text style={styles.progressText}>Job in progress</Text>
                   </View>
-                )}
+                ) : null}
               </View>
             ))
           )}
         </ScrollView>
       )}
+      <Cmenu navigation={navigation} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  scrollView: { paddingBottom: 40 },
-  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 50 },
-  loaderText: { marginTop: 10, color: '#6c757d', fontSize: 14 },
-  header: { fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginVertical: 20, color: '#343a40' },
-  noJobText: { textAlign: 'center', fontSize: 15, color: '#777', marginTop: 40, paddingHorizontal: 30 },
-  jobCard: { backgroundColor: '#fff', padding: 20, borderRadius: 12, marginHorizontal: 15, marginBottom: 15, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4 },
-  jobTitle: { fontSize: 18, fontWeight: 'bold', color: '#28a745', marginBottom: 12 },
-  jobInfo: { fontSize: 15, color: '#495057', marginBottom: 6 },
-  boldLabel: { fontWeight: '600', color: '#212529' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 15, marginBottom: 6, color: '#333', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#eee', paddingTop: 10 },
-  choreItem: { fontSize: 14, color: '#555', marginLeft: 8, marginBottom: 4 },
-  profileRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  profileImage: { width: 70, height: 70, borderRadius: 35, marginRight: 15, backgroundColor: '#eee' },
-  profileDetails: { flex: 1, gap: 3 },
-  profileText: { fontSize: 14, color: '#495057' },
-  startButton: { backgroundColor: '#28a745', padding: 14, borderRadius: 8, marginTop: 18, alignItems: 'center' },
-  startButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  statusBadge: { backgroundColor: '#fff3cd', padding: 12, borderRadius: 6, marginTop: 15, alignItems: 'center', borderWidth: 1, borderColor: '#ffeeba' },
-  inProgress: { color: '#856404', fontWeight: '700', fontSize: 15 }
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: space.lg, paddingBottom: 110 },
+  sub: { color: colors.muted, marginTop: 2 },
+  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loaderText: { color: colors.muted, marginTop: space.lg },
+  empty: { alignItems: 'center', padding: space.xl, gap: space.sm },
+  emptyText: { color: colors.muted, textAlign: 'center' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  jobTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
+  muted: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  avatar: { width: 64, height: 64, borderRadius: 32 },
+  progress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    padding: space.lg,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+  },
+  progressText: { color: colors.primary, fontWeight: '800' },
 });
 
 export { Arriving };
