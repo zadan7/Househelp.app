@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, ScreenHeader } from '../component/ui';
 import { colors, space, radius, type, shadow } from '../component/theme';
+import { Footer } from '../component/Footer';
 
 const ROLES = [
   { route: 'CSignup', icon: 'home-outline', title: 'I need a househelp', text: 'Sign up as a client to request and manage househelps.' },
@@ -30,6 +31,7 @@ function Signup({ navigation }) {
           Already have an account? <Text style={styles.link}>Log in</Text>
         </Text>
       </TouchableOpacity>
+      <Footer />
     </Screen>
   );
 }

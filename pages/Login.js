@@ -7,6 +7,8 @@ import { colors, space, radius, type, shadow } from '../component/theme';
 import { db } from './firebase';
 import { registerForPushNotificationsAsync, registerForFcmToken } from '../services/notifications';
 import logo from '../assets/Househelp.png';
+// import Footer from '../component/Footer';
+import { Footer } from '../component/Footer';
 
 // Looks up accounts for ONE email instead of downloading every user in the database.
 // Firestore cannot search case-insensitively, so this tries the email as typed, lowercased,
@@ -157,6 +159,9 @@ function Login({ navigation }) {
           New to Househelp? <Text style={styles.link}>Create an account</Text>
         </Text>
       </TouchableOpacity>
+
+      
+      <Footer/>
     </Screen>
   );
 }

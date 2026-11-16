@@ -4,7 +4,9 @@ import { colors, space } from './theme';
 
 const Footer = () => (
   <View style={styles.container}>
-    <Text style={styles.text}>© {new Date().getFullYear()} Househelp.ng. All rights reserved.</Text>
+    {/* <Text style={styles.text}>© {new Date().getFullYear()} Owned by Zextras Househelp Services </Text> */}
+    <Text style={[styles.text, { textAlign: 'center' }]}>© {new Date().getFullYear()} Owned by Zextras Househelp Services All rights reserved.</Text>
+
   </View>
 );
 
